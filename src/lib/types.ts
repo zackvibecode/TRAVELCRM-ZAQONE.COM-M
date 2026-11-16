@@ -26,6 +26,7 @@ export interface TravelPackage {
   childPrice: number;
   infantPrice: number;
   inclusions: string[];
+  status?: "active" | "archived";
 }
 
 export interface Departure {

@@ -1,5 +1,13 @@
 import { useMemo, useState } from "react";
-import { Package, Search, MapPin, Clock } from "lucide-react";
+import {
+  Package,
+  Search,
+  MapPin,
+  Clock,
+  Copy,
+  Archive,
+  ArchiveRestore,
+} from "lucide-react";
 import { mockPackages } from "@/lib/mock-data";
 import type { TravelPackage } from "@/lib/types";
 import { cn, formatCurrency } from "@/lib/utils";
@@ -19,6 +27,9 @@ const DESTINATIONS = Array.from(
 ).sort();
 
 export default function PackageCatalog() {
+  const [allPackages, setAllPackages] = useState<TravelPackage[]>(
+    () => mockPackages.map((p) => ({ ...p, status: "active" })),
+  );
   const [search, setSearch] = useState("");
   const [destination, setDestination] = useState<string>("all");
   const [maxDuration, setMaxDuration] = useState<number>(0);
@@ -26,7 +37,7 @@ export default function PackageCatalog() {
   const [editing, setEditing] = useState<TravelPackage | null>(null);
 
   const packages = useMemo(() => {
-    return mockPackages.filter((p) => {
+    return allPackages.filter((p) => {
       if (search) {
         const q = search.toLowerCase();
         if (
@@ -43,7 +54,29 @@ export default function PackageCatalog() {
       if (maxDuration > 0 && p.durationDays > maxDuration) return false;
       return true;
     });
-  }, [search, destination, maxDuration]);
+  }, [allPackages, search, destination, maxDuration]);
+
+  function duplicate(pkg: TravelPackage) {
+    const copy: TravelPackage = {
+      ...pkg,
+      id: `${pkg.id}-copy-${Date.now()}`,
+      name: `${pkg.name} (Copy)`,
+    };
+    setAllPackages((prev) => [copy, ...prev]);
+  }
+
+  function toggleArchive(pkg: TravelPackage) {
+    setAllPackages((prev) =>
+      prev.map((p) =>
+        p.id === pkg.id
+          ? {
+              ...p,
+              status: p.status === "archived" ? "active" : "archived",
+            }
+          : p,
+      ),
+    );
+  }
 
   return (
     <div className="space-y-6">
@@ -135,17 +168,19 @@ export default function PackageCatalog() {
           {packages.map((p) => (
             <Card
               key={p.id}
-              className="flex cursor-pointer flex-col transition-shadow hover:shadow-md"
-              onClick={() => {
-                setEditing(p);
-                setFormOpen(true);
-              }}
+              className={cn(
+                "flex flex-col transition-shadow hover:shadow-md",
+                p.status === "archived" && "opacity-60",
+              )}
             >
               <CardHeader className="pb-2">
                 <div className="flex items-start justify-between gap-2">
                   <CardTitle className="text-base font-semibold">
                     {p.name}
                   </CardTitle>
+                  {p.status === "archived" && (
+                    <Badge variant="outline">Archived</Badge>
+                  )}
                 </div>
                 <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
                   <MapPin className="h-3.5 w-3.5" />
@@ -178,6 +213,42 @@ export default function PackageCatalog() {
                     </Badge>
                   )}
                 </div>
+
+                {/* Actions */}
+                <div className="mt-auto flex gap-2 border-t pt-3">
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    className="flex-1"
+                    onClick={() => {
+                      setEditing(p);
+                      setFormOpen(true);
+                    }}
+                  >
+                    Edit
+                  </Button>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    className="flex-1"
+                    onClick={() => duplicate(p)}
+                  >
+                    <Copy className="h-3.5 w-3.5" />
+                    Duplicate
+                  </Button>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => toggleArchive(p)}
+                    title={p.status === "archived" ? "Restore" : "Archive"}
+                  >
+                    {p.status === "archived" ? (
+                      <ArchiveRestore className="h-3.5 w-3.5" />
+                    ) : (
+                      <Archive className="h-3.5 w-3.5" />
+                    )}
+                  </Button>
+                </div>
               </CardContent>
             </Card>
           ))}
@@ -189,8 +260,16 @@ export default function PackageCatalog() {
         onOpenChange={setFormOpen}
         existing={editing}
         onSubmit={(values) => {
-          // Frontend mock: no persistence yet. Backend CRUD arrives in a later phase.
-          console.log("Package form submitted:", values);
+          if (editing) {
+            setAllPackages((prev) =>
+              prev.map((p) => (p.id === editing.id ? { ...p, ...values } : p)),
+            );
+          } else {
+            setAllPackages((prev) => [
+              { ...values, id: `pk-${Date.now()}`, status: "active" },
+              ...prev,
+            ]);
+          }
         }}
       />
     </div>
