@@ -9,6 +9,7 @@ import documentsRouter from "./routes/documents";
 import suppliersRouter from "./routes/suppliers";
 import packagesRouter from "./routes/packages";
 import leadsRouter from "./routes/leads";
+import customersRouter from "./routes/customers";
 import { releaseExpiredHolds } from "./lib/seat-availability";
 
 export type Env = {
@@ -51,6 +52,7 @@ app.route("/", documentsRouter);
 app.route("/", suppliersRouter);
 app.route("/", packagesRouter);
 app.route("/leads", leadsRouter);
+app.route("/customers", customersRouter);
 
 export default app;
 
