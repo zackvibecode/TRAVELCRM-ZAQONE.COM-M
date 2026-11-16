@@ -202,6 +202,65 @@ export type PackagePricingRow = typeof packagePricing.$inferSelect;
 export type NewPackagePricingRow = typeof packagePricing.$inferInsert;
 
 // ---------------------------------------------------------------------------
+// Package itinerary (structured day-by-day) and media gallery (images/PDFs).
+// ---------------------------------------------------------------------------
+
+export const packageItineraryItems = sqliteTable(
+  "package_itinerary_items",
+  {
+    id: text("id").primaryKey(),
+    packageId: text("package_id")
+      .notNull()
+      .references(() => packages.id, { onDelete: "cascade" }),
+    dayNumber: integer("day_number").notNull().default(1),
+    title: text("title"),
+    description: text("description"),
+    mealIncluded: text("meal_included", { mode: "json" })
+      .$type<string[]>()
+      .notNull()
+      .default([]),
+    sortOrder: integer("sort_order").notNull().default(0),
+    createdAt: text("created_at")
+      .notNull()
+      .default(sql`(datetime('now'))`),
+  },
+  (table) => ({
+    packageIdx: index("package_itinerary_package_idx").on(table.packageId),
+    dayIdx: index("package_itinerary_day_idx").on(table.dayNumber),
+  }),
+);
+
+export type PackageItineraryItemRow = typeof packageItineraryItems.$inferSelect;
+export type NewPackageItineraryItemRow = typeof packageItineraryItems.$inferInsert;
+
+export const packageMedia = sqliteTable(
+  "package_media",
+  {
+    id: text("id").primaryKey(),
+    packageId: text("package_id")
+      .notNull()
+      .references(() => packages.id, { onDelete: "cascade" }),
+    kind: text("kind", { enum: ["image", "pdf", "video", "other"] })
+      .notNull()
+      .default("image"),
+    url: text("url").notNull(),
+    alt: text("alt"),
+    caption: text("caption"),
+    sortOrder: integer("sort_order").notNull().default(0),
+    createdAt: text("created_at")
+      .notNull()
+      .default(sql`(datetime('now'))`),
+  },
+  (table) => ({
+    packageIdx: index("package_media_package_idx").on(table.packageId),
+    kindIdx: index("package_media_kind_idx").on(table.kind),
+  }),
+);
+
+export type PackageMediaRow = typeof packageMedia.$inferSelect;
+export type NewPackageMediaRow = typeof packageMedia.$inferInsert;
+
+// ---------------------------------------------------------------------------
 // Departures & seat inventory (referenced by bookings for seat release).
 // The full seat-hold / overbooking machinery lives in the "Trips & Seats"
 // feature; this minimal table is the target of seat deduction/release.
