@@ -10,11 +10,17 @@ export type PaymentStatus = "unpaid" | "partial" | "paid";
 
 export type BookingType = "individual" | "group";
 
+export type CustomerType = "individual" | "corporate";
+
 export interface Customer {
   id: string;
   name: string;
   phone: string;
   email: string;
+  type: CustomerType;
+  city?: string;
+  joinedAt: string;
+  notes?: string;
 }
 
 export interface ItineraryDay {

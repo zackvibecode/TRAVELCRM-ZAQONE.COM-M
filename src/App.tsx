@@ -4,6 +4,7 @@ import BookingWorkspace from "@/pages/BookingWorkspace";
 import TripsDashboard from "@/pages/TripsDashboard";
 import PackageCatalog from "@/pages/PackageCatalog";
 import LeadsPipeline from "@/pages/LeadsPipeline";
+import Customers from "@/pages/Customers";
 import Placeholder from "@/pages/Placeholder";
 
 export default function App() {
@@ -15,7 +16,7 @@ export default function App() {
         <Route path="/trips" element={<TripsDashboard />} />
         <Route path="/packages" element={<PackageCatalog />} />
         <Route path="/leads" element={<LeadsPipeline />} />
-        <Route path="/customers" element={<Placeholder title="Customers" />} />
+        <Route path="/customers" element={<Customers />} />
         <Route
           path="/billing"
           element={<Placeholder title="Billing & Payments" />}

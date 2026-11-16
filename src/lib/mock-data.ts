@@ -12,12 +12,12 @@ import type {
 // with real API calls in a later phase.
 
 export const mockCustomers: Customer[] = [
-  { id: "c1", name: "Budi Santoso", phone: "+62 812 3456 7890", email: "budi@example.com" },
-  { id: "c2", name: "Keluarga Wijaya", phone: "+62 813 9876 5432", email: "wijaya@example.com" },
-  { id: "c3", name: "PT Maju Bersama", phone: "+62 811 2222 3333", email: "info@majubersama.co.id" },
-  { id: "c4", name: "Maria Lestari", phone: "+62 815 1111 2222", email: "maria@example.com" },
-  { id: "c5", name: "Hendra Gunawan", phone: "+62 816 4444 5555", email: "hendra@example.com" },
-  { id: "c6", name: "Sarah Permata", phone: "+62 818 6666 7777", email: "sarah@example.com" },
+  { id: "c1", name: "Budi Santoso", phone: "+62 812 3456 7890", email: "budi@example.com", type: "individual", city: "Jakarta", joinedAt: "2025-06-10", notes: "Pelanggan setia, sering trip Jepang." },
+  { id: "c2", name: "Keluarga Wijaya", phone: "+62 813 9876 5432", email: "wijaya@example.com", type: "individual", city: "Bandung", joinedAt: "2025-08-22", notes: "Sering liburan keluarga, anak kecil." },
+  { id: "c3", name: "PT Maju Bersama", phone: "+62 811 2222 3333", email: "info@majubersama.co.id", type: "corporate", city: "Jakarta", joinedAt: "2025-03-01", notes: "Klien korporat — gathering tahunan." },
+  { id: "c4", name: "Maria Lestari", phone: "+62 815 1111 2222", email: "maria@example.com", type: "individual", city: "Surabaya", joinedAt: "2026-01-15" },
+  { id: "c5", name: "Hendra Gunawan", phone: "+62 816 4444 5555", email: "hendra@example.com", type: "individual", city: "Medan", joinedAt: "2026-02-28" },
+  { id: "c6", name: "Sarah Permata", phone: "+62 818 6666 7777", email: "sarah@example.com", type: "individual", city: "Yogyakarta", joinedAt: "2026-04-05", notes: "Tertarik paket Eropa." },
 ];
 
 export const mockPackages: TravelPackage[] = [
