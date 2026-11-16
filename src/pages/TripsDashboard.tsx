@@ -1,11 +1,19 @@
 import { useMemo, useState } from "react";
-import { CalendarDays, Plane, Users, Armchair, Search } from "lucide-react";
+import {
+  CalendarDays,
+  Plane,
+  Users,
+  Armchair,
+  Search,
+  List,
+} from "lucide-react";
 import { mockDepartures, mockPackages } from "@/lib/mock-data";
 import {
   departureStatusLabels,
   type Departure,
 } from "@/lib/types";
-import { formatCurrency, formatDate } from "@/lib/utils";
+import { cn, formatCurrency, formatDate } from "@/lib/utils";
+import DepartureCalendar from "@/components/DepartureCalendar";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
@@ -81,6 +89,7 @@ function OccupancyBar({ departure }: { departure: Departure }) {
 
 export default function TripsDashboard() {
   const [search, setSearch] = useState("");
+  const [view, setView] = useState<"list" | "calendar">("list");
 
   const departures = useMemo(() => {
     return mockDepartures.filter((d) => {
@@ -179,18 +188,49 @@ export default function TripsDashboard() {
         </Card>
       </div>
 
-      {/* Search */}
-      <div className="relative w-full sm:max-w-xs">
-        <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
-        <Input
-          placeholder="Search package, leader, date..."
-          value={search}
-          onChange={(e) => setSearch(e.target.value)}
-          className="pl-8"
-        />
+      {/* Search + view toggle */}
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+        <div className="relative w-full sm:max-w-xs">
+          <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
+          <Input
+            placeholder="Search package, leader, date..."
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+            className="pl-8"
+          />
+        </div>
+        <div className="flex gap-1 rounded-lg border bg-muted p-1">
+          <button
+            onClick={() => setView("list")}
+            className={cn(
+              "flex items-center gap-1.5 rounded-md px-3 py-1.5 text-sm font-medium transition-colors",
+              view === "list"
+                ? "bg-background shadow-sm"
+                : "text-muted-foreground hover:text-foreground",
+            )}
+          >
+            <List className="h-4 w-4" />
+            List
+          </button>
+          <button
+            onClick={() => setView("calendar")}
+            className={cn(
+              "flex items-center gap-1.5 rounded-md px-3 py-1.5 text-sm font-medium transition-colors",
+              view === "calendar"
+                ? "bg-background shadow-sm"
+                : "text-muted-foreground hover:text-foreground",
+            )}
+          >
+            <CalendarDays className="h-4 w-4" />
+            Calendar
+          </button>
+        </div>
       </div>
 
-      {/* Departures table */}
+      {view === "calendar" ? (
+        <DepartureCalendar />
+      ) : (
+      /* Departures table */
       <Card>
         <CardContent className="p-0">
           <Table>
@@ -247,6 +287,7 @@ export default function TripsDashboard() {
           </Table>
         </CardContent>
       </Card>
+      )}
     </div>
   );
 }
