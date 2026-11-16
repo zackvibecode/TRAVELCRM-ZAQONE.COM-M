@@ -138,8 +138,11 @@ export const packages = sqliteTable(
     coverImageUrl: text("cover_image_url"),
     images: text("images", { mode: "json" }).$type<string[]>().notNull().default([]),
     pdfUrl: text("pdf_url"),
-    published: integer("published", { mode: "boolean" }).notNull().default(false),
-    archived: integer("archived", { mode: "boolean" }).notNull().default(false),
+    publishStatus: text("publish_status", {
+      enum: ["draft", "published", "archived"],
+    })
+      .notNull()
+      .default("draft"),
     createdAt: text("created_at")
       .notNull()
       .default(sql`(datetime('now'))`),
@@ -149,8 +152,9 @@ export const packages = sqliteTable(
   },
   (table) => ({
     destinationIdx: index("packages_destination_idx").on(table.destination),
-    publishedIdx: index("packages_published_idx").on(table.published),
-    archivedIdx: index("packages_archived_idx").on(table.archived),
+    publishStatusIdx: index("packages_publish_status_idx").on(
+      table.publishStatus,
+    ),
   }),
 );
 
