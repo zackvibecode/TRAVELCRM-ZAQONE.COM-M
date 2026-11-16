@@ -2,6 +2,7 @@ import { Hono } from "hono";
 import { and, eq, ne } from "drizzle-orm";
 import type { DrizzleD1Database } from "drizzle-orm/d1";
 import * as schema from "../db/schema";
+import { requireRole } from "../middleware/auth";
 
 export type SuppliersEnv = {
   DB: D1Database;
@@ -33,7 +34,7 @@ suppliersRouter.get("/suppliers", async (c) => {
   return c.json({ success: true, suppliers: rows });
 });
 
-suppliersRouter.post("/suppliers", async (c) => {
+suppliersRouter.post("/suppliers", requireRole("operations", "management"), async (c) => {
   const db = c.get("db");
   let body: {
     name?: string;
@@ -71,7 +72,7 @@ suppliersRouter.post("/suppliers", async (c) => {
 // ---- Departure costs ----
 
 // GET /departures/:id/costs
-suppliersRouter.get("/departures/:id/costs", async (c) => {
+suppliersRouter.get("/departures/:id/costs", requireRole("operations", "management", "finance"), async (c) => {
   const db = c.get("db");
   const departureId = c.req.param("id");
 
@@ -85,7 +86,7 @@ suppliersRouter.get("/departures/:id/costs", async (c) => {
 });
 
 // POST /departures/:id/costs
-suppliersRouter.post("/departures/:id/costs", async (c) => {
+suppliersRouter.post("/departures/:id/costs", requireRole("operations", "management", "finance"), async (c) => {
   const db = c.get("db");
   const departureId = c.req.param("id");
 
@@ -122,7 +123,7 @@ suppliersRouter.post("/departures/:id/costs", async (c) => {
 });
 
 // PATCH /costs/:id
-suppliersRouter.patch("/costs/:id", async (c) => {
+suppliersRouter.patch("/costs/:id", requireRole("operations", "management", "finance"), async (c) => {
   const db = c.get("db");
   const id = c.req.param("id");
 
@@ -171,7 +172,7 @@ suppliersRouter.patch("/costs/:id", async (c) => {
 });
 
 // DELETE /costs/:id
-suppliersRouter.delete("/costs/:id", async (c) => {
+suppliersRouter.delete("/costs/:id", requireRole("operations", "management", "finance"), async (c) => {
   const db = c.get("db");
   const id = c.req.param("id");
 
@@ -195,7 +196,7 @@ suppliersRouter.delete("/costs/:id", async (c) => {
 // ---- Profit summary ----
 
 // GET /departures/:id/profit — revenue, costs, gross profit, margin.
-suppliersRouter.get("/departures/:id/profit", async (c) => {
+suppliersRouter.get("/departures/:id/profit", requireRole("operations", "management", "finance"), async (c) => {
   const db = c.get("db");
   const departureId = c.req.param("id");
 

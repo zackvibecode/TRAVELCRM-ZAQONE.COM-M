@@ -2,6 +2,7 @@ import { Hono } from "hono";
 import { and, eq, gte, inArray, lte, ne, type SQL } from "drizzle-orm";
 import type { DrizzleD1Database } from "drizzle-orm/d1";
 import * as schema from "../db/schema";
+import { requireRole } from "../middleware/auth";
 import {
   convertHold,
   getAvailability,
@@ -85,7 +86,7 @@ departuresRouter.get("/:id/availability", async (c) => {
 });
 
 // POST /departures/:id/hold — atomically hold seats.
-departuresRouter.post("/:id/hold", async (c) => {
+departuresRouter.post("/:id/hold", requireRole("operations", "sales"), async (c) => {
   const db = c.get("db");
   const id = c.req.param("id");
 
@@ -113,7 +114,7 @@ departuresRouter.post("/:id/hold", async (c) => {
 });
 
 // POST /seat-holds/:id/convert — convert a hold into booked seats.
-departuresRouter.post("/seat-holds/:id/convert", async (c) => {
+departuresRouter.post("/seat-holds/:id/convert", requireRole("operations", "sales"), async (c) => {
   const db = c.get("db");
   const id = c.req.param("id");
 
@@ -126,7 +127,7 @@ departuresRouter.post("/seat-holds/:id/convert", async (c) => {
 });
 
 // POST /seat-holds/:id/release — release a hold back to available.
-departuresRouter.post("/seat-holds/:id/release", async (c) => {
+departuresRouter.post("/seat-holds/:id/release", requireRole("operations", "sales"), async (c) => {
   const db = c.get("db");
   const id = c.req.param("id");
 
@@ -139,14 +140,14 @@ departuresRouter.post("/seat-holds/:id/release", async (c) => {
 });
 
 // POST /departures/release-expired — manually release all expired holds.
-departuresRouter.post("/release-expired", async (c) => {
+departuresRouter.post("/release-expired", requireRole("operations"), async (c) => {
   const db = c.get("db");
   const released = await releaseExpiredHolds(db);
   return c.json({ success: true, released });
 });
 
 // GET /departures/:id/manifest — passenger manifest for a departure.
-departuresRouter.get("/:id/manifest", async (c) => {
+departuresRouter.get("/:id/manifest", requireRole("operations", "management", "sales"), async (c) => {
   const db = c.get("db");
   const id = c.req.param("id");
 
@@ -193,7 +194,7 @@ departuresRouter.get("/:id/manifest", async (c) => {
 });
 
 // GET /departures/:id/manifest/export — CSV export of the manifest.
-departuresRouter.get("/:id/manifest/export", async (c) => {
+departuresRouter.get("/:id/manifest/export", requireRole("operations", "management", "sales"), async (c) => {
   const db = c.get("db");
   const id = c.req.param("id");
 
