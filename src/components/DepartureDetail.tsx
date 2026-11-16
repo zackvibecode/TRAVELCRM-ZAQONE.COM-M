@@ -6,6 +6,7 @@ import {
 import { formatCurrency, formatDate } from "@/lib/utils";
 import PassengerManifest from "@/components/PassengerManifest";
 import TripPrepChecklist from "@/components/TripPrepChecklist";
+import RoomingFlightInfo from "@/components/RoomingFlightInfo";
 import { Badge } from "@/components/ui/badge";
 import {
   Dialog,
@@ -154,6 +155,11 @@ export default function DepartureDetail({
         {/* Trip prep checklist */}
         <div className="rounded-lg border p-4">
           <TripPrepChecklist />
+        </div>
+
+        {/* Rooming & flight info */}
+        <div className="rounded-lg border p-4">
+          <RoomingFlightInfo departure={departure} />
         </div>
 
         {/* Notes */}
