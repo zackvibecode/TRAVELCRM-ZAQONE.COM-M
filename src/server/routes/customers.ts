@@ -4,6 +4,7 @@ import type { DrizzleD1Database } from "drizzle-orm/d1";
 import * as schema from "../db/schema";
 import { logAudit } from "../lib/audit";
 import { requireRole } from "../middleware/auth";
+import { normalizePhone, whatsappLink } from "../lib/phone";
 
 export type CustomersEnv = {
   DB: D1Database;
@@ -132,6 +133,10 @@ customersRouter.get(
     success: true,
     data: {
       ...customer,
+      whatsapp: whatsappLink(
+        customer.phone,
+        `Halo ${customer.name}, ini dari TravelOS Suite.`,
+      ),
       lead: leadRow[0] ?? null,
       bookings: bookingRows,
       stats: {
@@ -158,11 +163,19 @@ customersRouter.post("/", requireRole("sales", "management"), async (c) => {
     );
   }
 
+  const phone = normalizePhone(body.phone);
+  if (!phone) {
+    return c.json(
+      { success: false, error: "phone must contain at least one digit" },
+      400,
+    );
+  }
+
   // Duplicate check by phone.
   const [dupe] = await db
     .select({ id: schema.customers.id })
     .from(schema.customers)
-    .where(eq(schema.customers.phone, body.phone.trim()))
+    .where(eq(schema.customers.phone, phone))
     .all();
   if (dupe) {
     return c.json(
@@ -178,7 +191,7 @@ customersRouter.post("/", requireRole("sales", "management"), async (c) => {
   const customer: schema.NewCustomerRow = {
     id: body.id ?? crypto.randomUUID(),
     name: body.name.trim(),
-    phone: body.phone.trim(),
+    phone,
     email: body.email ?? null,
     type: body.type ?? "individual",
     city: body.city ?? null,

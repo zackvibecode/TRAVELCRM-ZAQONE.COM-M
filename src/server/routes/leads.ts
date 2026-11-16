@@ -4,6 +4,7 @@ import type { DrizzleD1Database } from "drizzle-orm/d1";
 import * as schema from "../db/schema";
 import { logAudit } from "../lib/audit";
 import { requireRole } from "../middleware/auth";
+import { normalizePhone, whatsappLink } from "../lib/phone";
 export type LeadsEnv = {
   DB: D1Database;
 };
@@ -233,7 +234,15 @@ leadsRouter.get(
 
   return c.json({
     success: true,
-    data: { ...lead, activities, followUps },
+    data: {
+      ...lead,
+      whatsapp: whatsappLink(
+        lead.phone,
+        `Halo ${lead.name}, ini dari TravelOS Suite.`,
+      ),
+      activities,
+      followUps,
+    },
   });
 });
 
@@ -252,10 +261,18 @@ leadsRouter.post("/", requireRole("sales", "management"), async (c) => {
     return c.json({ success: false, error: "Invalid stage" }, 400);
   }
 
+  const phone = normalizePhone(body.phone);
+  if (!phone) {
+    return c.json(
+      { success: false, error: "phone must contain at least one digit" },
+      400,
+    );
+  }
+
   const lead: schema.NewLeadRow = {
     id: body.id ?? crypto.randomUUID(),
     name: body.name.trim(),
-    phone: body.phone.trim(),
+    phone,
     email: body.email ?? null,
     destination: body.destination ?? null,
     pax: body.pax ?? 1,
