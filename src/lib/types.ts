@@ -94,3 +94,23 @@ export const paymentStatusLabels: Record<PaymentStatus, string> = {
   partial: "Partial",
   paid: "Paid",
 };
+
+// Ordered booking status flow. Transitions move one step forward (or to
+// cancelled/completed at the appropriate stage).
+export const bookingStatusOrder: BookingStatus[] = [
+  "draft",
+  "hold",
+  "pending_deposit",
+  "confirmed",
+  "completed",
+];
+
+// Allowed next statuses for each current status.
+export const bookingTransitions: Record<BookingStatus, BookingStatus[]> = {
+  draft: ["hold", "pending_deposit", "cancelled"],
+  hold: ["pending_deposit", "cancelled", "draft"],
+  pending_deposit: ["confirmed", "cancelled", "hold"],
+  confirmed: ["completed", "cancelled"],
+  completed: [],
+  cancelled: ["draft"],
+};

@@ -4,15 +4,13 @@ import { mockBookings } from "@/lib/mock-data";
 import CreateBookingForm from "@/components/CreateBookingForm";
 import BookingDetail from "@/components/BookingDetail";
 import {
-  type Booking,
-  type BookingStatus,
-  bookingStatusLabels,
-  paymentStatusLabels,
-} from "@/lib/types";
+  BookingStatusBadge,
+  PaymentStatusBadge,
+} from "@/components/StatusBadges";
+import { type Booking, type BookingStatus, bookingStatusLabels } from "@/lib/types";
 import { cn, formatCurrency, formatDate } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Badge } from "@/components/ui/badge";
 import {
   Table,
   TableHeader,
@@ -37,34 +35,6 @@ const statusFilters: (BookingStatus | "all")[] = [
   "completed",
   "cancelled",
 ];
-
-function statusBadgeVariant(status: BookingStatus) {
-  switch (status) {
-    case "confirmed":
-      return "success";
-    case "pending_deposit":
-      return "warning";
-    case "hold":
-      return "info";
-    case "cancelled":
-      return "destructive";
-    case "completed":
-      return "secondary";
-    default:
-      return "outline";
-  }
-}
-
-function paymentBadgeVariant(status: Booking["paymentStatus"]) {
-  switch (status) {
-    case "paid":
-      return "success";
-    case "partial":
-      return "warning";
-    default:
-      return "outline";
-  }
-}
 
 function totalPax(b: Booking) {
   return b.paxAdult + b.paxChild + b.paxInfant;
@@ -263,14 +233,10 @@ export default function BookingWorkspace() {
                       )}
                     </TableCell>
                     <TableCell>
-                      <Badge variant={statusBadgeVariant(b.status)}>
-                        {bookingStatusLabels[b.status]}
-                      </Badge>
+                      <BookingStatusBadge status={b.status} />
                     </TableCell>
                     <TableCell>
-                      <Badge variant={paymentBadgeVariant(b.paymentStatus)}>
-                        {paymentStatusLabels[b.paymentStatus]}
-                      </Badge>
+                      <PaymentStatusBadge status={b.paymentStatus} />
                     </TableCell>
                     <TableCell className="text-right">
                       <div className="flex justify-end gap-1">

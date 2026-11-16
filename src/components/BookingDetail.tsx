@@ -1,10 +1,11 @@
 import { useState } from "react";
-import { Plus, Trash2, Pencil, Check, X } from "lucide-react";
-import type { Booking, Passenger } from "@/lib/types";
-import { bookingStatusLabels, paymentStatusLabels } from "@/lib/types";
+import { Plus, Trash2, Pencil, Check, X, ArrowRight } from "lucide-react";
+import type { Booking, BookingStatus, Passenger } from "@/lib/types";
+import { bookingTransitions } from "@/lib/types";
 import { formatDate } from "@/lib/utils";
 import { mockPackages } from "@/lib/mock-data";
 import PriceSummaryPanel from "@/components/PriceSummaryPanel";
+import { BookingStatusBadge, PaymentStatusBadge } from "@/components/StatusBadges";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -44,11 +45,13 @@ export default function BookingDetail({
   const [passengers, setPassengers] = useState<Passenger[]>([]);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [draft, setDraft] = useState<Passenger | null>(null);
+  const [status, setStatus] = useState<BookingStatus | null>(null);
 
-  // Sync local passenger list whenever a booking is opened.
+  // Sync local passenger list + status whenever a booking is opened.
   const [syncedBookingId, setSyncedBookingId] = useState<string | null>(null);
   if (booking && booking.id !== syncedBookingId) {
     setPassengers(booking.passengers);
+    setStatus(booking.status);
     setSyncedBookingId(booking.id);
     setEditingId(null);
     setDraft(null);
@@ -100,16 +103,20 @@ export default function BookingDetail({
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
             <span className="font-mono text-base">{booking.reference}</span>
-            <Badge variant="outline">{bookingStatusLabels[booking.status]}</Badge>
-            <Badge variant="outline">
-              {paymentStatusLabels[booking.paymentStatus]}
-            </Badge>
+            <BookingStatusBadge status={status ?? booking.status} />
+            <PaymentStatusBadge status={booking.paymentStatus} />
           </DialogTitle>
           <DialogDescription>
             {booking.customerName} · {booking.packageName} ·{" "}
             {formatDate(booking.departureDate)}
           </DialogDescription>
         </DialogHeader>
+
+        {/* Status transition controls */}
+        <StatusTransition
+          current={status ?? booking.status}
+          onTransition={(next) => setStatus(next)}
+        />
 
         {/* Price & discount summary */}
         <PriceSummaryPanel
@@ -369,6 +376,51 @@ function PassengerEditForm({
           </Button>
         </div>
       </div>
+    </div>
+  );
+}
+
+function StatusTransition({
+  current,
+  onTransition,
+}: {
+  current: BookingStatus;
+  onTransition: (next: BookingStatus) => void;
+}) {
+  const next = bookingTransitions[current] ?? [];
+
+  return (
+    <div className="rounded-lg border p-4">
+      <div className="mb-3 flex items-center justify-between">
+        <h3 className="text-sm font-semibold">Booking Status</h3>
+        <span className="text-xs text-muted-foreground">
+          {next.length === 0 ? "No further transitions" : "Choose next status"}
+        </span>
+      </div>
+
+      {next.length === 0 ? (
+        <p className="text-xs text-muted-foreground">
+          This booking has reached a terminal status.
+        </p>
+      ) : (
+        <div className="flex flex-wrap gap-2">
+          {next.map((s) => (
+            <Button
+              key={s}
+              variant="outline"
+              size="sm"
+              onClick={() => onTransition(s)}
+              className="group"
+            >
+              <span className="font-medium">Move to</span>
+              <span className="capitalize text-primary">
+                {s.replace(/_/g, " ")}
+              </span>
+              <ArrowRight className="h-3.5 w-3.5 transition-transform group-hover:translate-x-0.5" />
+            </Button>
+          ))}
+        </div>
+      )}
     </div>
   );
 }
