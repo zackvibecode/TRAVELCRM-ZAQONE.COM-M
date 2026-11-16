@@ -1,8 +1,9 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { Link } from "react-router-dom";
 import { MapPin, Search, Clock, ArrowRight, CalendarDays, Flame } from "lucide-react";
 import { mockDepartures, mockPackages } from "@/lib/mock-data";
 import { cn } from "@/lib/utils";
+import { applySeo } from "@/lib/site-config";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
@@ -22,6 +23,13 @@ function formatRupiah(value: number): string {
 export default function PublicPackages() {
   const [search, setSearch] = useState("");
   const [destination, setDestination] = useState<string>("all");
+
+  useEffect(() => {
+    applySeo("packages");
+    return () => {
+      document.title = "TravelOS Suite";
+    };
+  }, []);
 
   const destinations = useMemo(() => {
     const set = new Set(

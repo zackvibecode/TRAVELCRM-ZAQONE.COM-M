@@ -1,8 +1,9 @@
 import { Link } from "react-router-dom";
-import { useMemo } from "react";
-import { ArrowRight, MapPin, CalendarDays, Users, ShieldCheck, Headset, Sparkles } from "lucide-react";
+import { useEffect, useMemo } from "react";
+import { MapPin, CalendarDays, Users, ShieldCheck, Headset, Sparkles, ArrowRight, Megaphone } from "lucide-react";
 import { mockPackages } from "@/lib/mock-data";
 import { cn } from "@/lib/utils";
+import { activeBanners, applySeo } from "@/lib/site-config";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import {
@@ -49,6 +50,15 @@ const VALUE_PROPS = [
 ];
 
 export default function PublicHome() {
+  useEffect(() => {
+    applySeo("home");
+    return () => {
+      document.title = "TravelOS Suite";
+    };
+  }, []);
+
+  const banners = useMemo(() => activeBanners(), []);
+
   const featured = mockPackages
     .filter((p) => p.status !== "archived" && p.published !== false)
     .slice(0, 3);
@@ -68,6 +78,32 @@ export default function PublicHome() {
 
   return (
     <>
+      {/* Active promo banners (from Banner Manager) */}
+      {banners.length > 0 && (
+        <div className="bg-red-600 text-white">
+          <div className="mx-auto flex max-w-6xl flex-wrap items-center gap-2 px-4 py-2 text-xs sm:text-sm">
+            {banners.slice(0, 1).map((banner) => (
+              <div
+                key={banner.id}
+                className="flex flex-1 flex-wrap items-center gap-x-3 gap-y-1"
+              >
+                <Megaphone className="h-3.5 w-3.5 shrink-0" />
+                <span className="font-semibold">{banner.title}</span>
+                <span className="hidden text-red-100 sm:inline">
+                  {banner.subtitle}
+                </span>
+                <Link
+                  to={banner.ctaHref}
+                  className="ml-auto shrink-0 rounded-full bg-white/15 px-3 py-0.5 font-semibold transition-colors hover:bg-white/25"
+                >
+                  {banner.ctaLabel} →
+                </Link>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
       {/* Hero */}
       <section className="relative overflow-hidden bg-gradient-to-b from-red-50/70 to-white">
         <div className="mx-auto grid max-w-6xl items-center gap-10 px-4 py-16 lg:grid-cols-2 lg:py-24">

@@ -1,0 +1,91 @@
+/** Shared website configuration consumed by both the admin Website Manager
+ *  and the public site. The backend phase will replace these constants with
+ *  API-backed data. */
+
+export interface Banner {
+  id: string;
+  title: string;
+  subtitle: string;
+  ctaLabel: string;
+  ctaHref: string;
+  /** ISO dates — banner only shows on the public site between these dates. */
+  startAt: string;
+  endAt: string;
+  active: boolean;
+}
+
+export interface SeoSettings {
+  metaTitle: string;
+  metaDescription: string;
+  keywords: string;
+}
+
+export const siteBanners: Banner[] = [
+  {
+    id: "ban-1",
+    title: "Sakura Season 2027 — Early Bird 15%",
+    subtitle: "Booking sebelum Desember untuk keberangkatan Maret–April.",
+    ctaLabel: "Lihat Paket Jepang",
+    ctaHref: "/site/packages",
+    startAt: "2026-11-01",
+    endAt: "2026-12-31",
+    active: true,
+  },
+  {
+    id: "ban-2",
+    title: "Weekend Getaway Bali & Lombok",
+    subtitle: "Open trip tiap Jumat malam — cocok untuk pekerja kantoran.",
+    ctaLabel: "Cek Jadwal",
+    ctaHref: "/site/packages",
+    startAt: "2026-11-10",
+    endAt: "2027-01-15",
+    active: true,
+  },
+];
+
+export const siteSeo: Record<string, SeoSettings> = {
+  home: {
+    metaTitle: "TravelOS — Paket Wisata Domestik & Internasional",
+    metaDescription:
+      "Travel agency all-in-one: open trip, private tour, dan corporate travel dengan itinerary terkurasi dan harga transparan. Booking mudah, pendampingan penuh.",
+    keywords: "paket wisata, open trip, tour travel jakarta, travel murah",
+  },
+  promos: {
+    metaTitle: "Promo & Penawaran Spesial — TravelOS",
+    metaDescription:
+      "Diskon flash sale, harga early bird, dan penawaran grup untuk paket wisata pilihan. Kuota terbatas!",
+    keywords: "promo wisata, diskon tiket tour, flash sale travel",
+  },
+  packages: {
+    metaTitle: "Paket Wisata Lengkap — TravelOS",
+    metaDescription:
+      "Jelajahi semua paket wisata TravelOS: Jepang, Korea, Bali, Lombok, Singapore, hingga Eropa. Harga per pax jelas, keberangkatan terjadwal.",
+    keywords: "paket tour jepang, wisata bali, tour korea, paket eropa",
+  },
+};
+
+/** Returns banners active within today's window. */
+export function activeBanners(): Banner[] {
+  const today = new Date().toISOString().slice(0, 10);
+  return siteBanners.filter(
+    (b) => b.active && b.startAt <= today && b.endAt >= today,
+  );
+}
+
+/** Applies SEO metadata (title + meta description) for the given page key. */
+export function applySeo(page: string): void {
+  const seo = siteSeo[page];
+  if (!seo) return;
+
+  document.title = seo.metaTitle;
+
+  let desc = document.querySelector<HTMLMetaElement>(
+    'meta[name="description"]',
+  );
+  if (!desc) {
+    desc = document.createElement("meta");
+    desc.name = "description";
+    document.head.appendChild(desc);
+  }
+  desc.content = seo.metaDescription;
+}

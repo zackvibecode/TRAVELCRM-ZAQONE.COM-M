@@ -1,4 +1,5 @@
 import { Link } from "react-router-dom";
+import { useEffect } from "react";
 import {
   Flame,
   Clock,
@@ -8,6 +9,7 @@ import {
 } from "lucide-react";
 import { mockPackages, mockDepartures } from "@/lib/mock-data";
 import { cn } from "@/lib/utils";
+import { applySeo } from "@/lib/site-config";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import {
@@ -56,6 +58,13 @@ const PROMO_TYPES = [
 ];
 
 export default function PublicPromos() {
+  useEffect(() => {
+    applySeo("promos");
+    return () => {
+      document.title = "TravelOS Suite";
+    };
+  }, []);
+
   const published = mockPackages.filter(
     (p) => p.status !== "archived" && p.published !== false,
   );
