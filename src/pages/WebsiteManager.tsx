@@ -36,6 +36,8 @@ interface SitePage {
   content: string;
   status: PageStatus;
   updatedAt: string;
+  /** ISO date — when set and in the future, the page auto-publishes at that time. */
+  scheduledAt?: string;
 }
 
 const INITIAL_PAGES: SitePage[] = [
@@ -368,15 +370,25 @@ export default function WebsiteManager() {
                     className={cn(
                       page.status === "published"
                         ? "border-emerald-200 bg-emerald-50 text-emerald-700"
-                        : "border-stone-200 bg-stone-50 text-stone-600",
+                        : page.scheduledAt &&
+                            page.scheduledAt > new Date().toISOString()
+                          ? "border-blue-200 bg-blue-50 text-blue-700"
+                          : "border-stone-200 bg-stone-50 text-stone-600",
                     )}
                   >
-                    {page.status === "published" ? "Tayang" : "Draft"}
+                    {page.status === "published"
+                      ? "Tayang"
+                      : page.scheduledAt &&
+                          page.scheduledAt > new Date().toISOString()
+                        ? "Terjadwal"
+                        : "Draft"}
                   </Badge>
                 </div>
                 <p className="text-xs text-muted-foreground">
                   /site/{page.slug === "home" ? "" : page.slug} • diubah{" "}
                   {page.updatedAt}
+                  {page.scheduledAt &&
+                    ` • terjadwal ${page.scheduledAt.replace("T", " ")}`}
                 </p>
               </div>
 
@@ -492,20 +504,60 @@ export default function WebsiteManager() {
                 />
               </div>
               <div className="flex items-center justify-between">
-                <label className="flex items-center gap-2 text-xs font-medium">
-                  <input
-                    type="checkbox"
-                    checked={editing.status === "published"}
-                    onChange={(e) =>
-                      setEditing({
-                        ...editing,
-                        status: e.target.checked ? "published" : "draft",
-                      })
-                    }
-                    className="h-4 w-4 rounded"
-                  />
-                  Terbitkan segera
-                </label>
+                <div className="space-y-2">
+                  <label className="flex items-center gap-2 text-xs font-medium">
+                    <input
+                      type="checkbox"
+                      checked={editing.status === "published"}
+                      onChange={(e) =>
+                        setEditing({
+                          ...editing,
+                          status: e.target.checked ? "published" : "draft",
+                          scheduledAt: e.target.checked
+                            ? undefined
+                            : editing.scheduledAt,
+                        })
+                      }
+                      className="h-4 w-4 rounded"
+                    />
+                    Terbitkan segera
+                  </label>
+                  {editing.status !== "published" && (
+                    <label className="flex items-center gap-2 text-xs font-medium text-stone-600">
+                      <input
+                        type="checkbox"
+                        checked={Boolean(editing.scheduledAt)}
+                        onChange={(e) =>
+                          setEditing({
+                            ...editing,
+                            scheduledAt: e.target.checked
+                              ? new Date(
+                                  Date.now() + 24 * 60 * 60 * 1000,
+                                )
+                                  .toISOString()
+                                  .slice(0, 16)
+                              : undefined,
+                          })
+                        }
+                        className="h-4 w-4 rounded"
+                      />
+                      Jadwalkan terbit
+                    </label>
+                  )}
+                  {editing.status !== "published" && editing.scheduledAt && (
+                    <Input
+                      type="datetime-local"
+                      value={editing.scheduledAt}
+                      onChange={(e) =>
+                        setEditing({
+                          ...editing,
+                          scheduledAt: e.target.value,
+                        })
+                      }
+                      className="h-8 w-56 text-xs"
+                    />
+                  )}
+                </div>
                 <div className="flex gap-2">
                   <Button variant="outline" onClick={() => setEditing(null)}>
                     Batal
