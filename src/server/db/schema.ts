@@ -608,6 +608,119 @@ export type SupplierPaymentRow = typeof supplierPayments.$inferSelect;
 export type NewSupplierPaymentRow = typeof supplierPayments.$inferInsert;
 
 // ---------------------------------------------------------------------------
+// CRM — customers, lead sources, and leads pipeline.
+// A customer is a converted lead (or a direct booking contact); leads track
+// the pre-sale pipeline with stage/source/assignment per the PRD.
+// ---------------------------------------------------------------------------
+
+export const customers = sqliteTable(
+  "customers",
+  {
+    id: text("id").primaryKey(),
+    name: text("name").notNull(),
+    phone: text("phone").notNull(),
+    email: text("email"),
+    type: text("type", { enum: ["individual", "corporate"] })
+      .notNull()
+      .default("individual"),
+    city: text("city"),
+    notes: text("notes"),
+    leadId: text("lead_id"),
+    createdAt: text("created_at")
+      .notNull()
+      .default(sql`(datetime('now'))`),
+    updatedAt: text("updated_at")
+      .notNull()
+      .default(sql`(datetime('now'))`),
+  },
+  (table) => ({
+    nameIdx: index("customers_name_idx").on(table.name),
+    typeIdx: index("customers_type_idx").on(table.type),
+  }),
+);
+
+export const leadSources = sqliteTable(
+  "lead_sources",
+  {
+    id: text("id").primaryKey(),
+    name: text("name").notNull().unique(),
+    description: text("description"),
+    active: integer("active", { mode: "boolean" })
+      .notNull()
+      .default(true),
+    createdAt: text("created_at")
+      .notNull()
+      .default(sql`(datetime('now'))`),
+  },
+);
+
+export const leads = sqliteTable(
+  "leads",
+  {
+    id: text("id").primaryKey(),
+    name: text("name").notNull(),
+    phone: text("phone").notNull(),
+    email: text("email"),
+    destination: text("destination"),
+    pax: integer("pax").notNull().default(1),
+    budget: integer("budget").notNull().default(0),
+    stage: text("stage", {
+      enum: ["new", "contacted", "qualified", "quotation", "won", "lost"],
+    })
+      .notNull()
+      .default("new"),
+    sourceId: text("source_id"),
+    assignedTo: text("assigned_to"),
+    nextFollowUp: text("next_follow_up"),
+    lastActivityAt: text("last_activity_at")
+      .notNull()
+      .default(sql`(datetime('now'))`),
+    notes: text("notes"),
+    customerId: text("customer_id"),
+    createdAt: text("created_at")
+      .notNull()
+      .default(sql`(datetime('now'))`),
+    updatedAt: text("updated_at")
+      .notNull()
+      .default(sql`(datetime('now'))`),
+  },
+  (table) => ({
+    stageIdx: index("leads_stage_idx").on(table.stage),
+    sourceIdx: index("leads_source_idx").on(table.sourceId),
+    assignedIdx: index("leads_assigned_idx").on(table.assignedTo),
+    nextFollowUpIdx: index("leads_next_follow_up_idx").on(table.nextFollowUp),
+  }),
+);
+
+export const leadActivities = sqliteTable(
+  "lead_activities",
+  {
+    id: text("id").primaryKey(),
+    leadId: text("lead_id").notNull(),
+    type: text("type", {
+      enum: ["note", "call", "whatsapp", "email", "stage_change"],
+    }).notNull(),
+    text: text("text").notNull(),
+    user: text("user").notNull().default("system"),
+    at: text("at")
+      .notNull()
+      .default(sql`(datetime('now'))`),
+  },
+  (table) => ({
+    leadIdx: index("lead_activities_lead_idx").on(table.leadId),
+  }),
+);
+
+export type CustomerRow = typeof customers.$inferSelect;
+export type NewCustomerRow = typeof customers.$inferInsert;
+export type LeadSourceRow = typeof leadSources.$inferSelect;
+export type NewLeadSourceRow = typeof leadSources.$inferInsert;
+export type LeadRow = typeof leads.$inferSelect;
+export type NewLeadRow = typeof leads.$inferInsert;
+export type LeadActivityRow = typeof leadActivities.$inferSelect;
+export type NewLeadActivityRow = typeof leadActivities.$inferInsert;
+
+// ---------------------------------------------------------------------------
 // Audit log for sensitive trip/booking mutations.
 // ---------------------------------------------------------------------------
 
