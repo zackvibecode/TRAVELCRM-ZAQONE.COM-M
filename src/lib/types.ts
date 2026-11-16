@@ -190,6 +190,89 @@ export type LeadSource =
   | "walk_in"
   | "campaign";
 
+// ---------------------------------------------------------------------------
+// Billing & Payments — invoices, payments, refunds.
+// Booking status and payment status stay separate (PRD requirement).
+// ---------------------------------------------------------------------------
+
+export type InvoiceStatus =
+  | "draft"
+  | "issued"
+  | "partially_paid"
+  | "paid"
+  | "overdue"
+  | "void";
+
+export interface InvoiceItem {
+  description: string;
+  quantity: number;
+  unitPrice: number;
+}
+
+export interface Invoice {
+  id: string;
+  number: string; // unique invoice number, e.g. INV-2026-0001
+  bookingReference: string;
+  customerName: string;
+  packageName: string;
+  status: InvoiceStatus;
+  issueDate: string;
+  dueDate: string;
+  items: InvoiceItem[];
+  /** Subtotal before discount (computed from items). */
+  subtotal: number;
+  discount: number;
+  /** Total payable = subtotal - discount. */
+  total: number;
+  depositAmount: number;
+  paidAmount: number;
+  balanceDue: number;
+  notes?: string;
+  createdAt: string;
+}
+
+export type PaymentMethod =
+  | "bank_transfer"
+  | "credit_card"
+  | "cash"
+  | "ewallet"
+  | "other";
+
+export type PaymentRecordStatus =
+  | "pending_verification"
+  | "verified"
+  | "rejected";
+
+export interface Payment {
+  id: string;
+  invoiceId: string;
+  invoiceNumber: string;
+  customerName: string;
+  amount: number;
+  method: PaymentMethod;
+  status: PaymentRecordStatus;
+  paidAt: string;
+  verifiedBy?: string;
+  proofUploaded: boolean;
+  reference?: string;
+  notes?: string;
+}
+
+export type RefundStatus = "requested" | "processing" | "completed" | "rejected";
+
+export interface Refund {
+  id: string;
+  number: string; // e.g. CRN-2026-0001 (credit note)
+  invoiceId: string;
+  invoiceNumber: string;
+  customerName: string;
+  amount: number;
+  reason: string;
+  status: RefundStatus;
+  requestedAt: string;
+  processedAt?: string;
+}
+
 export interface LeadActivity {
   id: string;
   at: string;
