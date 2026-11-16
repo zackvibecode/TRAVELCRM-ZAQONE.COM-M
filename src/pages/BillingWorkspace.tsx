@@ -22,12 +22,15 @@ import { mockInvoices, mockPayments, mockRefunds, mockQuotations } from "@/lib/m
 import QuotationBuilder from "@/components/QuotationBuilder";
 import InvoiceBuilder from "@/components/InvoiceBuilder";
 import PaymentProofForm from "@/components/PaymentProofForm";
+import RefundForm from "@/components/RefundForm";
 import type {
   Invoice,
   InvoiceStatus,
   Payment,
   Quotation,
   QuotationStatus,
+  Refund,
+  RefundStatus,
 } from "@/lib/types";
 import { cn, waLink } from "@/lib/utils";
 import { Badge } from "@/components/ui/badge";
@@ -94,6 +97,7 @@ export default function BillingWorkspace() {
   const [invoices, setInvoices] = useState<Invoice[]>(mockInvoices);
   const [quotations, setQuotations] = useState<Quotation[]>(mockQuotations);
   const [payments, setPayments] = useState<Payment[]>(mockPayments);
+  const [refunds, setRefunds] = useState<Refund[]>(mockRefunds);
   const [tab, setTab] = useState<Tab>("invoices");
   const [search, setSearch] = useState("");
   const [statusFilter, setStatusFilter] = useState<"all" | InvoiceStatus>("all");
@@ -104,6 +108,9 @@ export default function BillingWorkspace() {
   const [showBuilder, setShowBuilder] = useState(false);
   const [showInvoiceBuilder, setShowInvoiceBuilder] = useState(false);
   const [recordPaymentFor, setRecordPaymentFor] = useState<Invoice | null>(
+    null,
+  );
+  const [refundInvoiceFor, setRefundInvoiceFor] = useState<Invoice | null>(
     null,
   );
 
@@ -155,14 +162,14 @@ export default function BillingWorkspace() {
 
   const filteredRefunds = useMemo(() => {
     const q = search.toLowerCase();
-    return mockRefunds.filter((r) => {
+    return refunds.filter((r) => {
       if (!q) return true;
       return (
         r.number.toLowerCase().includes(q) ||
         r.customerName.toLowerCase().includes(q)
       );
     });
-  }, [search]);
+  }, [refunds, search]);
 
   const kpi = useMemo(() => {
     const active = invoices.filter((i) => i.status !== "void" && i.status !== "draft");
@@ -325,6 +332,45 @@ export default function BillingWorkspace() {
         }),
       );
     }
+  }
+
+  function handleRefundCreated(
+    invoice: Invoice,
+    amount: number,
+    reason: string,
+  ) {
+    const seq = refunds.length + 2;
+    const refund: Refund = {
+      id: crypto.randomUUID(),
+      number: `CRN-2026-${String(seq).padStart(4, "0")}`,
+      invoiceId: invoice.id,
+      invoiceNumber: invoice.number,
+      customerName: invoice.customerName,
+      amount,
+      reason,
+      status: "requested",
+      requestedAt: new Date().toISOString(),
+    };
+    setRefunds((prev) => [refund, ...prev]);
+    setRefundInvoiceFor(null);
+    setTab("refunds");
+  }
+
+  function updateRefundStatus(refundId: string, status: RefundStatus) {
+    setRefunds((prev) =>
+      prev.map((r) =>
+        r.id === refundId
+          ? {
+              ...r,
+              status,
+              processedAt:
+                status === "completed"
+                  ? new Date().toISOString()
+                  : r.processedAt,
+            }
+          : r,
+      ),
+    );
   }
 
   function handleQuotationCreated(quotation: Quotation) {
@@ -851,6 +897,16 @@ export default function BillingWorkspace() {
                         <Banknote className="h-4 w-4" />
                         Catat Pembayaran
                       </Button>
+                      {selectedInvoice.paidAmount > 0 && (
+                        <Button
+                          variant="outline"
+                          className="gap-2 border-amber-200 text-amber-700 hover:bg-amber-50"
+                          onClick={() => setRefundInvoiceFor(selectedInvoice)}
+                        >
+                          <Undo2 className="h-4 w-4" />
+                          Refund
+                        </Button>
+                      )}
                       <Button
                         variant="outline"
                         className="gap-2 border-red-200 text-red-700 hover:bg-red-50"
@@ -871,6 +927,15 @@ export default function BillingWorkspace() {
               invoice={recordPaymentFor}
               onRecorded={handlePaymentRecorded}
               onCancel={() => setRecordPaymentFor(null)}
+            />
+          )}
+
+          {/* Refund / credit note form */}
+          {refundInvoiceFor && (
+            <RefundForm
+              invoice={refundInvoiceFor}
+              onCreated={handleRefundCreated}
+              onCancel={() => setRefundInvoiceFor(null)}
             />
           )}
         </div>
@@ -1118,6 +1183,7 @@ export default function BillingWorkspace() {
                   <TableHead>Alasan</TableHead>
                   <TableHead>Diminta</TableHead>
                   <TableHead>Status</TableHead>
+                  <TableHead className="text-right">Aksi</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
@@ -1143,12 +1209,55 @@ export default function BillingWorkspace() {
                         {r.status}
                       </Badge>
                     </TableCell>
+                    <TableCell className="text-right">
+                      <div className="flex items-center justify-end gap-1">
+                        {r.status === "requested" && (
+                          <>
+                            <Button
+                              size="sm"
+                              variant="outline"
+                              className="h-8 gap-1"
+                              onClick={() =>
+                                updateRefundStatus(r.id, "processing")
+                              }
+                            >
+                              <Clock className="h-3.5 w-3.5" />
+                              Proses
+                            </Button>
+                            <Button
+                              size="sm"
+                              variant="outline"
+                              className="h-8 gap-1 border-red-200 text-red-700 hover:bg-red-50"
+                              onClick={() =>
+                                updateRefundStatus(r.id, "rejected")
+                              }
+                            >
+                              <XCircle className="h-3.5 w-3.5" />
+                              Tolak
+                            </Button>
+                          </>
+                        )}
+                        {r.status === "processing" && (
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            className="h-8 gap-1 border-green-200 text-green-700 hover:bg-green-50"
+                            onClick={() =>
+                              updateRefundStatus(r.id, "completed")
+                            }
+                          >
+                            <CheckCircle2 className="h-3.5 w-3.5" />
+                            Selesaikan
+                          </Button>
+                        )}
+                      </div>
+                    </TableCell>
                   </TableRow>
                 ))}
                 {filteredRefunds.length === 0 && (
                   <TableRow>
                     <TableCell
-                      colSpan={7}
+                      colSpan={8}
                       className="h-24 text-center text-muted-foreground"
                     >
                       Belum ada refund / credit note.
