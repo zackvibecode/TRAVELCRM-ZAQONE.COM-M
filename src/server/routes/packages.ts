@@ -9,7 +9,10 @@ type Variables = {
   db: DrizzleD1Database<typeof schema>;
 };
 
-const packagesRouter = new Hono<{ Variables: Variables }>();
+const packagesRouter = new Hono<{
+  Bindings: { DOCUMENTS: R2Bucket };
+  Variables: Variables;
+}>();
 
 // GET /packages — list + search/filter.
 // Query: q (name/destination), destination, status (publishStatus),
@@ -1177,6 +1180,240 @@ packagesRouter.delete(
       action: "package_departure_date.deleted",
       entityType: "package_departure_date",
       entityId: dateId,
+    });
+
+    return c.json({ success: true });
+  },
+);
+
+// ---- Package media (images / PDFs stored in R2) ----
+
+// GET /packages/:id/media — list media metadata for a package.
+packagesRouter.get("/packages/:id/media", async (c) => {
+  const db = c.get("db");
+  const packageId = c.req.param("id");
+
+  const pkg = await db
+    .select({ id: schema.packages.id })
+    .from(schema.packages)
+    .where(eq(schema.packages.id, packageId))
+    .get();
+  if (!pkg) {
+    return c.json({ success: false, error: "Package not found" }, 404);
+  }
+
+  const rows = await db
+    .select()
+    .from(schema.packageMedia)
+    .where(eq(schema.packageMedia.packageId, packageId))
+    .orderBy(asc(schema.packageMedia.sortOrder))
+    .all();
+
+  return c.json({ success: true, media: rows });
+});
+
+// POST /packages/:id/media — upload a media file to R2 and record metadata.
+// Multipart form: file (required), kind, alt, caption, sortOrder.
+packagesRouter.post(
+  "/packages/:id/media",
+  requireRole("super_admin", "management", "sales"),
+  async (c) => {
+    const db = c.get("db");
+    const packageId = c.req.param("id");
+
+    const pkg = await db
+      .select({ id: schema.packages.id })
+      .from(schema.packages)
+      .where(eq(schema.packages.id, packageId))
+      .get();
+    if (!pkg) {
+      return c.json({ success: false, error: "Package not found" }, 404);
+    }
+
+    const form = await c.req.formData();
+    const file = form.get("file");
+    const kindRaw = (form.get("kind") as string | null) ?? "image";
+    const alt = (form.get("alt") as string | null) ?? null;
+    const caption = (form.get("caption") as string | null) ?? null;
+    const sortOrder = Number(form.get("sortOrder") ?? 0) || 0;
+
+    if (!(file instanceof File)) {
+      return c.json({ success: false, error: "file field is required" }, 400);
+    }
+
+    const validKinds = ["image", "pdf", "video", "other"];
+    if (!validKinds.includes(kindRaw)) {
+      return c.json(
+        {
+          success: false,
+          error: `Invalid kind. Must be one of: ${validKinds.join(", ")}`,
+        },
+        400,
+      );
+    }
+
+    const mediaId = crypto.randomUUID();
+    const r2Key = `packages/${packageId}/${mediaId}`;
+    const bytes = await file.arrayBuffer();
+
+    await c.env.DOCUMENTS.put(r2Key, bytes, {
+      httpMetadata: { contentType: file.type || "application/octet-stream" },
+    });
+
+    const row: schema.NewPackageMediaRow = {
+      id: mediaId,
+      packageId,
+      kind: kindRaw as "image" | "pdf" | "video" | "other",
+      url: `/package-media/${mediaId}/download`,
+      alt: alt ?? file.name,
+      caption,
+      sortOrder,
+      createdAt: new Date().toISOString(),
+    };
+
+    await db.insert(schema.packageMedia).values(row).run();
+    await logAudit(db, {
+      actor: c.req.header("x-user-id") ?? null,
+      role: c.req.header("x-user-role") ?? null,
+      action: "package_media.uploaded",
+      entityType: "package_media",
+      entityId: mediaId,
+      detail: `${kindRaw} ${file.name} (${file.size} bytes) for package ${packageId}`,
+    });
+
+    return c.json({ success: true, media: row }, 201);
+  },
+);
+
+// GET /package-media/:mediaId/download — stream a media file from R2.
+packagesRouter.get("/package-media/:mediaId/download", async (c) => {
+  const db = c.get("db");
+  const mediaId = c.req.param("mediaId");
+
+  const media = await db
+    .select()
+    .from(schema.packageMedia)
+    .where(eq(schema.packageMedia.id, mediaId))
+    .get();
+  if (!media) {
+    return c.json({ success: false, error: "Media not found" }, 404);
+  }
+
+  // Deterministic R2 key: packages/<packageId>/<mediaId>.
+  const object = await c.env.DOCUMENTS.get(
+    `packages/${media.packageId}/${media.id}`,
+  );
+  if (!object) {
+    return c.json({ success: false, error: "Media file missing" }, 404);
+  }
+
+  const headers = new Headers();
+  headers.set(
+    "Content-Type",
+    object.httpMetadata?.contentType ?? "application/octet-stream",
+  );
+  headers.set(
+    "Content-Disposition",
+    `inline; filename="${media.alt ?? "media"}"`,
+  );
+  object.writeHttpMetadata(headers);
+
+  return new Response(object.body, { headers });
+});
+
+// PATCH /package-media/:mediaId — update media metadata (alt, caption, order).
+packagesRouter.patch(
+  "/package-media/:mediaId",
+  requireRole("super_admin", "management", "sales"),
+  async (c) => {
+    const db = c.get("db");
+    const mediaId = c.req.param("mediaId");
+
+    const existing = await db
+      .select()
+      .from(schema.packageMedia)
+      .where(eq(schema.packageMedia.id, mediaId))
+      .get();
+    if (!existing) {
+      return c.json({ success: false, error: "Media not found" }, 404);
+    }
+
+    let body: Record<string, unknown>;
+    try {
+      body = await c.req.json();
+    } catch {
+      return c.json({ success: false, error: "Invalid JSON body" }, 400);
+    }
+
+    const patch: Partial<schema.NewPackageMediaRow> = {};
+    if (body.alt !== undefined) patch.alt = (body.alt as string) ?? null;
+    if (body.caption !== undefined)
+      patch.caption = (body.caption as string) ?? null;
+    if (body.sortOrder !== undefined)
+      patch.sortOrder = Number(body.sortOrder) || 0;
+
+    await db
+      .update(schema.packageMedia)
+      .set(patch)
+      .where(eq(schema.packageMedia.id, mediaId))
+      .run();
+
+    const updated = await db
+      .select()
+      .from(schema.packageMedia)
+      .where(eq(schema.packageMedia.id, mediaId))
+      .get();
+
+    await logAudit(db, {
+      actor: c.req.header("x-user-id") ?? null,
+      role: c.req.header("x-user-role") ?? null,
+      action: "package_media.updated",
+      entityType: "package_media",
+      entityId: mediaId,
+      detail: `updated fields: ${Object.keys(patch).join(", ")}`,
+    });
+
+    return c.json({ success: true, media: updated });
+  },
+);
+
+// DELETE /package-media/:mediaId — remove metadata and the R2 object.
+packagesRouter.delete(
+  "/package-media/:mediaId",
+  requireRole("super_admin", "management", "sales"),
+  async (c) => {
+    const db = c.get("db");
+    const mediaId = c.req.param("mediaId");
+
+    const existing = await db
+      .select()
+      .from(schema.packageMedia)
+      .where(eq(schema.packageMedia.id, mediaId))
+      .get();
+    if (!existing) {
+      return c.json({ success: false, error: "Media not found" }, 404);
+    }
+
+    // Best-effort R2 delete; metadata removal is the source of truth.
+    try {
+      await c.env.DOCUMENTS.delete(
+        `packages/${existing.packageId}/${existing.id}`,
+      );
+    } catch (err) {
+      console.error("[package-media] R2 delete failed", err);
+    }
+
+    await db
+      .delete(schema.packageMedia)
+      .where(eq(schema.packageMedia.id, mediaId))
+      .run();
+
+    await logAudit(db, {
+      actor: c.req.header("x-user-id") ?? null,
+      role: c.req.header("x-user-role") ?? null,
+      action: "package_media.deleted",
+      entityType: "package_media",
+      entityId: mediaId,
     });
 
     return c.json({ success: true });
