@@ -1,0 +1,430 @@
+import { useMemo, useState } from "react";
+import {
+  Users,
+  Search,
+  MessageCircle,
+  Filter,
+  LayoutGrid,
+  List as ListIcon,
+  Plus,
+  TrendingUp,
+  CalendarClock,
+} from "lucide-react";
+import { mockLeads } from "@/lib/mock-data";
+import {
+  LEAD_STAGES,
+  type Lead,
+  type LeadStage,
+  type LeadSource,
+} from "@/lib/types";
+import { cn } from "@/lib/utils";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Badge } from "@/components/ui/badge";
+import {
+  Card,
+  CardContent,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card";
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@/components/ui/table";
+
+const SOURCE_LABELS: Record<LeadSource, string> = {
+  website: "Website",
+  whatsapp: "WhatsApp",
+  instagram: "Instagram",
+  referral: "Referral",
+  walk_in: "Walk-in",
+  campaign: "Campaign",
+};
+
+function formatRupiah(value: number): string {
+  return new Intl.NumberFormat("id-ID", {
+    style: "currency",
+    currency: "IDR",
+    maximumFractionDigits: 0,
+  }).format(value);
+}
+
+function stageBadgeClass(stage: LeadStage): string {
+  switch (stage) {
+    case "new":
+      return "bg-blue-50 text-blue-700 border-blue-200";
+    case "contacted":
+      return "bg-amber-50 text-amber-700 border-amber-200";
+    case "qualified":
+      return "bg-violet-50 text-violet-700 border-violet-200";
+    case "quotation":
+      return "bg-cyan-50 text-cyan-700 border-cyan-200";
+    case "won":
+      return "bg-green-50 text-green-700 border-green-200";
+    case "lost":
+      return "bg-red-50 text-red-700 border-red-200";
+  }
+}
+
+export default function LeadsPipeline() {
+  const [leads] = useState<Lead[]>(mockLeads);
+  const [search, setSearch] = useState("");
+  const [sourceFilter, setSourceFilter] = useState<LeadSource | "all">("all");
+  const [assigneeFilter, setAssigneeFilter] = useState<string>("all");
+  const [view, setView] = useState<"board" | "list">("board");
+
+  const assignees = useMemo(
+    () => Array.from(new Set(leads.map((l) => l.assignedTo))).sort(),
+    [leads],
+  );
+
+  const filtered = useMemo(() => {
+    const q = search.toLowerCase();
+    return leads.filter((lead) => {
+      if (q) {
+        if (
+          !lead.name.toLowerCase().includes(q) &&
+          !lead.destination.toLowerCase().includes(q) &&
+          !lead.phone.toLowerCase().includes(q)
+        ) {
+          return false;
+        }
+      }
+      if (sourceFilter !== "all" && lead.source !== sourceFilter) return false;
+      if (assigneeFilter !== "all" && lead.assignedTo !== assigneeFilter)
+        return false;
+      return true;
+    });
+  }, [leads, search, sourceFilter, assigneeFilter]);
+
+  const byStage = useMemo(() => {
+    const map = new Map<LeadStage, Lead[]>();
+    for (const stage of LEAD_STAGES) map.set(stage.value, []);
+    for (const lead of filtered) map.get(lead.stage)!.push(lead);
+    return map;
+  }, [filtered]);
+
+  const kpi = useMemo(() => {
+    const open = filtered.filter(
+      (l) => l.stage !== "won" && l.stage !== "lost",
+    );
+    const won = filtered.filter((l) => l.stage === "won");
+    const pipelineValue = open.reduce((s, l) => s + l.budget, 0);
+    const conversion =
+      won.length + filtered.filter((l) => l.stage === "lost").length > 0
+        ? Math.round(
+            (won.length /
+              (won.length + filtered.filter((l) => l.stage === "lost").length)) *
+              100,
+          )
+        : 0;
+    const followUps = open.filter(
+      (l) => l.nextFollowUp && l.nextFollowUp <= "2026-11-18",
+    ).length;
+    return {
+      totalLeads: filtered.length,
+      openLeads: open.length,
+      pipelineValue,
+      conversion,
+      followUps,
+    };
+  }, [filtered]);
+
+  return (
+    <div className="space-y-6">
+      {/* Header */}
+      <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+        <div>
+          <h1 className="font-display text-2xl font-bold tracking-tight">
+            Leads Pipeline
+          </h1>
+          <p className="text-sm text-muted-foreground">
+            Track prospek dari enquiry hingga closing.
+          </p>
+        </div>
+        <Button className="gap-2">
+          <Plus className="h-4 w-4" />
+          Tambah Lead
+        </Button>
+      </div>
+
+      {/* KPI cards */}
+      <div className="grid grid-cols-2 gap-4 lg:grid-cols-4">
+        <Card>
+          <CardHeader className="pb-2">
+            <CardTitle className="flex items-center gap-2 text-xs font-medium text-muted-foreground">
+              <Users className="h-4 w-4" /> Total Leads
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            <p className="font-display text-2xl font-bold">{kpi.totalLeads}</p>
+            <p className="text-xs text-muted-foreground">
+              {kpi.openLeads} aktif
+            </p>
+          </CardContent>
+        </Card>
+        <Card>
+          <CardHeader className="pb-2">
+            <CardTitle className="flex items-center gap-2 text-xs font-medium text-muted-foreground">
+              <TrendingUp className="h-4 w-4" /> Pipeline Value
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            <p className="font-display text-2xl font-bold">
+              {formatRupiah(kpi.pipelineValue)}
+            </p>
+            <p className="text-xs text-muted-foreground">estimasi budget aktif</p>
+          </CardContent>
+        </Card>
+        <Card>
+          <CardHeader className="pb-2">
+            <CardTitle className="flex items-center gap-2 text-xs font-medium text-muted-foreground">
+              <TrendingUp className="h-4 w-4" /> Win Rate
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            <p className="font-display text-2xl font-bold">{kpi.conversion}%</p>
+            <p className="text-xs text-muted-foreground">won vs lost</p>
+          </CardContent>
+        </Card>
+        <Card>
+          <CardHeader className="pb-2">
+            <CardTitle className="flex items-center gap-2 text-xs font-medium text-muted-foreground">
+              <CalendarClock className="h-4 w-4" /> Follow-up Dekat
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            <p className="font-display text-2xl font-bold">{kpi.followUps}</p>
+            <p className="text-xs text-muted-foreground">2 hari ke depan</p>
+          </CardContent>
+        </Card>
+      </div>
+
+      {/* Filters */}
+      <div className="flex flex-col gap-3 lg:flex-row lg:items-center">
+        <div className="relative flex-1">
+          <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+          <Input
+            placeholder="Cari nama, destinasi, atau no. telepon..."
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+            className="pl-9"
+          />
+        </div>
+        <div className="flex flex-wrap items-center gap-2">
+          <div className="flex items-center gap-1.5 text-sm text-muted-foreground">
+            <Filter className="h-4 w-4" />
+          </div>
+          <select
+            value={sourceFilter}
+            onChange={(e) =>
+              setSourceFilter(e.target.value as LeadSource | "all")
+            }
+            className="h-9 rounded-md border border-input bg-background px-3 text-sm"
+          >
+            <option value="all">Semua Source</option>
+            {Object.entries(SOURCE_LABELS).map(([value, label]) => (
+              <option key={value} value={value}>
+                {label}
+              </option>
+            ))}
+          </select>
+          <select
+            value={assigneeFilter}
+            onChange={(e) => setAssigneeFilter(e.target.value)}
+            className="h-9 rounded-md border border-input bg-background px-3 text-sm"
+          >
+            <option value="all">Semua Agent</option>
+            {assignees.map((a) => (
+              <option key={a} value={a}>
+                {a}
+              </option>
+            ))}
+          </select>
+          <div className="ml-auto flex items-center rounded-md border p-1">
+            <button
+              onClick={() => setView("board")}
+              className={cn(
+                "flex items-center gap-1.5 rounded px-2 py-1 text-sm",
+                view === "board"
+                  ? "bg-primary text-white"
+                  : "text-muted-foreground hover:text-foreground",
+              )}
+            >
+              <LayoutGrid className="h-4 w-4" /> Board
+            </button>
+            <button
+              onClick={() => setView("list")}
+              className={cn(
+                "flex items-center gap-1.5 rounded px-2 py-1 text-sm",
+                view === "list"
+                  ? "bg-primary text-white"
+                  : "text-muted-foreground hover:text-foreground",
+              )}
+            >
+              <ListIcon className="h-4 w-4" /> List
+            </button>
+          </div>
+        </div>
+      </div>
+
+      {/* Board view */}
+      {view === "board" && (
+        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6">
+          {LEAD_STAGES.map((stage) => {
+            const stageLeads = byStage.get(stage.value) ?? [];
+            return (
+              <div key={stage.value} className="flex flex-col gap-3">
+                <div className="flex items-center justify-between">
+                  <span className="text-sm font-semibold">{stage.label}</span>
+                  <Badge variant="secondary">{stageLeads.length}</Badge>
+                </div>
+                <div className="flex flex-col gap-3">
+                  {stageLeads.map((lead) => (
+                    <Card
+                      key={lead.id}
+                      className="cursor-pointer transition-shadow hover:shadow-md"
+                    >
+                      <CardContent className="space-y-2 p-3">
+                        <div className="flex items-start justify-between gap-2">
+                          <p className="text-sm font-semibold leading-tight">
+                            {lead.name}
+                          </p>
+                          <Badge
+                            variant="outline"
+                            className={cn(
+                              "shrink-0 text-[10px]",
+                              stageBadgeClass(lead.stage),
+                            )}
+                          >
+                            {SOURCE_LABELS[lead.source]}
+                          </Badge>
+                        </div>
+                        <p className="text-xs text-muted-foreground">
+                          {lead.destination} • {lead.pax} pax
+                        </p>
+                        <p className="text-xs font-medium">
+                          {formatRupiah(lead.budget)}
+                        </p>
+                        <div className="flex items-center justify-between pt-1">
+                          <span className="text-[11px] text-muted-foreground">
+                            {lead.assignedTo}
+                          </span>
+                          <a
+                            href={`https://wa.me/${lead.phone.replace(/[^0-9]/g, "")}`}
+                            target="_blank"
+                            rel="noreferrer"
+                            className="inline-flex h-7 w-7 items-center justify-center rounded-md bg-green-500/10 text-green-600 hover:bg-green-500/20"
+                            title={`Chat WhatsApp ${lead.name}`}
+                          >
+                            <MessageCircle className="h-3.5 w-3.5" />
+                          </a>
+                        </div>
+                        {lead.nextFollowUp && (
+                          <p className="border-t pt-1.5 text-[11px] text-primary">
+                            Follow-up: {lead.nextFollowUp}
+                          </p>
+                        )}
+                      </CardContent>
+                    </Card>
+                  ))}
+                  {stageLeads.length === 0 && (
+                    <div className="rounded-lg border border-dashed p-4 text-center text-xs text-muted-foreground">
+                      Tidak ada lead
+                    </div>
+                  )}
+                </div>
+              </div>
+            );
+          })}
+        </div>
+      )}
+
+      {/* List view */}
+      {view === "list" && (
+        <Card>
+          <CardContent className="p-0">
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>Nama</TableHead>
+                  <TableHead>Kontak</TableHead>
+                  <TableHead>Destinasi</TableHead>
+                  <TableHead>Pax</TableHead>
+                  <TableHead>Budget</TableHead>
+                  <TableHead>Source</TableHead>
+                  <TableHead>Stage</TableHead>
+                  <TableHead>Agent</TableHead>
+                  <TableHead>Follow-up</TableHead>
+                  <TableHead className="text-right">WhatsApp</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {filtered.map((lead) => (
+                  <TableRow key={lead.id} className="cursor-pointer">
+                    <TableCell className="font-medium">{lead.name}</TableCell>
+                    <TableCell>
+                      <div className="flex flex-col">
+                        <span className="text-xs">{lead.phone}</span>
+                        <span className="text-xs text-muted-foreground">
+                          {lead.email}
+                        </span>
+                      </div>
+                    </TableCell>
+                    <TableCell>{lead.destination}</TableCell>
+                    <TableCell>{lead.pax}</TableCell>
+                    <TableCell>{formatRupiah(lead.budget)}</TableCell>
+                    <TableCell>
+                      <Badge variant="outline">
+                        {SOURCE_LABELS[lead.source]}
+                      </Badge>
+                    </TableCell>
+                    <TableCell>
+                      <Badge
+                        variant="outline"
+                        className={stageBadgeClass(lead.stage)}
+                      >
+                        {LEAD_STAGES.find((s) => s.value === lead.stage)?.label}
+                      </Badge>
+                    </TableCell>
+                    <TableCell className="text-xs">
+                      {lead.assignedTo}
+                    </TableCell>
+                    <TableCell className="text-xs">
+                      {lead.nextFollowUp ?? "—"}
+                    </TableCell>
+                    <TableCell className="text-right">
+                      <a
+                        href={`https://wa.me/${lead.phone.replace(/[^0-9]/g, "")}`}
+                        target="_blank"
+                        rel="noreferrer"
+                        className="inline-flex h-7 w-7 items-center justify-center rounded-md bg-green-500/10 text-green-600 hover:bg-green-500/20"
+                        title={`Chat WhatsApp ${lead.name}`}
+                      >
+                        <MessageCircle className="h-3.5 w-3.5" />
+                      </a>
+                    </TableCell>
+                  </TableRow>
+                ))}
+                {filtered.length === 0 && (
+                  <TableRow>
+                    <TableCell
+                      colSpan={10}
+                      className="h-24 text-center text-muted-foreground"
+                    >
+                      Tidak ada lead yang cocok dengan filter.
+                    </TableCell>
+                  </TableRow>
+                )}
+              </TableBody>
+            </Table>
+          </CardContent>
+        </Card>
+      )}
+    </div>
+  );
+}

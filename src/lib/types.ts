@@ -153,3 +153,59 @@ export interface BookingHistoryEvent {
   user: string;
   at: string;
 }
+
+// ---------------------------------------------------------------------------
+// CRM — leads pipeline (Customers & Leads feature).
+// Pipeline stages per PRD: New → Contacted → Qualified → Quotation → Won/Lost.
+// ---------------------------------------------------------------------------
+
+export type LeadStage =
+  | "new"
+  | "contacted"
+  | "qualified"
+  | "quotation"
+  | "won"
+  | "lost";
+
+export const LEAD_STAGES: { value: LeadStage; label: string }[] = [
+  { value: "new", label: "New" },
+  { value: "contacted", label: "Contacted" },
+  { value: "qualified", label: "Qualified" },
+  { value: "quotation", label: "Quotation" },
+  { value: "won", label: "Won" },
+  { value: "lost", label: "Lost" },
+];
+
+export type LeadSource =
+  | "website"
+  | "whatsapp"
+  | "instagram"
+  | "referral"
+  | "walk_in"
+  | "campaign";
+
+export interface LeadActivity {
+  id: string;
+  at: string;
+  type: "note" | "call" | "whatsapp" | "email" | "stage_change";
+  text: string;
+  user: string;
+}
+
+export interface Lead {
+  id: string;
+  name: string;
+  phone: string;
+  email: string;
+  destination: string;
+  pax: number;
+  budget: number;
+  stage: LeadStage;
+  source: LeadSource;
+  assignedTo: string;
+  nextFollowUp?: string;
+  lastActivityAt: string;
+  notes?: string;
+  activities: LeadActivity[];
+  createdAt: string;
+}
