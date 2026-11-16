@@ -4,6 +4,7 @@ import {
   type Departure,
 } from "@/lib/types";
 import { formatCurrency, formatDate } from "@/lib/utils";
+import PassengerManifest from "@/components/PassengerManifest";
 import { Badge } from "@/components/ui/badge";
 import {
   Dialog,
@@ -142,6 +143,11 @@ export default function DepartureDetail({
               <span>{formatCurrency(departure.childPrice)}</span>
             </div>
           </div>
+        </div>
+
+        {/* Passenger manifest */}
+        <div className="rounded-lg border p-4">
+          <PassengerManifest departure={departure} />
         </div>
 
         {/* Notes */}
