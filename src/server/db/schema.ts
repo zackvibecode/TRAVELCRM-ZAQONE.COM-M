@@ -116,6 +116,48 @@ export type BookingHistoryRow = typeof bookingHistory.$inferSelect;
 export type NewBookingHistoryRow = typeof bookingHistory.$inferInsert;
 
 // ---------------------------------------------------------------------------
+// Travel packages (Package Catalog). A package is a sellable trip product;
+// departures reference packages and carry per-departure pricing/seat capacity.
+// ---------------------------------------------------------------------------
+
+export const packages = sqliteTable(
+  "packages",
+  {
+    id: text("id").primaryKey(),
+    name: text("name").notNull(),
+    destination: text("destination").notNull(),
+    durationDays: integer("duration_days").notNull().default(0),
+    description: text("description"),
+    highlights: text("highlights", { mode: "json" }).$type<string[]>().notNull().default([]),
+    itinerary: text("itinerary", { mode: "json" }).$type<string[]>().notNull().default([]),
+    inclusions: text("inclusions", { mode: "json" }).$type<string[]>().notNull().default([]),
+    exclusions: text("exclusions", { mode: "json" }).$type<string[]>().notNull().default([]),
+    adultPrice: integer("adult_price").notNull().default(0),
+    childPrice: integer("child_price").notNull().default(0),
+    infantPrice: integer("infant_price").notNull().default(0),
+    coverImageUrl: text("cover_image_url"),
+    images: text("images", { mode: "json" }).$type<string[]>().notNull().default([]),
+    pdfUrl: text("pdf_url"),
+    published: integer("published", { mode: "boolean" }).notNull().default(false),
+    archived: integer("archived", { mode: "boolean" }).notNull().default(false),
+    createdAt: text("created_at")
+      .notNull()
+      .default(sql`(datetime('now'))`),
+    updatedAt: text("updated_at")
+      .notNull()
+      .default(sql`(datetime('now'))`),
+  },
+  (table) => ({
+    destinationIdx: index("packages_destination_idx").on(table.destination),
+    publishedIdx: index("packages_published_idx").on(table.published),
+    archivedIdx: index("packages_archived_idx").on(table.archived),
+  }),
+);
+
+export type PackageRow = typeof packages.$inferSelect;
+export type NewPackageRow = typeof packages.$inferInsert;
+
+// ---------------------------------------------------------------------------
 // Departures & seat inventory (referenced by bookings for seat release).
 // The full seat-hold / overbooking machinery lives in the "Trips & Seats"
 // feature; this minimal table is the target of seat deduction/release.
