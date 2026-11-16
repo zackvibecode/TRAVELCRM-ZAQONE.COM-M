@@ -2,7 +2,9 @@ import { useState } from "react";
 import { Plus, Trash2, Pencil, Check, X } from "lucide-react";
 import type { Booking, Passenger } from "@/lib/types";
 import { bookingStatusLabels, paymentStatusLabels } from "@/lib/types";
-import { formatCurrency, formatDate } from "@/lib/utils";
+import { formatDate } from "@/lib/utils";
+import { mockPackages } from "@/lib/mock-data";
+import PriceSummaryPanel from "@/components/PriceSummaryPanel";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -109,29 +111,22 @@ export default function BookingDetail({
           </DialogDescription>
         </DialogHeader>
 
-        {/* Summary strip */}
-        <div className="grid grid-cols-2 gap-3 rounded-lg border bg-muted/40 p-4 text-sm sm:grid-cols-4">
-          <div>
-            <div className="text-xs text-muted-foreground">Total</div>
-            <div className="font-semibold">
-              {formatCurrency(booking.totalAmount)}
-            </div>
-          </div>
-          <div>
-            <div className="text-xs text-muted-foreground">Deposit</div>
-            <div>{formatCurrency(booking.depositAmount)}</div>
-          </div>
-          <div>
-            <div className="text-xs text-muted-foreground">Paid</div>
-            <div>{formatCurrency(booking.paidAmount)}</div>
-          </div>
-          <div>
-            <div className="text-xs text-muted-foreground">Balance</div>
-            <div className="font-semibold text-amber-600">
-              {formatCurrency(booking.balanceDue)}
-            </div>
-          </div>
-        </div>
+        {/* Price & discount summary */}
+        <PriceSummaryPanel
+          booking={booking}
+          unitPrices={(() => {
+            const pkg = mockPackages.find(
+              (p) => p.name === booking.packageName,
+            );
+            return pkg
+              ? {
+                  adult: pkg.adultPrice,
+                  child: pkg.childPrice,
+                  infant: pkg.infantPrice,
+                }
+              : undefined;
+          })()}
+        />
 
         {/* Passengers */}
         <div className="grid gap-3">

@@ -71,6 +71,7 @@ export interface Booking {
   paxChild: number;
   paxInfant: number;
   totalAmount: number;
+  discount: number;
   depositAmount: number;
   paidAmount: number;
   balanceDue: number;
