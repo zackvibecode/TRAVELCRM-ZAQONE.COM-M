@@ -209,6 +209,20 @@ export default function PackageCatalog() {
                     </Badge>
                   )}
                 </div>
+                {p.exclusions && p.exclusions.length > 0 && (
+                  <div className="flex flex-wrap gap-1">
+                    {p.exclusions.slice(0, 2).map((exc) => (
+                      <Badge key={exc} variant="outline" className="text-red-500">
+                        {exc}
+                      </Badge>
+                    ))}
+                    {p.exclusions.length > 2 && (
+                      <Badge variant="outline">
+                        +{p.exclusions.length - 2} excl.
+                      </Badge>
+                    )}
+                  </div>
+                )}
 
                 {/* Actions */}
                 <div className="mt-auto flex gap-2 border-t pt-3">

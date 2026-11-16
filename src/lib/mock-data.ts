@@ -29,6 +29,7 @@ export const mockPackages: TravelPackage[] = [
     childPrice: 16200000,
     infantPrice: 3000000,
     inclusions: ["Return flight", "4-star hotel", "Daily breakfast", "Tour guide", "Travel insurance"],
+    exclusions: ["Visa fee", "Personal expenses", "Optional tours"],
   },
   {
     id: "pk2",
@@ -39,6 +40,7 @@ export const mockPackages: TravelPackage[] = [
     childPrice: 4500000,
     infantPrice: 1500000,
     inclusions: ["Return flight", "Villa accommodation", "Daily breakfast", "Airport transfer"],
+    exclusions: ["Lunch & dinner", "Personal expenses"],
   },
   {
     id: "pk3",
@@ -49,6 +51,7 @@ export const mockPackages: TravelPackage[] = [
     childPrice: 7500000,
     infantPrice: 2000000,
     inclusions: ["Return flight", "Hotel", "Daily breakfast", "Meeting package"],
+    exclusions: ["Personal expenses", "Airport tax"],
   },
   {
     id: "pk4",
@@ -59,6 +62,7 @@ export const mockPackages: TravelPackage[] = [
     childPrice: 13500000,
     infantPrice: 2500000,
     inclusions: ["Return flight", "Hotel", "Ski tour", "Travel insurance"],
+    exclusions: ["Ski equipment rental", "Personal expenses"],
   },
   {
     id: "pk5",
@@ -69,6 +73,7 @@ export const mockPackages: TravelPackage[] = [
     childPrice: 41000000,
     infantPrice: 6000000,
     inclusions: ["Return flight", "4-star hotels", "Daily breakfast", "City tours", "Travel insurance"],
+    exclusions: ["Visa fee", "Lunch & dinner", "Personal expenses"],
   },
   {
     id: "pk6",
@@ -79,6 +84,7 @@ export const mockPackages: TravelPackage[] = [
     childPrice: 5800000,
     infantPrice: 1800000,
     inclusions: ["Return flight", "Beach resort", "Daily breakfast", "Island hopping tour"],
+    exclusions: ["Personal expenses", "Optional tours"],
   },
 ];
 

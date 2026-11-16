@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import type { TravelPackage } from "@/lib/types";
+import InclusionsExclusionsEditor from "@/components/InclusionsExclusionsEditor";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -27,7 +28,8 @@ interface FormValues {
   adultPrice: number;
   childPrice: number;
   infantPrice: number;
-  inclusions: string;
+  inclusions: string[];
+  exclusions: string[];
 }
 
 const EMPTY: FormValues = {
@@ -37,7 +39,8 @@ const EMPTY: FormValues = {
   adultPrice: 0,
   childPrice: 0,
   infantPrice: 0,
-  inclusions: "",
+  inclusions: [],
+  exclusions: [],
 };
 
 export default function PackageForm({
@@ -59,7 +62,8 @@ export default function PackageForm({
               adultPrice: existing.adultPrice,
               childPrice: existing.childPrice,
               infantPrice: existing.infantPrice,
-              inclusions: existing.inclusions.join(", "),
+              inclusions: existing.inclusions,
+              exclusions: existing.exclusions ?? [],
             }
           : EMPTY,
       );
@@ -81,10 +85,8 @@ export default function PackageForm({
       adultPrice: Math.max(0, values.adultPrice),
       childPrice: Math.max(0, values.childPrice),
       infantPrice: Math.max(0, values.infantPrice),
-      inclusions: values.inclusions
-        .split(",")
-        .map((s) => s.trim())
-        .filter(Boolean),
+      inclusions: values.inclusions,
+      exclusions: values.exclusions,
     });
     onOpenChange(false);
   }
@@ -168,17 +170,13 @@ export default function PackageForm({
             </div>
           </div>
 
-          <div className="grid gap-1.5">
-            <Label htmlFor="pkg-inclusions">
-              Inclusions (comma-separated)
-            </Label>
-            <Input
-              id="pkg-inclusions"
-              placeholder="Return flight, Hotel, Breakfast"
-              value={values.inclusions}
-              onChange={(e) => set("inclusions", e.target.value)}
-            />
-          </div>
+          <InclusionsExclusionsEditor
+            inclusions={values.inclusions}
+            exclusions={values.exclusions}
+            onChange={(inclusions, exclusions) =>
+              setValues((prev) => ({ ...prev, inclusions, exclusions }))
+            }
+          />
         </div>
 
         <DialogFooter>
