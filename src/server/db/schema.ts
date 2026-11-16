@@ -193,3 +193,67 @@ export const seatHolds = sqliteTable(
 
 export type SeatHoldRow = typeof seatHolds.$inferSelect;
 export type NewSeatHoldRow = typeof seatHolds.$inferInsert;
+
+// ---------------------------------------------------------------------------
+// Passenger documents. Stores only metadata + an R2 object key; the binary
+// file itself lives in Cloudflare R2 (not D1). Passport/visa data is sensitive
+// and access must be authorized.
+// ---------------------------------------------------------------------------
+
+export const passengerDocuments = sqliteTable(
+  "passenger_documents",
+  {
+    id: text("id").primaryKey(),
+    passengerId: text("passenger_id")
+      .notNull()
+      .references(() => passengers.id, { onDelete: "cascade" }),
+    type: text("type", {
+      enum: ["passport", "visa", "insurance", "other"],
+    }).notNull(),
+    name: text("name").notNull(),
+    r2Key: text("r2_key").notNull(),
+    mimeType: text("mime_type"),
+    sizeBytes: integer("size_bytes").notNull().default(0),
+    expiresAt: text("expires_at"),
+    createdAt: text("created_at")
+      .notNull()
+      .default(sql`(datetime('now'))`),
+  },
+  (table) => ({
+    passengerIdx: index("passenger_documents_passenger_idx").on(
+      table.passengerId,
+    ),
+    typeIdx: index("passenger_documents_type_idx").on(table.type),
+  }),
+);
+
+export type PassengerDocumentRow = typeof passengerDocuments.$inferSelect;
+export type NewPassengerDocumentRow = typeof passengerDocuments.$inferInsert;
+
+// ---------------------------------------------------------------------------
+// Trip preparation checklists. One row per (departure, checklist item), with a
+// done flag. Supports the operational checklist shown per departure.
+// ---------------------------------------------------------------------------
+
+export const tripChecklistItems = sqliteTable(
+  "trip_checklist_items",
+  {
+    id: text("id").primaryKey(),
+    departureId: text("departure_id")
+      .notNull()
+      .references(() => departures.id, { onDelete: "cascade" }),
+    label: text("label").notNull(),
+    category: text("category"),
+    done: integer("done", { mode: "boolean" }).notNull().default(false),
+    sortOrder: integer("sort_order").notNull().default(0),
+    updatedAt: text("updated_at")
+      .notNull()
+      .default(sql`(datetime('now'))`),
+  },
+  (table) => ({
+    departureIdx: index("trip_checklist_departure_idx").on(table.departureId),
+  }),
+);
+
+export type TripChecklistItemRow = typeof tripChecklistItems.$inferSelect;
+export type NewTripChecklistItemRow = typeof tripChecklistItems.$inferInsert;
