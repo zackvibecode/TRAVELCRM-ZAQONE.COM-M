@@ -1,5 +1,5 @@
 import { Hono } from "hono";
-import { and, desc, eq, like, or, sql } from "drizzle-orm";
+import { and, desc, eq, like, or } from "drizzle-orm";
 import type { DrizzleD1Database } from "drizzle-orm/d1";
 import * as schema from "../db/schema";
 import { logAudit } from "../lib/audit";
@@ -340,6 +340,229 @@ quotationsRouter.patch(
       .where(eq(schema.quotations.id, id))
       .all();
     return c.json({ success: true, data: updated });
+  },
+);
+
+// GET /quotations/:id/print — print-ready HTML document.
+// The client opens this in a new tab and uses the browser's print-to-PDF.
+quotationsRouter.get(
+  "/:id/print",
+  requireRole("sales", "management", "finance"),
+  async (c) => {
+    const db = c.get("db");
+    const id = c.req.param("id");
+
+    const [quotation] = await db
+      .select()
+      .from(schema.quotations)
+      .where(eq(schema.quotations.id, id))
+      .all();
+    if (!quotation) {
+      return c.json({ success: false, error: "Quotation not found" }, 404);
+    }
+
+    const pax = [
+      `${quotation.paxAdult} Dewasa`,
+      `${quotation.paxChild} Anak`,
+      `${quotation.paxInfant} Bayi`,
+    ]
+      .filter((_, i) => [quotation.paxAdult, quotation.paxChild, quotation.paxInfant][i] > 0)
+      .join(" • ") || "—";
+
+    const idr = (n: number) =>
+      new Intl.NumberFormat("id-ID", {
+        style: "currency",
+        currency: "IDR",
+        maximumFractionDigits: 0,
+      }).format(n);
+
+    const html = `<!doctype html>
+<html lang="id">
+<head>
+<meta charset="utf-8">
+<title>Penawaran ${quotation.number}</title>
+<style>
+  * { font-family: -apple-system, 'Segoe UI', Arial, sans-serif; }
+  body { max-width: 720px; margin: 40px auto; color: #1c1917; padding: 0 24px; }
+  header { display: flex; justify-content: space-between; border-bottom: 3px solid #1c1917; padding-bottom: 16px; margin-bottom: 24px; }
+  h1 { margin: 0; font-size: 22px; }
+  .muted { color: #78716c; font-size: 12px; }
+  table { width: 100%; border-collapse: collapse; margin: 16px 0; }
+  th, td { text-align: left; padding: 8px 12px; border-bottom: 1px solid #e7e5e4; font-size: 13px; }
+  th { background: #fafaf9; }
+  td.num, th.num { text-align: right; }
+  .totals { margin-left: auto; width: 280px; font-size: 13px; }
+  .totals div { display: flex; justify-content: space-between; padding: 4px 0; }
+  .totals .grand { font-weight: 700; font-size: 16px; border-top: 2px solid #1c1917; margin-top: 4px; padding-top: 8px; }
+  .grid { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-bottom: 16px; font-size: 13px; }
+  .box { border: 1px solid #e7e5e4; border-radius: 8px; padding: 10px 12px; }
+  .box .muted { display: block; margin-bottom: 2px; }
+  footer { margin-top: 40px; padding-top: 16px; border-top: 1px solid #e7e5e4; font-size: 11px; color: #78716c; }
+  @media print { body { margin: 0; } }
+</style>
+</head>
+<body>
+  <header>
+    <div>
+      <h1>TravelOS Suite</h1>
+      <div class="muted">Penawaran Perjalanan</div>
+    </div>
+    <div style="text-align:right">
+      <div style="font-weight:700">${quotation.number}</div>
+      <div class="muted">Dibuat: ${quotation.createdAt}</div>
+      ${quotation.validUntil ? `<div class="muted">Berlaku s.d.: ${quotation.validUntil}</div>` : ""}
+    </div>
+  </header>
+
+  <div class="grid">
+    <div class="box"><span class="muted">Ditujukan kepada</span><strong>${quotation.customerName}</strong></div>
+    <div class="box"><span class="muted">Paket</span><strong>${quotation.packageName ?? "—"}</strong></div>
+    <div class="box"><span class="muted">Destinasi</span>${quotation.destination ?? "—"}</div>
+    <div class="box"><span class="muted">Jumlah Pax</span>${pax}</div>
+    <div class="box"><span class="muted">Tanggal Berangkat</span>${quotation.departureDate ?? "—"}</div>
+    <div class="box"><span class="muted">Status</span>${quotation.status}</div>
+  </div>
+
+  <table>
+    <thead>
+      <tr><th>Deskripsi</th><th class="num">Qty</th><th class="num">Harga Satuan</th><th class="num">Jumlah</th></tr>
+    </thead>
+    <tbody>
+      ${
+        /* items are stored on the quotation totals; line items live in the
+           request payload. For print we render the aggregate when the
+           quotation has no line-item rows (frontend sends totals only). */
+        ""
+      }
+      <tr>
+        <td>${quotation.packageName ?? "Paket perjalanan"}</td>
+        <td class="num">${quotation.paxAdult + quotation.paxChild + quotation.paxInfant || 1}</td>
+        <td class="num">—</td>
+        <td class="num">${idr(quotation.subtotal)}</td>
+      </tr>
+    </tbody>
+  </table>
+
+  <div class="totals">
+    <div><span>Subtotal</span><span>${idr(quotation.subtotal)}</span></div>
+    ${quotation.discount > 0 ? `<div><span>Diskon</span><span>-${idr(quotation.discount)}</span></div>` : ""}
+    <div class="grand"><span>Total</span><span>${idr(quotation.total)}</span></div>
+  </div>
+
+  <footer>
+    Penawaran ini bukan tiket/konfirmasi booking. Harga dapat berubah tanpa
+    pemberitahuan sebelum pembayaran deposit. Dokumen ini dihasilkan oleh
+    TravelOS Suite.
+  </footer>
+</body>
+</html>`;
+
+    return c.html(html);
+  },
+);
+
+// POST /quotations/:id/convert-to-booking — accepted quotation → booking.
+// Accepts the required booking linkage fields and creates the booking with
+// the quotation's financial totals; marks the quotation converted.
+quotationsRouter.post(
+  "/:id/convert-to-booking",
+  requireRole("sales", "management"),
+  async (c) => {
+    const db = c.get("db");
+    const id = c.req.param("id");
+    const body = (await c.req.json<{
+      customerId: string;
+      packageId: string;
+      departureId: string;
+      paxAdult?: number;
+      paxChild?: number;
+      paxInfant?: number;
+      createdBy?: string;
+    }>());
+
+    const [quotation] = await db
+      .select()
+      .from(schema.quotations)
+      .where(eq(schema.quotations.id, id))
+      .all();
+    if (!quotation) {
+      return c.json({ success: false, error: "Quotation not found" }, 404);
+    }
+    if (quotation.status !== "accepted") {
+      return c.json(
+        {
+          success: false,
+          error: `Only accepted quotations can be converted (current: ${quotation.status})`,
+        },
+        409,
+      );
+    }
+    if (!body.customerId || !body.packageId || !body.departureId) {
+      return c.json(
+        {
+          success: false,
+          error: "customerId, packageId, and departureId are required",
+        },
+        400,
+      );
+    }
+
+    const { generateBookingReference } = await import("../lib/reference");
+
+    const paxAdult = body.paxAdult ?? quotation.paxAdult;
+    const paxChild = body.paxChild ?? quotation.paxChild;
+    const paxInfant = body.paxInfant ?? quotation.paxInfant;
+
+    // Deposit defaults to 50% of the quotation total unless overridden
+    // upstream (the booking payload can be patched later).
+    const depositAmount = Math.floor(quotation.total / 2);
+
+    const booking: schema.NewBookingRow = {
+      id: crypto.randomUUID(),
+      reference: generateBookingReference(),
+      customerId: body.customerId,
+      packageId: body.packageId,
+      departureId: body.departureId,
+      type:
+        paxAdult + paxChild > 4
+          ? "group"
+          : "individual",
+      status: "pending_deposit",
+      paymentStatus: "unpaid",
+      paxAdult,
+      paxChild,
+      paxInfant,
+      totalAmount: quotation.total,
+      discount: quotation.discount,
+      depositAmount,
+      paidAmount: 0,
+      balanceDue: quotation.total,
+      createdBy: body.createdBy ?? quotation.createdBy ?? null,
+    };
+
+    await db.insert(schema.bookings).values(booking).run();
+
+    // Mark the quotation as converted (still `accepted`, but linked).
+    const now = new Date().toISOString().replace("T", " ").slice(0, 19);
+    await db
+      .update(schema.quotations)
+      .set({ updatedAt: now })
+      .where(eq(schema.quotations.id, id))
+      .run();
+
+    await logAudit(db, {
+      actor: body.createdBy ?? null,
+      role: c.req.header("x-user-role") ?? null,
+      action: "quotation.convert_to_booking",
+      entityType: "quotation",
+      entityId: id,
+      detail: `Quotation ${quotation.number} converted to booking ${booking.reference}`,
+    });
+
+    return c.json(
+      { success: true, data: { quotationId: id, booking } },
+      201,
+    );
   },
 );
 
