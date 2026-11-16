@@ -751,6 +751,201 @@ export type LeadFollowUpRow = typeof leadFollowUps.$inferSelect;
 export type NewLeadFollowUpRow = typeof leadFollowUps.$inferInsert;
 
 // ---------------------------------------------------------------------------
+// Billing & Payments — quotations, invoices, payments, reminders, refunds.
+// Invoice numbering is unique; payment verification is a two-step flow
+// (pending_verification → verified/rejected) per the PRD.
+// ---------------------------------------------------------------------------
+
+export const quotations = sqliteTable(
+  "quotations",
+  {
+    id: text("id").primaryKey(),
+    number: text("number").notNull().unique(),
+    customerName: text("customer_name").notNull(),
+    customerPhone: text("customer_phone"),
+    packageName: text("package_name"),
+    destination: text("destination"),
+    paxAdult: integer("pax_adult").notNull().default(0),
+    paxChild: integer("pax_child").notNull().default(0),
+    paxInfant: integer("pax_infant").notNull().default(0),
+    departureDate: text("departure_date"),
+    status: text("status", {
+      enum: ["draft", "sent", "accepted", "rejected", "expired"],
+    })
+      .notNull()
+      .default("draft"),
+    validUntil: text("valid_until"),
+    subtotal: integer("subtotal").notNull().default(0),
+    discount: integer("discount").notNull().default(0),
+    total: integer("total").notNull().default(0),
+    leadId: text("lead_id"),
+    createdBy: text("created_by"),
+    createdAt: text("created_at")
+      .notNull()
+      .default(sql`(datetime('now'))`),
+    updatedAt: text("updated_at")
+      .notNull()
+      .default(sql`(datetime('now'))`),
+  },
+  (table) => ({
+    statusIdx: index("quotations_status_idx").on(table.status),
+    leadIdx: index("quotations_lead_idx").on(table.leadId),
+  }),
+);
+
+export const invoices = sqliteTable(
+  "invoices",
+  {
+    id: text("id").primaryKey(),
+    number: text("number").notNull().unique(),
+    bookingId: text("booking_id"),
+    quotationId: text("quotation_id"),
+    customerId: text("customer_id"),
+    customerName: text("customer_name").notNull(),
+    packageName: text("package_name"),
+    status: text("status", {
+      enum: ["draft", "issued", "partially_paid", "paid", "overdue", "void"],
+    })
+      .notNull()
+      .default("draft"),
+    issueDate: text("issue_date"),
+    dueDate: text("due_date"),
+    subtotal: integer("subtotal").notNull().default(0),
+    discount: integer("discount").notNull().default(0),
+    total: integer("total").notNull().default(0),
+    depositAmount: integer("deposit_amount").notNull().default(0),
+    paidAmount: integer("paid_amount").notNull().default(0),
+    balanceDue: integer("balance_due").notNull().default(0),
+    notes: text("notes"),
+    createdBy: text("created_by"),
+    createdAt: text("created_at")
+      .notNull()
+      .default(sql`(datetime('now'))`),
+    updatedAt: text("updated_at")
+      .notNull()
+      .default(sql`(datetime('now'))`),
+  },
+  (table) => ({
+    statusIdx: index("invoices_status_idx").on(table.status),
+    customerIdx: index("invoices_customer_idx").on(table.customerId),
+    bookingIdx: index("invoices_booking_idx").on(table.bookingId),
+    dueIdx: index("invoices_due_idx").on(table.dueDate),
+  }),
+);
+
+export const invoiceItems = sqliteTable(
+  "invoice_items",
+  {
+    id: text("id").primaryKey(),
+    invoiceId: text("invoice_id").notNull(),
+    quotationItemId: text("quotation_item_id"),
+    description: text("description").notNull(),
+    quantity: integer("quantity").notNull().default(1),
+    unitPrice: integer("unit_price").notNull().default(0),
+    amount: integer("amount").notNull().default(0),
+    sortOrder: integer("sort_order").notNull().default(0),
+  },
+  (table) => ({
+    invoiceIdx: index("invoice_items_invoice_idx").on(table.invoiceId),
+  }),
+);
+
+export const payments = sqliteTable(
+  "payments",
+  {
+    id: text("id").primaryKey(),
+    invoiceId: text("invoice_id").notNull(),
+    amount: integer("amount").notNull(),
+    method: text("method", {
+      enum: ["bank_transfer", "credit_card", "cash", "ewallet", "other"],
+    })
+      .notNull()
+      .default("bank_transfer"),
+    status: text("status", {
+      enum: ["pending_verification", "verified", "rejected"],
+    })
+      .notNull()
+      .default("pending_verification"),
+    paidAt: text("paid_at")
+      .notNull()
+      .default(sql`(datetime('now'))`),
+    verifiedBy: text("verified_by"),
+    verifiedAt: text("verified_at"),
+    proofKey: text("proof_key"),
+    proofUploaded: integer("proof_uploaded", { mode: "boolean" })
+      .notNull()
+      .default(false),
+    reference: text("reference"),
+    notes: text("notes"),
+    createdBy: text("created_by"),
+  },
+  (table) => ({
+    invoiceIdx: index("payments_invoice_idx").on(table.invoiceId),
+    statusIdx: index("payments_status_idx").on(table.status),
+  }),
+);
+
+export const paymentReminders = sqliteTable(
+  "payment_reminders",
+  {
+    id: text("id").primaryKey(),
+    invoiceId: text("invoice_id").notNull(),
+    channel: text("channel", {
+      enum: ["whatsapp", "email"],
+    })
+      .notNull()
+      .default("whatsapp"),
+    message: text("message").notNull(),
+    sentAt: text("sent_at")
+      .notNull()
+      .default(sql`(datetime('now'))`),
+    sentBy: text("sent_by"),
+  },
+  (table) => ({
+    invoiceIdx: index("payment_reminders_invoice_idx").on(table.invoiceId),
+  }),
+);
+
+export const refunds = sqliteTable(
+  "refunds",
+  {
+    id: text("id").primaryKey(),
+    number: text("number").notNull().unique(),
+    invoiceId: text("invoice_id").notNull(),
+    paymentId: text("payment_id"),
+    amount: integer("amount").notNull(),
+    reason: text("reason").notNull(),
+    status: text("status", {
+      enum: ["requested", "processing", "completed", "rejected"],
+    })
+      .notNull()
+      .default("requested"),
+    requestedAt: text("requested_at")
+      .notNull()
+      .default(sql`(datetime('now'))`),
+    processedAt: text("processed_at"),
+    processedBy: text("processed_by"),
+  },
+  (table) => ({
+    invoiceIdx: index("refunds_invoice_idx").on(table.invoiceId),
+    statusIdx: index("refunds_status_idx").on(table.status),
+  }),
+);
+
+export type QuotationRow = typeof quotations.$inferSelect;
+export type NewQuotationRow = typeof quotations.$inferInsert;
+export type InvoiceRow = typeof invoices.$inferSelect;
+export type NewInvoiceRow = typeof invoices.$inferInsert;
+export type InvoiceItemRow = typeof invoiceItems.$inferSelect;
+export type NewInvoiceItemRow = typeof invoiceItems.$inferInsert;
+export type PaymentRow = typeof payments.$inferSelect;
+export type NewPaymentRow = typeof payments.$inferInsert;
+export type PaymentReminderRow = typeof paymentReminders.$inferSelect;
+export type NewPaymentReminderRow = typeof paymentReminders.$inferInsert;
+export type RefundRow = typeof refunds.$inferSelect;
+export type NewRefundRow = typeof refunds.$inferInsert;
+
+// ---------------------------------------------------------------------------
 // Audit log for sensitive trip/booking mutations.
 // ---------------------------------------------------------------------------
 
