@@ -6,6 +6,7 @@ import passengersRouter from "./routes/passengers";
 import departuresRouter from "./routes/departures";
 import checklistRouter from "./routes/checklist";
 import documentsRouter from "./routes/documents";
+import suppliersRouter from "./routes/suppliers";
 import { releaseExpiredHolds } from "./lib/seat-availability";
 
 export type Env = {
@@ -45,6 +46,7 @@ app.route("/", passengersRouter);
 app.route("/departures", departuresRouter);
 app.route("/", checklistRouter);
 app.route("/", documentsRouter);
+app.route("/", suppliersRouter);
 
 export default app;
 
