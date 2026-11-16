@@ -1,5 +1,6 @@
 import type {
   Booking,
+  BookingHistoryEvent,
   Customer,
   Departure,
   TravelPackage,
@@ -343,5 +344,58 @@ export const mockBookings: Booking[] = [
     passengers: [],
     createdAt: "2026-01-10",
     createdBy: "Doni (Sales)",
+  },
+];
+
+// Mock booking history events — frontend only. Backend audit trail will replace
+// this with a real `audit_logs` / booking history table in a later phase.
+export const mockBookingHistory: BookingHistoryEvent[] = [
+  {
+    id: "h1",
+    bookingId: "b1",
+    action: "status_changed",
+    detail: "Pending Deposit → Confirmed",
+    user: "Rina (Sales)",
+    at: "2026-01-13T10:30:00",
+  },
+  {
+    id: "h2",
+    bookingId: "b1",
+    action: "payment_verified",
+    detail: "Deposit payment of Rp 18.000.000 verified",
+    user: "Finance Team",
+    at: "2026-01-14T09:15:00",
+  },
+  {
+    id: "h3",
+    bookingId: "b1",
+    action: "created",
+    detail: "Booking created (Individual)",
+    user: "Rina (Sales)",
+    at: "2026-01-12T14:00:00",
+  },
+  {
+    id: "h4",
+    bookingId: "b2",
+    action: "discount_applied",
+    detail: "Family discount of Rp 1.500.000 applied",
+    user: "Rina (Sales)",
+    at: "2026-01-21T11:00:00",
+  },
+  {
+    id: "h5",
+    bookingId: "b2",
+    action: "created",
+    detail: "Booking created (Group)",
+    user: "Rina (Sales)",
+    at: "2026-01-20T15:30:00",
+  },
+  {
+    id: "h6",
+    bookingId: "b5",
+    action: "status_changed",
+    detail: "Confirmed → Cancelled (customer requested)",
+    user: "Doni (Sales)",
+    at: "2026-01-25T16:45:00",
   },
 ];

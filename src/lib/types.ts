@@ -114,3 +114,12 @@ export const bookingTransitions: Record<BookingStatus, BookingStatus[]> = {
   completed: [],
   cancelled: ["draft"],
 };
+
+export interface BookingHistoryEvent {
+  id: string;
+  bookingId: string;
+  action: string;
+  detail: string;
+  user: string;
+  at: string;
+}

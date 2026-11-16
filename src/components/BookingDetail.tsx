@@ -1,10 +1,12 @@
 import { useState } from "react";
-import { Plus, Trash2, Pencil, Check, X, ArrowRight } from "lucide-react";
+import { Plus, Trash2, Pencil, Check, X, ArrowRight, Ban } from "lucide-react";
 import type { Booking, BookingStatus, Passenger } from "@/lib/types";
 import { bookingTransitions } from "@/lib/types";
 import { formatDate } from "@/lib/utils";
 import { mockPackages } from "@/lib/mock-data";
 import PriceSummaryPanel from "@/components/PriceSummaryPanel";
+import BookingHistory from "@/components/BookingHistory";
+import CancellationDialog from "@/components/CancellationDialog";
 import { BookingStatusBadge, PaymentStatusBadge } from "@/components/StatusBadges";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -46,6 +48,7 @@ export default function BookingDetail({
   const [editingId, setEditingId] = useState<string | null>(null);
   const [draft, setDraft] = useState<Passenger | null>(null);
   const [status, setStatus] = useState<BookingStatus | null>(null);
+  const [cancelOpen, setCancelOpen] = useState(false);
 
   // Sync local passenger list + status whenever a booking is opened.
   const [syncedBookingId, setSyncedBookingId] = useState<string | null>(null);
@@ -116,6 +119,7 @@ export default function BookingDetail({
         <StatusTransition
           current={status ?? booking.status}
           onTransition={(next) => setStatus(next)}
+          onCancel={() => setCancelOpen(true)}
         />
 
         {/* Price & discount summary */}
@@ -172,7 +176,20 @@ export default function BookingDetail({
             ),
           )}
         </div>
+
+        {/* History timeline */}
+        <div className="grid gap-3">
+          <Label className="text-base font-semibold">History</Label>
+          <BookingHistory bookingId={booking.id} />
+        </div>
       </DialogContent>
+
+      <CancellationDialog
+        open={cancelOpen}
+        onOpenChange={setCancelOpen}
+        bookingReference={booking.reference}
+        onConfirm={() => setStatus("cancelled")}
+      />
     </Dialog>
   );
 }
@@ -383,11 +400,15 @@ function PassengerEditForm({
 function StatusTransition({
   current,
   onTransition,
+  onCancel,
 }: {
   current: BookingStatus;
   onTransition: (next: BookingStatus) => void;
+  onCancel: () => void;
 }) {
   const next = bookingTransitions[current] ?? [];
+  const canCancel =
+    current !== "cancelled" && current !== "completed";
 
   return (
     <div className="rounded-lg border p-4">
@@ -398,12 +419,12 @@ function StatusTransition({
         </span>
       </div>
 
-      {next.length === 0 ? (
+      {next.length === 0 && !canCancel ? (
         <p className="text-xs text-muted-foreground">
           This booking has reached a terminal status.
         </p>
       ) : (
-        <div className="flex flex-wrap gap-2">
+        <div className="flex flex-wrap items-center gap-2">
           {next.map((s) => (
             <Button
               key={s}
@@ -419,6 +440,17 @@ function StatusTransition({
               <ArrowRight className="h-3.5 w-3.5 transition-transform group-hover:translate-x-0.5" />
             </Button>
           ))}
+          {canCancel && (
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={onCancel}
+              className="text-destructive hover:text-destructive"
+            >
+              <Ban className="h-3.5 w-3.5" />
+              Cancel booking
+            </Button>
+          )}
         </div>
       )}
     </div>
