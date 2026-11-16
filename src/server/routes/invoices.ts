@@ -228,14 +228,61 @@ invoicesRouter.get(
       return c.json({ success: false, error: "Invoice not found" }, 404);
     }
 
-    const items = await db
-      .select()
-      .from(schema.invoiceItems)
-      .where(eq(schema.invoiceItems.invoiceId, id))
-      .orderBy(asc(schema.invoiceItems.sortOrder))
-      .all();
+    const [items, paymentHistory, refundHistory] = await Promise.all([
+      db
+        .select()
+        .from(schema.invoiceItems)
+        .where(eq(schema.invoiceItems.invoiceId, id))
+        .orderBy(asc(schema.invoiceItems.sortOrder))
+        .all(),
+      db
+        .select()
+        .from(schema.payments)
+        .where(eq(schema.payments.invoiceId, id))
+        .orderBy(desc(schema.payments.paidAt))
+        .all(),
+      db
+        .select()
+        .from(schema.refunds)
+        .where(eq(schema.refunds.invoiceId, id))
+        .orderBy(desc(schema.refunds.requestedAt))
+        .all(),
+    ]);
 
-    return c.json({ success: true, data: { ...invoice, items } });
+    // Balance summary: verified payments vs pending vs refunded.
+    const verifiedTotal = paymentHistory
+      .filter((p) => p.status === "verified")
+      .reduce((s, p) => s + p.amount, 0);
+    const pendingTotal = paymentHistory
+      .filter((p) => p.status === "pending_verification")
+      .reduce((s, p) => s + p.amount, 0);
+    const refundedTotal = refundHistory
+      .filter((r) => r.status === "completed")
+      .reduce((s, r) => s + r.amount, 0);
+
+    return c.json({
+      success: true,
+      data: {
+        ...invoice,
+        items,
+        payments: paymentHistory,
+        refunds: refundHistory,
+        balanceSummary: {
+          total: invoice.total,
+          paid: verifiedTotal,
+          pendingVerification: pendingTotal,
+          refunded: refundedTotal,
+          balanceDue: invoice.balanceDue,
+          progressPct:
+            invoice.total > 0
+              ? Math.min(
+                  100,
+                  Math.round((invoice.paidAmount / invoice.total) * 100),
+                )
+              : 0,
+        },
+      },
+    });
   },
 );
 

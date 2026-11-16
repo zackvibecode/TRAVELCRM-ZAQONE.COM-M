@@ -129,6 +129,24 @@ customersRouter.get(
 
   const totalSpend = bookingRows.reduce((s, b) => s + b.paidAmount, 0);
 
+  // Billing history & balance summary across the customer's invoices.
+  const invoiceRows = await db
+    .select()
+    .from(schema.invoices)
+    .where(eq(schema.invoices.customerId, id))
+    .orderBy(desc(schema.invoices.createdAt))
+    .limit(100)
+    .all();
+  const activeInvoices = invoiceRows.filter(
+    (i) => i.status !== "draft" && i.status !== "void",
+  );
+  const billingSummary = {
+    invoiceCount: invoiceRows.length,
+    totalBilled: activeInvoices.reduce((s, i) => s + i.total, 0),
+    totalPaid: activeInvoices.reduce((s, i) => s + i.paidAmount, 0),
+    outstanding: activeInvoices.reduce((s, i) => s + i.balanceDue, 0),
+  };
+
   return c.json({
     success: true,
     data: {
@@ -139,12 +157,14 @@ customersRouter.get(
       ),
       lead: leadRow[0] ?? null,
       bookings: bookingRows,
+      invoices: invoiceRows,
       stats: {
         bookingCount: bookingRows.length,
         totalSpend,
         activeBookings: bookingRows.filter((b) =>
           ["pending_deposit", "confirmed"].includes(b.status),
         ).length,
+        billing: billingSummary,
       },
     },
   });
