@@ -711,6 +711,34 @@ export const leadActivities = sqliteTable(
   }),
 );
 
+// Scheduled follow-up reminders per lead — the agent's to-do queue.
+export const leadFollowUps = sqliteTable(
+  "lead_follow_ups",
+  {
+    id: text("id").primaryKey(),
+    leadId: text("lead_id").notNull(),
+    dueAt: text("due_at").notNull(),
+    channel: text("channel", {
+      enum: ["whatsapp", "email", "call", "in_person"],
+    })
+      .notNull()
+      .default("whatsapp"),
+    note: text("note"),
+    done: integer("done", { mode: "boolean" }).notNull().default(false),
+    doneAt: text("done_at"),
+    doneBy: text("done_by"),
+    createdBy: text("created_by").notNull().default("system"),
+    createdAt: text("created_at")
+      .notNull()
+      .default(sql`(datetime('now'))`),
+  },
+  (table) => ({
+    leadIdx: index("lead_follow_ups_lead_idx").on(table.leadId),
+    dueIdx: index("lead_follow_ups_due_idx").on(table.dueAt),
+    doneIdx: index("lead_follow_ups_done_idx").on(table.done),
+  }),
+);
+
 export type CustomerRow = typeof customers.$inferSelect;
 export type NewCustomerRow = typeof customers.$inferInsert;
 export type LeadSourceRow = typeof leadSources.$inferSelect;
@@ -719,6 +747,8 @@ export type LeadRow = typeof leads.$inferSelect;
 export type NewLeadRow = typeof leads.$inferInsert;
 export type LeadActivityRow = typeof leadActivities.$inferSelect;
 export type NewLeadActivityRow = typeof leadActivities.$inferInsert;
+export type LeadFollowUpRow = typeof leadFollowUps.$inferSelect;
+export type NewLeadFollowUpRow = typeof leadFollowUps.$inferInsert;
 
 // ---------------------------------------------------------------------------
 // Audit log for sensitive trip/booking mutations.
