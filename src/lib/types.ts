@@ -300,6 +300,23 @@ export interface Quotation {
   notes?: string;
 }
 
+// ---------------------------------------------------------------------------
+// Payment reminders — sent for invoices due soon / overdue.
+// ---------------------------------------------------------------------------
+
+export type ReminderChannel = "whatsapp" | "email";
+
+export interface PaymentReminder {
+  id: string;
+  invoiceId: string;
+  invoiceNumber: string;
+  customerName: string;
+  channel: ReminderChannel;
+  message: string;
+  sentAt: string;
+  sentBy: string;
+}
+
 export interface LeadActivity {
   id: string;
   at: string;

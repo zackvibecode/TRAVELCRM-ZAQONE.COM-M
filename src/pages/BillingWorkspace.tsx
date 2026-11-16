@@ -17,16 +17,19 @@ import {
   XCircle,
   Copy,
   Ban,
+  Bell,
 } from "lucide-react";
 import { mockInvoices, mockPayments, mockRefunds, mockQuotations } from "@/lib/mock-data";
 import QuotationBuilder from "@/components/QuotationBuilder";
 import InvoiceBuilder from "@/components/InvoiceBuilder";
 import PaymentProofForm from "@/components/PaymentProofForm";
 import RefundForm from "@/components/RefundForm";
+import ReminderDashboard from "@/components/ReminderDashboard";
 import type {
   Invoice,
   InvoiceStatus,
   Payment,
+  PaymentReminder,
   Quotation,
   QuotationStatus,
   Refund,
@@ -91,13 +94,19 @@ const QUOTATION_STATUS_CLASS: Record<QuotationStatus, string> = {
   expired: "bg-zinc-100 text-zinc-500 border-zinc-200",
 };
 
-type Tab = "invoices" | "quotations" | "payments" | "refunds";
+type Tab =
+  | "invoices"
+  | "quotations"
+  | "payments"
+  | "refunds"
+  | "reminders";
 
 export default function BillingWorkspace() {
   const [invoices, setInvoices] = useState<Invoice[]>(mockInvoices);
   const [quotations, setQuotations] = useState<Quotation[]>(mockQuotations);
   const [payments, setPayments] = useState<Payment[]>(mockPayments);
   const [refunds, setRefunds] = useState<Refund[]>(mockRefunds);
+  const [reminders, setReminders] = useState<PaymentReminder[]>([]);
   const [tab, setTab] = useState<Tab>("invoices");
   const [search, setSearch] = useState("");
   const [statusFilter, setStatusFilter] = useState<"all" | InvoiceStatus>("all");
@@ -373,6 +382,10 @@ export default function BillingWorkspace() {
     );
   }
 
+  function handleReminderSent(reminder: PaymentReminder) {
+    setReminders((prev) => [reminder, ...prev]);
+  }
+
   function handleQuotationCreated(quotation: Quotation) {
     setQuotations((prev) => [quotation, ...prev]);
     setShowBuilder(false);
@@ -509,6 +522,7 @@ export default function BillingWorkspace() {
               ["quotations", "Quotations", ClipboardList],
               ["payments", "Payments", Banknote],
               ["refunds", "Refunds", Undo2],
+              ["reminders", "Reminders", Bell],
             ] as const
           ).map(([value, label, Icon]) => (
             <button
@@ -1268,6 +1282,15 @@ export default function BillingWorkspace() {
             </Table>
           </CardContent>
         </Card>
+      )}
+
+      {/* Reminders tab */}
+      {tab === "reminders" && (
+        <ReminderDashboard
+          invoices={invoices}
+          reminders={reminders}
+          onSent={handleReminderSent}
+        />
       )}
         </>
       )}
