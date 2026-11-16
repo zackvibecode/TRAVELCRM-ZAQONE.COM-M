@@ -8,6 +8,7 @@ import PassengerManifest from "@/components/PassengerManifest";
 import TripPrepChecklist from "@/components/TripPrepChecklist";
 import RoomingFlightInfo from "@/components/RoomingFlightInfo";
 import TripCostProfit from "@/components/TripCostProfit";
+import SupplierCostComparison from "@/components/SupplierCostComparison";
 import { Badge } from "@/components/ui/badge";
 import {
   Dialog,
@@ -166,6 +167,11 @@ export default function DepartureDetail({
         {/* Trip cost & profit */}
         <div className="rounded-lg border p-4">
           <TripCostProfit departure={departure} />
+        </div>
+
+        {/* Supplier cost comparison */}
+        <div className="rounded-lg border p-4">
+          <SupplierCostComparison departure={departure} />
         </div>
 
         {/* Notes */}
