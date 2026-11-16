@@ -1,0 +1,15 @@
+{
+  "$schema": "node_modules/wrangler/config-schema.json",
+  "name": "travelos-suite-api",
+  "main": "src/server/index.ts",
+  "compatibility_date": "2026-11-16",
+  "compatibility_flags": ["nodejs_compat"],
+  "d1_databases": [
+    {
+      "binding": "DB",
+      "database_name": "travelos-suite",
+      "database_id": "PLACEHOLDER_DATABASE_ID",
+      "migrations_dir": "src/server/db/migrations"
+    }
+  ]
+}
