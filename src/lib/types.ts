@@ -50,6 +50,15 @@ export const departureStatusLabels: Record<Departure["status"], string> = {
   closed: "Closed",
 };
 
+export interface DepartureCost {
+  id: string;
+  departureId: string;
+  category: string;
+  description: string;
+  estimatedAmount: number;
+  actualAmount: number;
+}
+
 export interface Passenger {
   id: string;
   fullName: string;

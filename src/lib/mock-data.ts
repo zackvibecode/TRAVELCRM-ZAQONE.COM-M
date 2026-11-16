@@ -3,6 +3,7 @@ import type {
   BookingHistoryEvent,
   Customer,
   Departure,
+  DepartureCost,
   TravelPackage,
 } from "@/lib/types";
 
@@ -398,4 +399,15 @@ export const mockBookingHistory: BookingHistoryEvent[] = [
     user: "Doni (Sales)",
     at: "2026-01-25T16:45:00",
   },
+];
+
+// Mock departure (supplier) costs — frontend only.
+export const mockDepartureCosts: DepartureCost[] = [
+  { id: "dc1", departureId: "d1", category: "Flight", description: "Return flights Tokyo (group fare)", estimatedAmount: 22000000, actualAmount: 22500000 },
+  { id: "dc2", departureId: "d1", category: "Hotel", description: "4-star hotel 6 nights", estimatedAmount: 14000000, actualAmount: 13800000 },
+  { id: "dc3", departureId: "d1", category: "Transport", description: "Coach + transfers", estimatedAmount: 3000000, actualAmount: 3200000 },
+  { id: "dc4", departureId: "d3", category: "Flight", description: "Return flights Bali", estimatedAmount: 9000000, actualAmount: 8800000 },
+  { id: "dc5", departureId: "d3", category: "Hotel", description: "Villa accommodation 4 nights", estimatedAmount: 6000000, actualAmount: 0 },
+  { id: "dc6", departureId: "d4", category: "Flight", description: "Return flights Singapore", estimatedAmount: 16000000, actualAmount: 16200000 },
+  { id: "dc7", departureId: "d6", category: "Flight", description: "Return flights Europe", estimatedAmount: 30000000, actualAmount: 0 },
 ];
