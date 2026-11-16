@@ -3,6 +3,7 @@ import { and, desc, eq, like, or } from "drizzle-orm";
 import type { DrizzleD1Database } from "drizzle-orm/d1";
 import * as schema from "../db/schema";
 import { generateBookingReference } from "../lib/reference";
+import { calculatePricing } from "../lib/pricing";
 
 export type BookingsEnv = {
   DB: D1Database;
@@ -249,6 +250,88 @@ bookingsRouter.post("/", async (c) => {
     },
     201,
   );
+});
+
+interface RecalculateInput {
+  adultPrice: number;
+  childPrice: number;
+  infantPrice: number;
+  discount?:
+    | { kind: "amount"; value: number }
+    | { kind: "percent"; value: number };
+  paidAmount?: number;
+}
+
+// POST /bookings/:id/recalculate — recompute pricing and persist.
+bookingsRouter.post("/:id/recalculate", async (c) => {
+  const db = c.get("db");
+  const id = c.req.param("id");
+
+  const booking = await db
+    .select()
+    .from(schema.bookings)
+    .where(eq(schema.bookings.id, id))
+    .get();
+  if (!booking) {
+    return c.json({ success: false, error: "Booking not found" }, 404);
+  }
+
+  let body: RecalculateInput;
+  try {
+    body = await c.req.json<RecalculateInput>();
+  } catch {
+    return c.json({ success: false, error: "Invalid JSON body" }, 400);
+  }
+
+  if (
+    typeof body.adultPrice !== "number" ||
+    typeof body.childPrice !== "number" ||
+    typeof body.infantPrice !== "number"
+  ) {
+    return c.json(
+      { success: false, error: "adultPrice, childPrice and infantPrice are required" },
+      400,
+    );
+  }
+
+  const result = calculatePricing(
+    { adultPrice: body.adultPrice, childPrice: body.childPrice, infantPrice: body.infantPrice },
+    {
+      paxAdult: booking.paxAdult,
+      paxChild: booking.paxChild,
+      paxInfant: booking.paxInfant,
+    },
+    body.discount,
+  );
+
+  const paidAmount = body.paidAmount ?? booking.paidAmount;
+  const balanceDue = Math.max(0, result.total - paidAmount);
+  const now = new Date().toISOString();
+
+  await db
+    .update(schema.bookings)
+    .set({
+      totalAmount: result.total,
+      discount: result.discount,
+      paidAmount,
+      balanceDue,
+      updatedAt: now,
+    })
+    .where(eq(schema.bookings.id, id))
+    .run();
+
+  await db
+    .insert(schema.bookingHistory)
+    .values({
+      id: crypto.randomUUID(),
+      bookingId: id,
+      action: "pricing_recalculated",
+      detail: `Total recalculated to ${result.total} (discount ${result.discount})`,
+      at: now,
+    })
+    .run();
+
+  return c.json({ success: true, pricing: result, balanceDue });
 });
 
 export default bookingsRouter;
