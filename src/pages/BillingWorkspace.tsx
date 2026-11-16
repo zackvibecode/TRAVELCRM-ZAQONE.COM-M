@@ -17,6 +17,7 @@ import {
   XCircle,
 } from "lucide-react";
 import { mockInvoices, mockPayments, mockRefunds, mockQuotations } from "@/lib/mock-data";
+import QuotationBuilder from "@/components/QuotationBuilder";
 import type { Invoice, InvoiceStatus, Quotation, QuotationStatus } from "@/lib/types";
 import { cn, waLink } from "@/lib/utils";
 import { Badge } from "@/components/ui/badge";
@@ -89,6 +90,7 @@ export default function BillingWorkspace() {
     "all" | QuotationStatus
   >("all");
   const [selectedInvoice, setSelectedInvoice] = useState<Invoice | null>(null);
+  const [showBuilder, setShowBuilder] = useState(false);
 
   const filteredInvoices = useMemo(() => {
     const q = search.toLowerCase();
@@ -188,6 +190,12 @@ export default function BillingWorkspace() {
     );
   }
 
+  function handleQuotationCreated(quotation: Quotation) {
+    setQuotations((prev) => [quotation, ...prev]);
+    setShowBuilder(false);
+    setTab("quotations");
+  }
+
   return (
     <div className="space-y-6">
       {/* Header */}
@@ -200,13 +208,30 @@ export default function BillingWorkspace() {
             Invoice, pembayaran, deposit, dan refund.
           </p>
         </div>
-        <Button className="gap-2">
+        <Button className="gap-2" onClick={() => setShowBuilder(true)}>
           <Plus className="h-4 w-4" />
-          Buat Invoice
+          Buat Quotation
         </Button>
       </div>
 
-      {/* KPI */}
+      {/* Quotation builder (overlay mode) */}
+      {showBuilder && (
+        <div className="space-y-4">
+          <div className="flex items-center justify-between">
+            <h2 className="font-display text-lg font-bold">
+              Buat Quotation Baru
+            </h2>
+            <Button variant="outline" onClick={() => setShowBuilder(false)}>
+              Tutup
+            </Button>
+          </div>
+          <QuotationBuilder onCreated={handleQuotationCreated} />
+        </div>
+      )}
+
+      {!showBuilder && (
+        <>
+          {/* KPI */}
       <div className="grid grid-cols-2 gap-4 lg:grid-cols-4">
         <Card>
           <CardHeader className="pb-2">
@@ -865,6 +890,8 @@ export default function BillingWorkspace() {
             </Table>
           </CardContent>
         </Card>
+      )}
+        </>
       )}
     </div>
   );
