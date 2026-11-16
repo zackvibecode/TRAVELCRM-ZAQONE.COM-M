@@ -8,6 +8,7 @@ import checklistRouter from "./routes/checklist";
 import documentsRouter from "./routes/documents";
 import suppliersRouter from "./routes/suppliers";
 import packagesRouter from "./routes/packages";
+import leadsRouter from "./routes/leads";
 import { releaseExpiredHolds } from "./lib/seat-availability";
 
 export type Env = {
@@ -49,6 +50,7 @@ app.route("/", checklistRouter);
 app.route("/", documentsRouter);
 app.route("/", suppliersRouter);
 app.route("/", packagesRouter);
+app.route("/leads", leadsRouter);
 
 export default app;
 
