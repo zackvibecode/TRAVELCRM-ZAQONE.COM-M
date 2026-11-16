@@ -3,7 +3,7 @@ import { and, asc, desc, eq, gte, like, or } from "drizzle-orm";
 import type { DrizzleD1Database } from "drizzle-orm/d1";
 import * as schema from "../db/schema";
 import { logAudit } from "../lib/audit";
-
+import { requireRole } from "../middleware/auth";
 export type LeadsEnv = {
   DB: D1Database;
 };
@@ -74,7 +74,10 @@ function isLeadStage(value: unknown): value is LeadStage {
 }
 
 // GET /leads — list with filters, search, pagination.
-leadsRouter.get("/", async (c) => {
+leadsRouter.get(
+  "/",
+  requireRole("sales", "management", "finance", "operations"),
+  async (c) => {
   const db = c.get("db");
 
   const stage = c.req.query("stage");
@@ -135,7 +138,10 @@ leadsRouter.get("/stages", (c) =>
 );
 
 // GET /leads/stats — pipeline summary KPIs.
-leadsRouter.get("/stats", async (c) => {
+leadsRouter.get(
+  "/stats",
+  requireRole("sales", "management", "finance"),
+  async (c) => {
   const db = c.get("db");
   const rows = await db.select().from(schema.leads).all();
 
@@ -163,7 +169,10 @@ leadsRouter.get("/stats", async (c) => {
 });
 
 // GET /leads/upcoming-follow-ups — reminder queue across agents.
-leadsRouter.get("/upcoming-follow-ups", async (c) => {
+leadsRouter.get(
+  "/upcoming-follow-ups",
+  requireRole("sales", "management"),
+  async (c) => {
   const db = c.get("db");
   const today = new Date().toISOString().slice(0, 10);
 
@@ -189,7 +198,10 @@ leadsRouter.get("/upcoming-follow-ups", async (c) => {
 });
 
 // GET /leads/:id — single lead with activities and follow-ups.
-leadsRouter.get("/:id", async (c) => {
+leadsRouter.get(
+  "/:id",
+  requireRole("sales", "management", "finance", "operations"),
+  async (c) => {
   const db = c.get("db");
   const id = c.req.param("id");
 
@@ -226,7 +238,7 @@ leadsRouter.get("/:id", async (c) => {
 });
 
 // POST /leads — create a new lead.
-leadsRouter.post("/", async (c) => {
+leadsRouter.post("/", requireRole("sales", "management"), async (c) => {
   const db = c.get("db");
   const body = (await c.req.json<CreateLeadInput>()) as CreateLeadInput;
 
@@ -259,6 +271,7 @@ leadsRouter.post("/", async (c) => {
   await db.insert(schema.leads).values(lead).run();
   await logAudit(db, {
     actor: body.createdBy ?? null,
+    role: c.req.header("x-user-role") ?? null,
     action: "lead.create",
     entityType: "lead",
     entityId: lead.id,
@@ -269,7 +282,7 @@ leadsRouter.post("/", async (c) => {
 });
 
 // PATCH /leads/:id — update lead fields (incl. assignment).
-leadsRouter.patch("/:id", async (c) => {
+leadsRouter.patch("/:id", requireRole("sales", "management"), async (c) => {
   const db = c.get("db");
   const id = c.req.param("id");
   const body = (await c.req.json<UpdateLeadInput>()) as UpdateLeadInput;
@@ -319,6 +332,7 @@ leadsRouter.patch("/:id", async (c) => {
   if (body.assignedTo !== undefined && body.assignedTo !== existing.assignedTo) {
     await logAudit(db, {
       actor: body.updatedBy ?? null,
+      role: c.req.header("x-user-role") ?? null,
       action: "lead.assign",
       entityType: "lead",
       entityId: id,
@@ -327,6 +341,7 @@ leadsRouter.patch("/:id", async (c) => {
   }
   await logAudit(db, {
     actor: body.updatedBy ?? null,
+    role: c.req.header("x-user-role") ?? null,
     action: "lead.update",
     entityType: "lead",
     entityId: id,
@@ -342,7 +357,10 @@ leadsRouter.patch("/:id", async (c) => {
 });
 
 // POST /leads/:id/stage — dedicated stage transition endpoint.
-leadsRouter.post("/:id/stage", async (c) => {
+leadsRouter.post(
+  "/:id/stage",
+  requireRole("sales", "management"),
+  async (c) => {
   const db = c.get("db");
   const id = c.req.param("id");
   const body = (await c.req.json<{ stage: LeadStage; by?: string }>());
@@ -376,6 +394,7 @@ leadsRouter.post("/:id/stage", async (c) => {
   }).run();
   await logAudit(db, {
     actor: body.by ?? null,
+    role: c.req.header("x-user-role") ?? null,
     action: "lead.stage_change",
     entityType: "lead",
     entityId: id,
@@ -386,7 +405,10 @@ leadsRouter.post("/:id/stage", async (c) => {
 });
 
 // POST /leads/:id/activities — record a call/whatsapp/email/note.
-leadsRouter.post("/:id/activities", async (c) => {
+leadsRouter.post(
+  "/:id/activities",
+  requireRole("sales", "management"),
+  async (c) => {
   const db = c.get("db");
   const id = c.req.param("id");
   const body = (await c.req.json<{
@@ -434,7 +456,10 @@ leadsRouter.post("/:id/activities", async (c) => {
 });
 
 // GET /leads/:id/activities — list activity history.
-leadsRouter.get("/:id/activities", async (c) => {
+leadsRouter.get(
+  "/:id/activities",
+  requireRole("sales", "management", "finance", "operations"),
+  async (c) => {
   const db = c.get("db");
   const id = c.req.param("id");
 
@@ -450,7 +475,10 @@ leadsRouter.get("/:id/activities", async (c) => {
 });
 
 // Follow-up CRUD — scheduled reminders per lead.
-leadsRouter.post("/:id/follow-ups", async (c) => {
+leadsRouter.post(
+  "/:id/follow-ups",
+  requireRole("sales", "management"),
+  async (c) => {
   const db = c.get("db");
   const id = c.req.param("id");
   const body = (await c.req.json<{
@@ -491,9 +519,13 @@ leadsRouter.post("/:id/follow-ups", async (c) => {
     .run();
 
   return c.json({ success: true, data: followUp }, 201);
-});
+  },
+);
 
-leadsRouter.get("/:id/follow-ups", async (c) => {
+leadsRouter.get(
+  "/:id/follow-ups",
+  requireRole("sales", "management", "finance", "operations"),
+  async (c) => {
   const db = c.get("db");
   const id = c.req.param("id");
 
@@ -508,7 +540,10 @@ leadsRouter.get("/:id/follow-ups", async (c) => {
   return c.json({ success: true, data: rows });
 });
 
-leadsRouter.post("/follow-ups/:followUpId/complete", async (c) => {
+leadsRouter.post(
+  "/follow-ups/:followUpId/complete",
+  requireRole("sales", "management"),
+  async (c) => {
   const db = c.get("db");
   const followUpId = c.req.param("followUpId");
   const body = (await c.req.json<{ doneBy?: string }>());
@@ -530,10 +565,11 @@ leadsRouter.post("/follow-ups/:followUpId/complete", async (c) => {
     .run();
 
   return c.json({ success: true, data: { id: followUpId, done: true } });
-});
+  },
+);
 
 // DELETE /leads/:id — hard delete (audit logged).
-leadsRouter.delete("/:id", async (c) => {
+leadsRouter.delete("/:id", requireRole("management"), async (c) => {
   const db = c.get("db");
   const id = c.req.param("id");
 
@@ -557,6 +593,7 @@ leadsRouter.delete("/:id", async (c) => {
     .run();
   await logAudit(db, {
     actor: c.req.query("by") ?? null,
+    role: c.req.header("x-user-role") ?? null,
     action: "lead.delete",
     entityType: "lead",
     entityId: id,

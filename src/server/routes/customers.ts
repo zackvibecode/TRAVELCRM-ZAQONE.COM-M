@@ -3,6 +3,7 @@ import { and, desc, eq, like, or } from "drizzle-orm";
 import type { DrizzleD1Database } from "drizzle-orm/d1";
 import * as schema from "../db/schema";
 import { logAudit } from "../lib/audit";
+import { requireRole } from "../middleware/auth";
 
 export type CustomersEnv = {
   DB: D1Database;
@@ -40,7 +41,10 @@ interface UpdateCustomerInput {
 }
 
 // GET /customers — list with search, type filter, pagination.
-customersRouter.get("/", async (c) => {
+customersRouter.get(
+  "/",
+  requireRole("sales", "management", "finance", "operations"),
+  async (c) => {
   const db = c.get("db");
 
   const type = c.req.query("type");
@@ -85,10 +89,14 @@ customersRouter.get("/", async (c) => {
     data: rows,
     pagination: { total: total.length, limit, offset },
   });
-});
+  },
+);
 
 // GET /customers/:id — profile with booking history and originating lead.
-customersRouter.get("/:id", async (c) => {
+customersRouter.get(
+  "/:id",
+  requireRole("sales", "management", "finance", "operations"),
+  async (c) => {
   const db = c.get("db");
   const id = c.req.param("id");
 
@@ -135,10 +143,11 @@ customersRouter.get("/:id", async (c) => {
       },
     },
   });
-});
+  },
+);
 
 // POST /customers — create a customer (optionally converted from a lead).
-customersRouter.post("/", async (c) => {
+customersRouter.post("/", requireRole("sales", "management"), async (c) => {
   const db = c.get("db");
   const body = (await c.req.json<CreateCustomerInput>()) as CreateCustomerInput;
 
@@ -201,6 +210,7 @@ customersRouter.post("/", async (c) => {
 
   await logAudit(db, {
     actor: body.createdBy ?? null,
+    role: c.req.header("x-user-role") ?? null,
     action: "customer.create",
     entityType: "customer",
     entityId: customer.id,
@@ -211,7 +221,7 @@ customersRouter.post("/", async (c) => {
 });
 
 // PATCH /customers/:id — update customer fields.
-customersRouter.patch("/:id", async (c) => {
+customersRouter.patch("/:id", requireRole("sales", "management"), async (c) => {
   const db = c.get("db");
   const id = c.req.param("id");
   const body = (await c.req.json<UpdateCustomerInput>()) as UpdateCustomerInput;
@@ -242,6 +252,7 @@ customersRouter.patch("/:id", async (c) => {
     .run();
   await logAudit(db, {
     actor: body.updatedBy ?? null,
+    role: c.req.header("x-user-role") ?? null,
     action: "customer.update",
     entityType: "customer",
     entityId: id,
@@ -257,7 +268,7 @@ customersRouter.patch("/:id", async (c) => {
 });
 
 // DELETE /customers/:id — hard delete, blocked when bookings exist.
-customersRouter.delete("/:id", async (c) => {
+customersRouter.delete("/:id", requireRole("management"), async (c) => {
   const db = c.get("db");
   const id = c.req.param("id");
 
@@ -288,6 +299,7 @@ customersRouter.delete("/:id", async (c) => {
   await db.delete(schema.customers).where(eq(schema.customers.id, id)).run();
   await logAudit(db, {
     actor: c.req.query("by") ?? null,
+    role: c.req.header("x-user-role") ?? null,
     action: "customer.delete",
     entityType: "customer",
     entityId: id,

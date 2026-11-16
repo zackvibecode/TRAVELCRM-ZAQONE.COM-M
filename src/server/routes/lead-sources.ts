@@ -3,6 +3,7 @@ import { asc, eq } from "drizzle-orm";
 import type { DrizzleD1Database } from "drizzle-orm/d1";
 import * as schema from "../db/schema";
 import { logAudit } from "../lib/audit";
+import { requireRole } from "../middleware/auth";
 
 export type LeadSourcesEnv = {
   DB: D1Database;
@@ -33,7 +34,10 @@ interface UpdateSourceInput {
 }
 
 // GET /lead-sources — list all sources (campaigns).
-leadSourcesRouter.get("/", async (c) => {
+leadSourcesRouter.get(
+  "/",
+  requireRole("sales", "management", "finance", "operations"),
+  async (c) => {
   const db = c.get("db");
 
   const includeInactive = c.req.query("includeInactive") === "true";
@@ -46,10 +50,14 @@ leadSourcesRouter.get("/", async (c) => {
   const data = includeInactive ? rows : rows.filter((r) => r.active);
 
   return c.json({ success: true, data });
-});
+  },
+);
 
 // GET /lead-sources/summary — lead counts, pipeline value, win rate per source.
-leadSourcesRouter.get("/summary", async (c) => {
+leadSourcesRouter.get(
+  "/summary",
+  requireRole("sales", "management", "finance"),
+  async (c) => {
   const db = c.get("db");
 
   const [sources, leads] = await Promise.all([
@@ -84,10 +92,14 @@ leadSourcesRouter.get("/summary", async (c) => {
   summary.sort((a, b) => b.totalLeads - a.totalLeads);
 
   return c.json({ success: true, data: summary });
-});
+  },
+);
 
 // POST /lead-sources — create a campaign source.
-leadSourcesRouter.post("/", async (c) => {
+leadSourcesRouter.post(
+  "/",
+  requireRole("management"),
+  async (c) => {
   const db = c.get("db");
   const body = (await c.req.json<CreateSourceInput>()) as CreateSourceInput;
 
@@ -116,6 +128,7 @@ leadSourcesRouter.post("/", async (c) => {
   await db.insert(schema.leadSources).values(source).run();
   await logAudit(db, {
     actor: body.createdBy ?? null,
+    role: c.req.header("x-user-role") ?? null,
     action: "lead_source.create",
     entityType: "lead_source",
     entityId: source.id,
@@ -123,10 +136,11 @@ leadSourcesRouter.post("/", async (c) => {
   });
 
   return c.json({ success: true, data: source }, 201);
-});
+  },
+);
 
 // PATCH /lead-sources/:id — update name/description/active.
-leadSourcesRouter.patch("/:id", async (c) => {
+leadSourcesRouter.patch("/:id", requireRole("management"), async (c) => {
   const db = c.get("db");
   const id = c.req.param("id");
   const body = (await c.req.json<UpdateSourceInput>()) as UpdateSourceInput;
@@ -152,6 +166,7 @@ leadSourcesRouter.patch("/:id", async (c) => {
     .run();
   await logAudit(db, {
     actor: body.updatedBy ?? null,
+    role: c.req.header("x-user-role") ?? null,
     action: "lead_source.update",
     entityType: "lead_source",
     entityId: id,
@@ -167,7 +182,7 @@ leadSourcesRouter.patch("/:id", async (c) => {
 });
 
 // DELETE /lead-sources/:id — blocked when leads reference it.
-leadSourcesRouter.delete("/:id", async (c) => {
+leadSourcesRouter.delete("/:id", requireRole("management"), async (c) => {
   const db = c.get("db");
   const id = c.req.param("id");
 
@@ -198,6 +213,7 @@ leadSourcesRouter.delete("/:id", async (c) => {
   await db.delete(schema.leadSources).where(eq(schema.leadSources.id, id)).run();
   await logAudit(db, {
     actor: c.req.query("by") ?? null,
+    role: c.req.header("x-user-role") ?? null,
     action: "lead_source.delete",
     entityType: "lead_source",
     entityId: id,
