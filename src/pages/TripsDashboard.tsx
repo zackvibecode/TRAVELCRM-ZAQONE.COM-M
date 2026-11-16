@@ -14,6 +14,7 @@ import {
 } from "@/lib/types";
 import { cn, formatCurrency, formatDate } from "@/lib/utils";
 import DepartureCalendar from "@/components/DepartureCalendar";
+import DepartureDetail from "@/components/DepartureDetail";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
@@ -90,6 +91,8 @@ function OccupancyBar({ departure }: { departure: Departure }) {
 export default function TripsDashboard() {
   const [search, setSearch] = useState("");
   const [view, setView] = useState<"list" | "calendar">("list");
+  const [selectedDeparture, setSelectedDeparture] =
+    useState<Departure | null>(null);
 
   const departures = useMemo(() => {
     return mockDepartures.filter((d) => {
@@ -257,7 +260,11 @@ export default function TripsDashboard() {
                 </TableRow>
               ) : (
                 departures.map((d) => (
-                  <TableRow key={d.id}>
+                  <TableRow
+                    key={d.id}
+                    className="cursor-pointer"
+                    onClick={() => setSelectedDeparture(d)}
+                  >
                     <TableCell>
                       <div className="font-medium">
                         {packageName(d.packageId)}
@@ -288,6 +295,14 @@ export default function TripsDashboard() {
         </CardContent>
       </Card>
       )}
+
+      <DepartureDetail
+        departure={selectedDeparture}
+        open={selectedDeparture !== null}
+        onOpenChange={(open) => {
+          if (!open) setSelectedDeparture(null);
+        }}
+      />
     </div>
   );
 }
