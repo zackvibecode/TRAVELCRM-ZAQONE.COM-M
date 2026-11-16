@@ -1,8 +1,10 @@
-import { useMemo } from "react";
-import { Users } from "lucide-react";
+import { useMemo, useState } from "react";
+import { Download, Users } from "lucide-react";
 import { mockBookings } from "@/lib/mock-data";
 import type { Departure, Passenger } from "@/lib/types";
 import { formatDate } from "@/lib/utils";
+import PassengerDetails from "@/components/PassengerDetails";
+import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import {
   Table,
@@ -32,11 +34,46 @@ function typeBadgeVariant(
   return "outline";
 }
 
+function exportManifestCsv(rows: ManifestRow[], filename: string) {
+  const headers = [
+    "Name",
+    "Type",
+    "Booking",
+    "Customer",
+    "Passport",
+    "Room",
+    "Dietary",
+  ];
+  const lines = rows.map((r) =>
+    [
+      r.fullName,
+      r.type,
+      r.bookingReference,
+      r.customerName,
+      r.passportNumber ?? "",
+      r.roomType ?? "",
+      r.dietaryNote ?? "",
+    ]
+      .map((v) => `"${String(v).replace(/"/g, '""')}"`)
+      .join(","),
+  );
+  const csv = [headers.join(","), ...lines].join("\n");
+  const blob = new Blob([csv], { type: "text/csv;charset=utf-8;" });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement("a");
+  a.href = url;
+  a.download = filename;
+  a.click();
+  URL.revokeObjectURL(url);
+}
+
 export default function PassengerManifest({
   departure,
 }: {
   departure: Departure;
 }) {
+  const [selected, setSelected] = useState<Passenger | null>(null);
+
   const rows = useMemo<ManifestRow[]>(() => {
     return mockBookings
       .filter(
@@ -68,10 +105,26 @@ export default function PassengerManifest({
           <Users className="h-4 w-4" />
           Passenger Manifest
         </h3>
-        <div className="flex gap-2 text-xs text-muted-foreground">
-          <span>{counts.adult} adult</span>
-          <span>{counts.child} child</span>
-          <span>{counts.infant} infant</span>
+        <div className="flex items-center gap-3">
+          <div className="flex gap-2 text-xs text-muted-foreground">
+            <span>{counts.adult} adult</span>
+            <span>{counts.child} child</span>
+            <span>{counts.infant} infant</span>
+          </div>
+          <Button
+            variant="outline"
+            size="sm"
+            disabled={rows.length === 0}
+            onClick={() =>
+              exportManifestCsv(
+                rows,
+                `manifest-${departure.departureDate}.csv`,
+              )
+            }
+          >
+            <Download className="h-3.5 w-3.5" />
+            Export CSV
+          </Button>
         </div>
       </div>
 
@@ -94,7 +147,11 @@ export default function PassengerManifest({
             </TableHeader>
             <TableBody>
               {rows.map((r, i) => (
-                <TableRow key={`${r.id}-${i}`}>
+                <TableRow
+                  key={`${r.id}-${i}`}
+                  className="cursor-pointer"
+                  onClick={() => setSelected(r)}
+                >
                   <TableCell>
                     <div className="font-medium">{r.fullName}</div>
                     <div className="text-xs text-muted-foreground">
@@ -125,6 +182,14 @@ export default function PassengerManifest({
           {counts.total} passengers total
         </p>
       )}
+
+      <PassengerDetails
+        passenger={selected}
+        open={selected !== null}
+        onOpenChange={(open) => {
+          if (!open) setSelected(null);
+        }}
+      />
     </div>
   );
 }
