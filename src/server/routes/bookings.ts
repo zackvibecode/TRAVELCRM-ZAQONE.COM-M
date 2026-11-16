@@ -4,6 +4,7 @@ import type { DrizzleD1Database } from "drizzle-orm/d1";
 import * as schema from "../db/schema";
 import { generateBookingReference } from "../lib/reference";
 import { calculatePricing } from "../lib/pricing";
+import { canTransition, type BookingStatus } from "../lib/status";
 
 export type BookingsEnv = {
   DB: D1Database;
@@ -332,6 +333,72 @@ bookingsRouter.post("/:id/recalculate", async (c) => {
     .run();
 
   return c.json({ success: true, pricing: result, balanceDue });
+});
+
+interface StatusTransitionInput {
+  status: BookingStatus;
+  user?: string;
+  note?: string;
+}
+
+// POST /bookings/:id/status — transition booking status with history.
+bookingsRouter.post("/:id/status", async (c) => {
+  const db = c.get("db");
+  const id = c.req.param("id");
+
+  const booking = await db
+    .select()
+    .from(schema.bookings)
+    .where(eq(schema.bookings.id, id))
+    .get();
+  if (!booking) {
+    return c.json({ success: false, error: "Booking not found" }, 404);
+  }
+
+  let body: StatusTransitionInput;
+  try {
+    body = await c.req.json<StatusTransitionInput>();
+  } catch {
+    return c.json({ success: false, error: "Invalid JSON body" }, 400);
+  }
+
+  if (!body.status) {
+    return c.json({ success: false, error: "status is required" }, 400);
+  }
+
+  const from = booking.status as BookingStatus;
+  if (!canTransition(from, body.status)) {
+    return c.json(
+      {
+        success: false,
+        error: `Cannot transition from '${from}' to '${body.status}'`,
+        from,
+        to: body.status,
+      },
+      409,
+    );
+  }
+
+  const now = new Date().toISOString();
+  await db
+    .update(schema.bookings)
+    .set({ status: body.status, updatedAt: now })
+    .where(eq(schema.bookings.id, id))
+    .run();
+
+  await db
+    .insert(schema.bookingHistory)
+    .values({
+      id: crypto.randomUUID(),
+      bookingId: id,
+      action: "status_changed",
+      detail: `${from} → ${body.status}${body.note ? ` (${body.note})` : ""}`,
+      user: body.user ?? null,
+      at: now,
+    })
+    .run();
+
+  return c.json({ success: true, status: body.status, from });
 });
 
 export default bookingsRouter;
