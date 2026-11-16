@@ -13,6 +13,7 @@ import PublicSiteShell from "@/components/PublicSiteShell";
 import PublicHome from "@/pages/PublicHome";
 import PublicPromos from "@/pages/PublicPromos";
 import PublicPackages from "@/pages/PublicPackages";
+import PublicPackageDetail from "@/pages/PublicPackageDetail";
 import WebsiteManager from "@/pages/WebsiteManager";
 
 export default function App() {
@@ -36,6 +37,7 @@ export default function App() {
         <Route index element={<PublicHome />} />
         <Route path="promos" element={<PublicPromos />} />
         <Route path="packages" element={<PublicPackages />} />
+        <Route path="packages/:id" element={<PublicPackageDetail />} />
       </Route>
     </Routes>
   );

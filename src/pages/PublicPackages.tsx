@@ -150,7 +150,7 @@ export default function PublicPackages() {
                         </p>
                       </div>
                       <Button asChild size="sm">
-                        <Link to="/site/contact">
+                        <Link to={`/site/packages/${pkg.id}`}>
                           Lihat Detail
                           <ArrowRight className="ml-1.5 h-3.5 w-3.5" />
                         </Link>
