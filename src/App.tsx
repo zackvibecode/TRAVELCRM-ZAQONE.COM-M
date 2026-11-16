@@ -7,12 +7,13 @@ import LeadsPipeline from "@/pages/LeadsPipeline";
 import Customers from "@/pages/Customers";
 import BillingWorkspace from "@/pages/BillingWorkspace";
 import Placeholder from "@/pages/Placeholder";
+import DashboardOverview from "@/pages/DashboardOverview";
 
 export default function App() {
   return (
     <Routes>
       <Route element={<AppShell />}>
-        <Route index element={<Placeholder title="Dashboard" />} />
+        <Route index element={<DashboardOverview />} />
         <Route path="/bookings" element={<BookingWorkspace />} />
         <Route path="/trips" element={<TripsDashboard />} />
         <Route path="/packages" element={<PackageCatalog />} />
