@@ -25,6 +25,7 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
+import SalesPerformanceTable from "@/components/SalesPerformanceTable";
 
 function formatRupiah(value: number): string {
   return new Intl.NumberFormat("id-ID", {
@@ -333,6 +334,9 @@ export default function DashboardOverview() {
           </CardContent>
         </Card>
       </div>
+
+      {/* Sales agent performance */}
+      <SalesPerformanceTable />
 
       <div className="grid gap-4 lg:grid-cols-2">
         {/* Upcoming departures */}
