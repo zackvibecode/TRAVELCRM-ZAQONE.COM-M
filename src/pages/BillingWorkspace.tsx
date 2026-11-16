@@ -15,6 +15,8 @@ import {
   ThumbsUp,
   ThumbsDown,
   XCircle,
+  Copy,
+  Ban,
 } from "lucide-react";
 import { mockInvoices, mockPayments, mockRefunds, mockQuotations } from "@/lib/mock-data";
 import QuotationBuilder from "@/components/QuotationBuilder";
@@ -188,6 +190,44 @@ export default function BillingWorkspace() {
     setQuotations((prev) =>
       prev.map((qt) => (qt.id === quotationId ? { ...qt, status } : qt)),
     );
+  }
+
+  function issueInvoice(invoiceId: string) {
+    setInvoices((prev) =>
+      prev.map((inv) =>
+        inv.id === invoiceId && inv.status === "draft"
+          ? { ...inv, status: "issued" }
+          : inv,
+      ),
+    );
+  }
+
+  function voidInvoice(invoiceId: string) {
+    setInvoices((prev) =>
+      prev.map((inv) =>
+        inv.id === invoiceId && inv.status !== "void"
+          ? { ...inv, status: "void" }
+          : inv,
+      ),
+    );
+    setSelectedInvoice(null);
+  }
+
+  function duplicateInvoice(invoiceId: string) {
+    const source = invoices.find((inv) => inv.id === invoiceId);
+    if (!source) return;
+    const seq = invoices.length + 1;
+    const copy: Invoice = {
+      ...source,
+      id: crypto.randomUUID(),
+      number: `INV-2026-${String(seq).padStart(4, "0")}`,
+      status: "draft",
+      paidAmount: 0,
+      balanceDue: source.total,
+      createdAt: new Date().toISOString(),
+      notes: `Duplikat dari ${source.number}.`,
+    };
+    setInvoices((prev) => [copy, ...prev]);
   }
 
   function handleQuotationCreated(quotation: Quotation) {
@@ -378,55 +418,91 @@ export default function BillingWorkspace() {
                     <TableHead>Jatuh Tempo</TableHead>
                     <TableHead>Total</TableHead>
                     <TableHead>Dibayar</TableHead>
-                    <TableHead>Sisa</TableHead>
-                    <TableHead>Status</TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {filteredInvoices.map((inv) => (
-                    <TableRow
-                      key={inv.id}
-                      className={cn(
-                        "cursor-pointer",
-                        selectedInvoice?.id === inv.id && "bg-muted/50",
-                      )}
-                      onClick={() =>
-                        setSelectedInvoice(
-                          selectedInvoice?.id === inv.id ? null : inv,
-                        )
-                      }
-                    >
-                      <TableCell className="font-medium">
-                        {inv.number}
-                      </TableCell>
-                      <TableCell>{inv.customerName}</TableCell>
-                      <TableCell className="max-w-48 truncate text-xs text-muted-foreground">
-                        {inv.packageName}
-                      </TableCell>
-                      <TableCell className="text-xs">{inv.dueDate}</TableCell>
-                      <TableCell className="text-sm font-medium">
-                        {formatRupiah(inv.total)}
-                      </TableCell>
-                      <TableCell className="text-sm text-green-600">
-                        {formatRupiah(inv.paidAmount)}
-                      </TableCell>
-                      <TableCell className="text-sm text-amber-600">
-                        {formatRupiah(inv.balanceDue)}
-                      </TableCell>
-                      <TableCell>
-                        <Badge
-                          variant="outline"
-                          className={INVOICE_STATUS_CLASS[inv.status]}
+                  <TableHead>Sisa</TableHead>
+                  <TableHead>Status</TableHead>
+                  <TableHead className="text-right">Aksi</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {filteredInvoices.map((inv) => (
+                  <TableRow
+                    key={inv.id}
+                    className={cn(
+                      "cursor-pointer",
+                      selectedInvoice?.id === inv.id && "bg-muted/50",
+                    )}
+                    onClick={() =>
+                      setSelectedInvoice(
+                        selectedInvoice?.id === inv.id ? null : inv,
+                      )
+                    }
+                  >
+                    <TableCell className="font-medium">
+                      {inv.number}
+                    </TableCell>
+                    <TableCell>{inv.customerName}</TableCell>
+                    <TableCell className="max-w-48 truncate text-xs text-muted-foreground">
+                      {inv.packageName}
+                    </TableCell>
+                    <TableCell className="text-xs">{inv.dueDate}</TableCell>
+                    <TableCell className="text-sm font-medium">
+                      {formatRupiah(inv.total)}
+                    </TableCell>
+                    <TableCell className="text-sm text-green-600">
+                      {formatRupiah(inv.paidAmount)}
+                    </TableCell>
+                    <TableCell className="text-sm text-amber-600">
+                      {formatRupiah(inv.balanceDue)}
+                    </TableCell>
+                    <TableCell>
+                      <Badge
+                        variant="outline"
+                        className={INVOICE_STATUS_CLASS[inv.status]}
+                      >
+                        {inv.status}
+                      </Badge>
+                    </TableCell>
+                    <TableCell className="text-right" onClick={(e) => e.stopPropagation()}>
+                      <div className="flex items-center justify-end gap-1">
+                        {inv.status === "draft" && (
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            className="h-8 gap-1"
+                            onClick={() => issueInvoice(inv.id)}
+                          >
+                            <Send className="h-3.5 w-3.5" />
+                            Terbitkan
+                          </Button>
+                        )}
+                        {inv.status !== "void" && inv.status !== "paid" && (
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            className="h-8 gap-1 border-red-200 text-red-700 hover:bg-red-50"
+                            onClick={() => voidInvoice(inv.id)}
+                          >
+                            <Ban className="h-3.5 w-3.5" />
+                            Void
+                          </Button>
+                        )}
+                        <Button
+                          size="sm"
+                          variant="ghost"
+                          className="h-8 w-8 p-0 text-muted-foreground"
+                          title="Duplikat invoice"
+                          onClick={() => duplicateInvoice(inv.id)}
                         >
-                          {inv.status}
-                        </Badge>
-                      </TableCell>
-                    </TableRow>
-                  ))}
+                          <Copy className="h-3.5 w-3.5" />
+                        </Button>
+                      </div>
+                    </TableCell>
+                  </TableRow>
+                ))}
                   {filteredInvoices.length === 0 && (
                     <TableRow>
                       <TableCell
-                        colSpan={8}
+                        colSpan={9}
                         className="h-24 text-center text-muted-foreground"
                       >
                         Tidak ada invoice yang cocok.
@@ -617,12 +693,32 @@ export default function BillingWorkspace() {
 
                 {selectedInvoice.status !== "paid" &&
                   selectedInvoice.status !== "void" && (
-                    <div className="flex justify-end">
+                    <div className="flex flex-wrap justify-end gap-2">
+                      {selectedInvoice.status === "draft" && (
+                        <Button
+                          variant="outline"
+                          className="gap-2"
+                          onClick={() => issueInvoice(selectedInvoice.id)}
+                        >
+                          <Send className="h-4 w-4" />
+                          Terbitkan
+                        </Button>
+                      )}
                       <Button
                         variant="outline"
+                        className="gap-2"
                         onClick={() => markInvoicePaid(selectedInvoice.id)}
                       >
+                        <CheckCircle2 className="h-4 w-4" />
                         Tandai Lunas
+                      </Button>
+                      <Button
+                        variant="outline"
+                        className="gap-2 border-red-200 text-red-700 hover:bg-red-50"
+                        onClick={() => voidInvoice(selectedInvoice.id)}
+                      >
+                        <Ban className="h-4 w-4" />
+                        Void
                       </Button>
                     </div>
                   )}
