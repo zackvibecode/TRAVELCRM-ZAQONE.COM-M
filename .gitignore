@@ -11,3 +11,7 @@ wrangler.toml
 .dev.vars
 .eslintcache
 *.tsbuildinfo
+
+# NgodingPakeAI generated files
+.ngodingpakeai/pending.json
+.ngodingpakeai/summaries.json
