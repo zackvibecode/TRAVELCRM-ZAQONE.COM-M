@@ -410,3 +410,31 @@ export const supplierPayments = sqliteTable(
 
 export type SupplierPaymentRow = typeof supplierPayments.$inferSelect;
 export type NewSupplierPaymentRow = typeof supplierPayments.$inferInsert;
+
+// ---------------------------------------------------------------------------
+// Audit log for sensitive trip/booking mutations.
+// ---------------------------------------------------------------------------
+
+export const auditLogs = sqliteTable(
+  "audit_logs",
+  {
+    id: text("id").primaryKey(),
+    actor: text("actor"),
+    role: text("role"),
+    action: text("action").notNull(),
+    entityType: text("entity_type").notNull(),
+    entityId: text("entity_id").notNull(),
+    detail: text("detail"),
+    at: text("at").notNull().default(sql`(datetime('now'))`),
+  },
+  (table) => ({
+    entityIdx: index("audit_logs_entity_idx").on(
+      table.entityType,
+      table.entityId,
+    ),
+    actorIdx: index("audit_logs_actor_idx").on(table.actor),
+  }),
+);
+
+export type AuditLogRow = typeof auditLogs.$inferSelect;
+export type NewAuditLogRow = typeof auditLogs.$inferInsert;

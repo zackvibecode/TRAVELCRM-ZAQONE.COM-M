@@ -3,6 +3,7 @@ import { and, eq, ne } from "drizzle-orm";
 import type { DrizzleD1Database } from "drizzle-orm/d1";
 import * as schema from "../db/schema";
 import { requireRole } from "../middleware/auth";
+import { logAudit } from "../lib/audit";
 
 export type SuppliersEnv = {
   DB: D1Database;
@@ -66,6 +67,14 @@ suppliersRouter.post("/suppliers", requireRole("operations", "management"), asyn
   };
 
   await db.insert(schema.suppliers).values(row).run();
+  await logAudit(db, {
+    actor: c.req.header("x-user-id") ?? null,
+    role: c.req.header("x-user-role") ?? null,
+    action: "supplier.created",
+    entityType: "supplier",
+    entityId: row.id,
+    detail: `${row.name} (${row.type})`,
+  });
   return c.json({ success: true, supplier: row }, 201);
 });
 
@@ -119,6 +128,14 @@ suppliersRouter.post("/departures/:id/costs", requireRole("operations", "managem
   };
 
   await db.insert(schema.departureCosts).values(row).run();
+  await logAudit(db, {
+    actor: c.req.header("x-user-id") ?? null,
+    role: c.req.header("x-user-role") ?? null,
+    action: "cost.created",
+    entityType: "departure_cost",
+    entityId: row.id,
+    detail: `${body.category} for departure ${departureId}`,
+  });
   return c.json({ success: true, cost: row }, 201);
 });
 
@@ -168,6 +185,15 @@ suppliersRouter.patch("/costs/:id", requireRole("operations", "management", "fin
     .where(eq(schema.departureCosts.id, id))
     .get();
 
+  await logAudit(db, {
+    actor: c.req.header("x-user-id") ?? null,
+    role: c.req.header("x-user-role") ?? null,
+    action: "cost.updated",
+    entityType: "departure_cost",
+    entityId: id,
+    detail: `updated fields: ${Object.keys(patch).join(", ")}`,
+  });
+
   return c.json({ success: true, cost: updated });
 });
 
@@ -189,6 +215,14 @@ suppliersRouter.delete("/costs/:id", requireRole("operations", "management", "fi
     .delete(schema.departureCosts)
     .where(eq(schema.departureCosts.id, id))
     .run();
+
+  await logAudit(db, {
+    actor: c.req.header("x-user-id") ?? null,
+    role: c.req.header("x-user-role") ?? null,
+    action: "cost.deleted",
+    entityType: "departure_cost",
+    entityId: id,
+  });
 
   return c.json({ success: true });
 });

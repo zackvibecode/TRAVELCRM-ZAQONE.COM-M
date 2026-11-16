@@ -43,6 +43,13 @@
       "when": 1794812532274,
       "tag": "0005_outstanding_infant_terrible",
       "breakpoints": true
+    },
+    {
+      "idx": 6,
+      "version": "6",
+      "when": 1794814993912,
+      "tag": "0006_amazing_ares",
+      "breakpoints": true
     }
   ]
 }
