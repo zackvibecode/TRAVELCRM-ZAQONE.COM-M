@@ -14,6 +14,7 @@ import PublicHome from "@/pages/PublicHome";
 import PublicPromos from "@/pages/PublicPromos";
 import PublicPackages from "@/pages/PublicPackages";
 import PublicPackageDetail from "@/pages/PublicPackageDetail";
+import PublicContact from "@/pages/PublicContact";
 import WebsiteManager from "@/pages/WebsiteManager";
 
 export default function App() {
@@ -38,6 +39,8 @@ export default function App() {
         <Route path="promos" element={<PublicPromos />} />
         <Route path="packages" element={<PublicPackages />} />
         <Route path="packages/:id" element={<PublicPackageDetail />} />
+        <Route path="contact" element={<PublicContact />} />
+        <Route path="about" element={<PublicHome />} />
       </Route>
     </Routes>
   );
