@@ -3,6 +3,7 @@ import { drizzle, type DrizzleD1Database } from "drizzle-orm/d1";
 import * as schema from "./db/schema";
 import bookingsRouter from "./routes/bookings";
 import passengersRouter from "./routes/passengers";
+import departuresRouter from "./routes/departures";
 
 export type Env = {
   DB: D1Database;
@@ -37,5 +38,6 @@ app.get("/health", (c) => {
 
 app.route("/bookings", bookingsRouter);
 app.route("/", passengersRouter);
+app.route("/departures", departuresRouter);
 
 export default app;
