@@ -1,5 +1,5 @@
 import { Hono } from "hono";
-import { and, eq, gte, lte, type SQL } from "drizzle-orm";
+import { and, eq, gte, inArray, lte, ne, type SQL } from "drizzle-orm";
 import type { DrizzleD1Database } from "drizzle-orm/d1";
 import * as schema from "../db/schema";
 import {
@@ -143,6 +143,127 @@ departuresRouter.post("/release-expired", async (c) => {
   const db = c.get("db");
   const released = await releaseExpiredHolds(db);
   return c.json({ success: true, released });
+});
+
+// GET /departures/:id/manifest — passenger manifest for a departure.
+departuresRouter.get("/:id/manifest", async (c) => {
+  const db = c.get("db");
+  const id = c.req.param("id");
+
+  const departure = await db
+    .select({ id: schema.departures.id })
+    .from(schema.departures)
+    .where(eq(schema.departures.id, id))
+    .get();
+  if (!departure) {
+    return c.json({ success: false, error: "Departure not found" }, 404);
+  }
+
+  // Bookings on this departure, excluding cancelled/draft.
+  const bookings = await db
+    .select({ id: schema.bookings.id, reference: schema.bookings.reference })
+    .from(schema.bookings)
+    .where(
+      and(
+        eq(schema.bookings.departureId, id),
+        ne(schema.bookings.status, "cancelled"),
+        ne(schema.bookings.status, "draft"),
+      ),
+    )
+    .all();
+
+  const bookingIds = bookings.map((b) => b.id);
+  if (bookingIds.length === 0) {
+    return c.json({ success: true, manifest: [] });
+  }
+
+  const passengers = await db
+    .select()
+    .from(schema.passengers)
+    .where(inArray(schema.passengers.bookingId, bookingIds))
+    .all();
+
+  const refByBookingId = new Map(bookings.map((b) => [b.id, b.reference]));
+  const manifest = passengers.map((p) => ({
+    ...p,
+    bookingReference: refByBookingId.get(p.bookingId) ?? null,
+  }));
+
+  return c.json({ success: true, manifest });
+});
+
+// GET /departures/:id/manifest/export — CSV export of the manifest.
+departuresRouter.get("/:id/manifest/export", async (c) => {
+  const db = c.get("db");
+  const id = c.req.param("id");
+
+  const departure = await db
+    .select({ id: schema.departures.id })
+    .from(schema.departures)
+    .where(eq(schema.departures.id, id))
+    .get();
+  if (!departure) {
+    return c.json({ success: false, error: "Departure not found" }, 404);
+  }
+
+  const bookings = await db
+    .select({ id: schema.bookings.id, reference: schema.bookings.reference })
+    .from(schema.bookings)
+    .where(
+      and(
+        eq(schema.bookings.departureId, id),
+        ne(schema.bookings.status, "cancelled"),
+        ne(schema.bookings.status, "draft"),
+      ),
+    )
+    .all();
+
+  const bookingIds = bookings.map((b) => b.id);
+  const passengers =
+    bookingIds.length > 0
+      ? await db
+          .select()
+          .from(schema.passengers)
+          .where(inArray(schema.passengers.bookingId, bookingIds))
+          .all()
+      : [];
+
+  const refByBookingId = new Map(bookings.map((b) => [b.id, b.reference]));
+
+  const header = [
+    "Full Name",
+    "Type",
+    "Nationality",
+    "Passport Number",
+    "Passport Expiry",
+    "Room Type",
+    "Dietary Note",
+    "Booking Reference",
+  ];
+  const escape = (v: string | null) =>
+    v == null ? "" : `"${v.replace(/"/g, '""')}"`;
+
+  const lines = passengers.map((p) =>
+    [
+      p.fullName,
+      p.type,
+      p.nationality ?? "",
+      p.passportNumber ?? "",
+      p.passportExpiry ?? "",
+      p.roomType ?? "",
+      p.dietaryNote ?? "",
+      refByBookingId.get(p.bookingId) ?? "",
+    ]
+      .map((v) => escape(v))
+      .join(","),
+  );
+
+  const csv = [header.map((h) => `"${h}"`).join(","), ...lines].join("\n");
+
+  return c.text(csv, 200, {
+    "Content-Type": "text/csv; charset=utf-8",
+    "Content-Disposition": `attachment; filename="manifest-${id}.csv"`,
+  });
 });
 
 export default departuresRouter;
