@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import type { ItineraryDay, TravelPackage } from "@/lib/types";
 import InclusionsExclusionsEditor from "@/components/InclusionsExclusionsEditor";
 import HighlightsItineraryBuilder from "@/components/HighlightsItineraryBuilder";
+import MediaUploadPreview from "@/components/MediaUploadPreview";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -33,6 +34,7 @@ interface FormValues {
   exclusions: string[];
   highlights: string[];
   itinerary: ItineraryDay[];
+  images: string[];
 }
 
 const EMPTY: FormValues = {
@@ -46,6 +48,7 @@ const EMPTY: FormValues = {
   exclusions: [],
   highlights: [],
   itinerary: [],
+  images: [],
 };
 
 export default function PackageForm({
@@ -71,6 +74,7 @@ export default function PackageForm({
               exclusions: existing.exclusions ?? [],
               highlights: existing.highlights ?? [],
               itinerary: existing.itinerary ?? [],
+              images: existing.images ?? [],
             }
           : EMPTY,
       );
@@ -96,6 +100,7 @@ export default function PackageForm({
       exclusions: values.exclusions,
       highlights: values.highlights,
       itinerary: values.itinerary,
+      images: values.images,
     });
     onOpenChange(false);
   }
@@ -193,6 +198,11 @@ export default function PackageForm({
             onChange={(highlights, itinerary) =>
               setValues((prev) => ({ ...prev, highlights, itinerary }))
             }
+          />
+
+          <MediaUploadPreview
+            images={values.images}
+            onChange={(images) => setValues((prev) => ({ ...prev, images }))}
           />
         </div>
 

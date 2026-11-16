@@ -35,6 +35,7 @@ export interface TravelPackage {
   exclusions?: string[];
   highlights?: string[];
   itinerary?: ItineraryDay[];
+  images?: string[];
   status?: "active" | "archived";
 }
 
