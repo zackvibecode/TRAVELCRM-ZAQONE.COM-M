@@ -11,6 +11,7 @@ import packagesRouter from "./routes/packages";
 import leadsRouter from "./routes/leads";
 import customersRouter from "./routes/customers";
 import leadSourcesRouter from "./routes/lead-sources";
+import quotationsRouter from "./routes/quotations";
 import { releaseExpiredHolds } from "./lib/seat-availability";
 
 export type Env = {
@@ -55,6 +56,7 @@ app.route("/", packagesRouter);
 app.route("/leads", leadsRouter);
 app.route("/customers", customersRouter);
 app.route("/lead-sources", leadSourcesRouter);
+app.route("/quotations", quotationsRouter);
 
 export default app;
 
