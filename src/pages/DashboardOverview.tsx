@@ -26,6 +26,7 @@ import {
   CardTitle,
 } from "@/components/ui/card";
 import SalesPerformanceTable from "@/components/SalesPerformanceTable";
+import AlertsPanel from "@/components/AlertsPanel";
 
 function formatRupiah(value: number): string {
   return new Intl.NumberFormat("id-ID", {
@@ -259,6 +260,8 @@ export default function DashboardOverview() {
           </CardContent>
         </Card>
       )}
+
+      <AlertsPanel />
 
       <div className="grid gap-4 lg:grid-cols-3">
         {/* Monthly revenue chart */}
