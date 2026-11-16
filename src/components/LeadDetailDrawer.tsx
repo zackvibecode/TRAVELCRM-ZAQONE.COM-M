@@ -16,6 +16,7 @@ import {
   type LeadActivity,
   type LeadStage,
 } from "@/lib/types";
+import { waLink } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 
 const ACTIVITY_ICONS: Record<LeadActivity["type"], string> = {
@@ -312,10 +313,7 @@ export default function LeadDetailDrawer({
               variant="outline"
               className="gap-2"
               onClick={() =>
-                window.open(
-                  `https://wa.me/${lead.phone.replace(/[^0-9]/g, "")}`,
-                  "_blank",
-                )
+                window.open(waLink(lead.phone), "_blank")
               }
             >
               <MessageCircle className="h-4 w-4 text-green-600" />

@@ -17,7 +17,7 @@ import {
   type LeadStage,
   type LeadSource,
 } from "@/lib/types";
-import { cn } from "@/lib/utils";
+import { cn, waLink } from "@/lib/utils";
 import LeadDetailDrawer from "@/components/LeadDetailDrawer";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -559,7 +559,7 @@ export default function LeadsPipeline() {
                             {lead.assignedTo}
                           </span>
                           <a
-                            href={`https://wa.me/${lead.phone.replace(/[^0-9]/g, "")}`}
+                            href={waLink(lead.phone)}
                             target="_blank"
                             rel="noreferrer"
                             className="inline-flex h-7 w-7 items-center justify-center rounded-md bg-green-500/10 text-green-600 hover:bg-green-500/20"
@@ -647,7 +647,7 @@ export default function LeadsPipeline() {
                     </TableCell>
                     <TableCell className="text-right">
                       <a
-                        href={`https://wa.me/${lead.phone.replace(/[^0-9]/g, "")}`}
+                        href={waLink(lead.phone)}
                         target="_blank"
                         rel="noreferrer"
                         className="inline-flex h-7 w-7 items-center justify-center rounded-md bg-green-500/10 text-green-600 hover:bg-green-500/20"

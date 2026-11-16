@@ -20,3 +20,13 @@ export function formatDate(date: string | Date) {
     year: "numeric",
   }).format(new Date(date));
 }
+
+/**
+ * Builds a WhatsApp click-to-chat URL from any phone format.
+ * Strips non-digits and normalizes a leading 0 (local Indonesia format)
+ * to the 62 country code.
+ */
+export function waLink(phone: string) {
+  const digits = phone.replace(/[^0-9]/g, "").replace(/^0/, "62");
+  return `https://wa.me/${digits}`;
+}

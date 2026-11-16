@@ -13,7 +13,7 @@ import {
 } from "lucide-react";
 import { mockBookings, mockCustomers } from "@/lib/mock-data";
 import type { Booking, Customer } from "@/lib/types";
-import { cn } from "@/lib/utils";
+import { cn, waLink } from "@/lib/utils";
 import {
   Card,
   CardContent,
@@ -262,7 +262,7 @@ export default function Customers() {
                     </TableCell>
                     <TableCell className="text-right">
                       <a
-                        href={`https://wa.me/${customer.phone.replace(/[^0-9]/g, "")}`}
+                        href={waLink(customer.phone)}
                         target="_blank"
                         rel="noreferrer"
                         onClick={(e) => e.stopPropagation()}
@@ -294,20 +294,32 @@ export default function Customers() {
       {selected && (
         <Card>
           <CardHeader className="pb-3">
-            <div className="flex items-center justify-between">
+            <div className="flex items-center justify-between gap-2">
               <CardTitle className="font-display text-lg font-bold">
                 {selected.name}
               </CardTitle>
-              <Badge
-                variant="outline"
-                className={
-                  selected.type === "corporate"
-                    ? "border-violet-200 bg-violet-50 text-violet-700"
-                    : "border-blue-200 bg-blue-50 text-blue-700"
-                }
-              >
-                {selected.type === "corporate" ? "Korporat" : "Individual"}
-              </Badge>
+              <div className="flex items-center gap-2">
+                <a
+                  href={waLink(selected.phone)}
+                  target="_blank"
+                  rel="noreferrer"
+                  className="inline-flex h-8 items-center gap-1.5 rounded-md bg-green-500/10 px-3 text-xs font-medium text-green-700 transition-colors hover:bg-green-500/20"
+                  title={`Chat WhatsApp ${selected.name}`}
+                >
+                  <MessageCircle className="h-3.5 w-3.5" />
+                  WhatsApp
+                </a>
+                <Badge
+                  variant="outline"
+                  className={
+                    selected.type === "corporate"
+                      ? "border-violet-200 bg-violet-50 text-violet-700"
+                      : "border-blue-200 bg-blue-50 text-blue-700"
+                  }
+                >
+                  {selected.type === "corporate" ? "Korporat" : "Individual"}
+                </Badge>
+              </div>
             </div>
           </CardHeader>
           <CardContent className="space-y-5">
