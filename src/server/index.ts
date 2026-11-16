@@ -1,6 +1,7 @@
 import { Hono } from "hono";
 import { drizzle, type DrizzleD1Database } from "drizzle-orm/d1";
 import * as schema from "./db/schema";
+import bookingsRouter from "./routes/bookings";
 
 export type Env = {
   DB: D1Database;
@@ -39,5 +40,7 @@ app.get("/bookings", async (c) => {
   const rows = await db.select().from(schema.bookings).all();
   return c.json({ bookings: rows });
 });
+
+app.route("/bookings", bookingsRouter);
 
 export default app;
