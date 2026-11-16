@@ -1,5 +1,5 @@
 import { Hono } from "hono";
-import { and, desc, eq, like, or } from "drizzle-orm";
+import { and, desc, eq, gt, like, or, sql } from "drizzle-orm";
 import type { DrizzleD1Database } from "drizzle-orm/d1";
 import * as schema from "../db/schema";
 import { generateBookingReference } from "../lib/reference";
@@ -399,6 +399,100 @@ bookingsRouter.post("/:id/status", async (c) => {
     .run();
 
   return c.json({ success: true, status: body.status, from });
+});
+
+interface CancellationInput {
+  reason?: string;
+  user?: string;
+}
+
+// POST /bookings/:id/cancel — cancel a booking and release its seats.
+bookingsRouter.post("/:id/cancel", async (c) => {
+  const db = c.get("db");
+  const id = c.req.param("id");
+
+  const booking = await db
+    .select()
+    .from(schema.bookings)
+    .where(eq(schema.bookings.id, id))
+    .get();
+  if (!booking) {
+    return c.json({ success: false, error: "Booking not found" }, 404);
+  }
+
+  const from = booking.status as BookingStatus;
+  if (!canTransition(from, "cancelled")) {
+    return c.json(
+      {
+        success: false,
+        error: `Cannot cancel a booking in '${from}' status`,
+      },
+      409,
+    );
+  }
+
+  let body: CancellationInput;
+  try {
+    body = await c.req.json<CancellationInput>().catch(() => ({}));
+  } catch {
+    body = {};
+  }
+
+  const totalPax =
+    booking.paxAdult + booking.paxChild + booking.paxInfant;
+  const now = new Date().toISOString();
+
+  // Release seats if the booking was in a seat-consuming state and a
+  // departure row exists. Uses a guarded decrement so seatsBooked never
+  // drops below zero (no negative inventory).
+  const departure = await db
+    .select({ id: schema.departures.id, seatsBooked: schema.departures.seatsBooked })
+    .from(schema.departures)
+    .where(eq(schema.departures.id, booking.departureId))
+    .get();
+
+  let seatsReleased = 0;
+  if (departure && departure.seatsBooked > 0 && totalPax > 0) {
+    seatsReleased = Math.min(departure.seatsBooked, totalPax);
+  }
+
+  const cancelBooking = db
+    .update(schema.bookings)
+    .set({ status: "cancelled", updatedAt: now })
+    .where(eq(schema.bookings.id, id));
+  const recordHistory = db
+    .insert(schema.bookingHistory)
+    .values({
+      id: crypto.randomUUID(),
+      bookingId: id,
+      action: "cancelled",
+      detail: body.reason ? `Booking cancelled: ${body.reason}` : "Booking cancelled",
+      user: body.user ?? null,
+      at: now,
+    });
+
+  if (seatsReleased > 0) {
+    await db.batch([
+      cancelBooking,
+      db
+        .update(schema.departures)
+        .set({
+          seatsBooked: sql`MAX(0, ${schema.departures.seatsBooked} - ${seatsReleased})`,
+          updatedAt: now,
+        })
+        .where(eq(schema.departures.id, departure!.id)),
+      recordHistory,
+    ]);
+  } else {
+    await db.batch([cancelBooking, recordHistory]);
+  }
+
+  return c.json({
+    success: true,
+    status: "cancelled",
+    seatsReleased,
+    totalPax,
+  });
 });
 
 export default bookingsRouter;

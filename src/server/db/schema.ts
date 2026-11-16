@@ -114,3 +114,45 @@ export type PassengerRow = typeof passengers.$inferSelect;
 export type NewPassengerRow = typeof passengers.$inferInsert;
 export type BookingHistoryRow = typeof bookingHistory.$inferSelect;
 export type NewBookingHistoryRow = typeof bookingHistory.$inferInsert;
+
+// ---------------------------------------------------------------------------
+// Departures & seat inventory (referenced by bookings for seat release).
+// The full seat-hold / overbooking machinery lives in the "Trips & Seats"
+// feature; this minimal table is the target of seat deduction/release.
+// ---------------------------------------------------------------------------
+
+export const departures = sqliteTable(
+  "departures",
+  {
+    id: text("id").primaryKey(),
+    packageId: text("package_id").notNull(),
+    departureDate: text("departure_date").notNull(),
+    returnDate: text("return_date"),
+    seatCapacity: integer("seat_capacity").notNull().default(0),
+    seatsBooked: integer("seats_booked").notNull().default(0),
+    seatsHeld: integer("seats_held").notNull().default(0),
+    adultPrice: integer("adult_price").notNull().default(0),
+    childPrice: integer("child_price").notNull().default(0),
+    infantPrice: integer("infant_price").notNull().default(0),
+    status: text("status", {
+      enum: ["open", "almost_full", "full", "closed", "cancelled"],
+    })
+      .notNull()
+      .default("open"),
+    tourLeader: text("tour_leader"),
+    notes: text("notes"),
+    createdAt: text("created_at")
+      .notNull()
+      .default(sql`(datetime('now'))`),
+    updatedAt: text("updated_at")
+      .notNull()
+      .default(sql`(datetime('now'))`),
+  },
+  (table) => ({
+    packageIdx: index("departures_package_idx").on(table.packageId),
+    statusIdx: index("departures_status_idx").on(table.status),
+  }),
+);
+
+export type DepartureRow = typeof departures.$inferSelect;
+export type NewDepartureRow = typeof departures.$inferInsert;
