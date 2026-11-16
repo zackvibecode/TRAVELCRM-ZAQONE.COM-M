@@ -18,6 +18,7 @@ import {
   type LeadSource,
 } from "@/lib/types";
 import { cn } from "@/lib/utils";
+import LeadDetailDrawer from "@/components/LeadDetailDrawer";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
@@ -71,11 +72,69 @@ function stageBadgeClass(stage: LeadStage): string {
 }
 
 export default function LeadsPipeline() {
-  const [leads] = useState<Lead[]>(mockLeads);
+  const [leads, setLeads] = useState<Lead[]>(mockLeads);
   const [search, setSearch] = useState("");
   const [sourceFilter, setSourceFilter] = useState<LeadSource | "all">("all");
   const [assigneeFilter, setAssigneeFilter] = useState<string>("all");
   const [view, setView] = useState<"board" | "list">("board");
+  const [selectedLeadId, setSelectedLeadId] = useState<string | null>(null);
+  const [drawerOpen, setDrawerOpen] = useState(false);
+
+  const selectedLead = useMemo(
+    () => leads.find((l) => l.id === selectedLeadId) ?? null,
+    [leads, selectedLeadId],
+  );
+
+  function openLead(lead: Lead) {
+    setSelectedLeadId(lead.id);
+    setDrawerOpen(true);
+  }
+
+  function handleStageChange(leadId: string, stage: LeadStage) {
+    setLeads((prev) =>
+      prev.map((l) =>
+        l.id === leadId
+          ? {
+              ...l,
+              stage,
+              activities: [
+                ...l.activities,
+                {
+                  id: `la-${Date.now()}`,
+                  at: new Date().toISOString(),
+                  type: "stage_change" as const,
+                  text: `${LEAD_STAGES.find((s) => s.value === l.stage)?.label} → ${LEAD_STAGES.find((s) => s.value === stage)?.label}`,
+                  user: "Anda (Sales)",
+                },
+              ],
+            }
+          : l,
+      ),
+    );
+  }
+
+  function handleAssigneeChange(leadId: string, assignee: string) {
+    setLeads((prev) =>
+      prev.map((l) =>
+        l.id === leadId
+          ? {
+              ...l,
+              assignedTo: assignee,
+              activities: [
+                ...l.activities,
+                {
+                  id: `la-${Date.now()}`,
+                  at: new Date().toISOString(),
+                  type: "note" as const,
+                  text: `Lead di-assign ke ${assignee}.`,
+                  user: "Anda (Sales)",
+                },
+              ],
+            }
+          : l,
+      ),
+    );
+  }
 
   const assignees = useMemo(
     () => Array.from(new Set(leads.map((l) => l.assignedTo))).sort(),
@@ -288,6 +347,7 @@ export default function LeadsPipeline() {
                     <Card
                       key={lead.id}
                       className="cursor-pointer transition-shadow hover:shadow-md"
+                      onClick={() => openLead(lead)}
                     >
                       <CardContent className="space-y-2 p-3">
                         <div className="flex items-start justify-between gap-2">
@@ -365,7 +425,11 @@ export default function LeadsPipeline() {
               </TableHeader>
               <TableBody>
                 {filtered.map((lead) => (
-                  <TableRow key={lead.id} className="cursor-pointer">
+                  <TableRow
+                    key={lead.id}
+                    className="cursor-pointer"
+                    onClick={() => openLead(lead)}
+                  >
                     <TableCell className="font-medium">{lead.name}</TableCell>
                     <TableCell>
                       <div className="flex flex-col">
@@ -425,6 +489,16 @@ export default function LeadsPipeline() {
           </CardContent>
         </Card>
       )}
+
+      {/* Lead detail drawer */}
+      <LeadDetailDrawer
+        lead={selectedLead}
+        open={drawerOpen}
+        onOpenChange={setDrawerOpen}
+        onStageChange={handleStageChange}
+        onAssigneeChange={handleAssigneeChange}
+        assignees={assignees}
+      />
     </div>
   );
 }
