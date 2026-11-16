@@ -13,6 +13,7 @@ import {
   Inbox,
   MessageCircle,
   ArrowRight,
+  Search,
 } from "lucide-react";
 import { mockPackages } from "@/lib/mock-data";
 import { cn, waLink } from "@/lib/utils";
@@ -131,12 +132,56 @@ const INITIAL_ENQUIRIES: WebsiteEnquiry[] = [
   },
 ];
 
+interface SeoSettings {
+  metaTitle: string;
+  metaDescription: string;
+  keywords: string;
+}
+
+const INITIAL_SEO: Record<string, SeoSettings> = {
+  home: {
+    metaTitle: "TravelOS — Paket Wisata Domestik & Internasional",
+    metaDescription:
+      "Travel agency all-in-one: open trip, private tour, dan corporate travel dengan itinerary terkurasi dan harga transparan. Booking mudah, pendampingan penuh.",
+    keywords: "paket wisata, open trip, tour travel jakarta, travel murah",
+  },
+  promos: {
+    metaTitle: "Promo & Penawaran Spesial — TravelOS",
+    metaDescription:
+      "Diskon flash sale, harga early bird, dan penawaran grup untuk paket wisata pilihan. Kuota terbatas!",
+    keywords: "promo wisata, diskon tiket tour, flash sale travel",
+  },
+  packages: {
+    metaTitle: "Paket Wisata Lengkap — TravelOS",
+    metaDescription:
+      "Jelajahi semua paket wisata TravelOS: Jepang, Korea, Bali, Lombok, Singapore, hingga Eropa. Harga per pax jelas, keberangkatan terjadwal.",
+    keywords: "paket tour jepang, wisata bali, tour korea, paket eropa",
+  },
+};
+
 export default function WebsiteManager() {
   const [pages, setPages] = useState<SitePage[]>(INITIAL_PAGES);
   const [editing, setEditing] = useState<SitePage | null>(null);
   const [isNew, setIsNew] = useState(false);
   const [previewSlug, setPreviewSlug] = useState<string | null>(null);
   const [enquiries, setEnquiries] = useState<WebsiteEnquiry[]>(INITIAL_ENQUIRIES);
+  const [seo, setSeo] = useState<Record<string, SeoSettings>>(INITIAL_SEO);
+  const [seoPage, setSeoPage] = useState<string>("home");
+  const [seoSaved, setSeoSaved] = useState(false);
+
+  const seoFor = seo[seoPage] ?? {
+    metaTitle: "",
+    metaDescription: "",
+    keywords: "",
+  };
+
+  const setSeoField = (key: keyof SeoSettings, value: string) => {
+    setSeo((prev) => ({
+      ...prev,
+      [seoPage]: { ...seoFor, [key]: value },
+    }));
+    setSeoSaved(false);
+  };
 
   const publishedCount = pages.filter((p) => p.status === "published").length;
 
@@ -261,6 +306,133 @@ export default function WebsiteManager() {
           </CardContent>
         </Card>
       </div>
+
+      {/* SEO settings */}
+      <Card>
+        <CardHeader className="flex-row items-center justify-between space-y-0 pb-3">
+          <div className="flex items-center gap-2">
+            <Search className="h-4 w-4 text-red-600" />
+            <CardTitle className="text-base">Pengaturan SEO</CardTitle>
+          </div>
+          <div className="flex items-center gap-2">
+            <select
+              value={seoPage}
+              onChange={(e) => {
+                setSeoPage(e.target.value);
+                setSeoSaved(false);
+              }}
+              className="h-8 rounded-md border border-input bg-transparent px-2 text-xs shadow-sm"
+            >
+              <option value="home">Home (/)</option>
+              <option value="packages">Paket (/packages)</option>
+              <option value="promos">Promo (/promos)</option>
+            </select>
+            <Button
+              size="sm"
+              onClick={() => {
+                setSeoSaved(true);
+                setTimeout(() => setSeoSaved(false), 2000);
+              }}
+            >
+              <Save className="mr-1.5 h-3.5 w-3.5" />
+              {seoSaved ? "Tersimpan!" : "Simpan SEO"}
+            </Button>
+          </div>
+        </CardHeader>
+        <CardContent className="grid gap-5 lg:grid-cols-2">
+          {/* Inputs */}
+          <div className="space-y-4">
+            <div className="space-y-1.5">
+              <div className="flex items-center justify-between">
+                <label className="text-xs font-medium">
+                  Meta Title
+                </label>
+                <span
+                  className={cn(
+                    "text-[10px]",
+                    seoFor.metaTitle.length > 60
+                      ? "text-red-600"
+                      : "text-muted-foreground",
+                  )}
+                >
+                  {seoFor.metaTitle.length}/60
+                </span>
+              </div>
+              <Input
+                value={seoFor.metaTitle}
+                onChange={(e) => setSeoField("metaTitle", e.target.value)}
+                placeholder="Judul di hasil pencarian"
+              />
+            </div>
+            <div className="space-y-1.5">
+              <div className="flex items-center justify-between">
+                <label className="text-xs font-medium">
+                  Meta Description
+                </label>
+                <span
+                  className={cn(
+                    "text-[10px]",
+                    seoFor.metaDescription.length > 160
+                      ? "text-red-600"
+                      : "text-muted-foreground",
+                  )}
+                >
+                  {seoFor.metaDescription.length}/160
+                </span>
+              </div>
+              <Textarea
+                value={seoFor.metaDescription}
+                onChange={(e) => setSeoField("metaDescription", e.target.value)}
+                rows={3}
+                placeholder="Deskripsi singkat yang tampil di Google"
+              />
+            </div>
+            <div className="space-y-1.5">
+              <label className="text-xs font-medium">
+                Keywords (pisahkan koma)
+              </label>
+              <Input
+                value={seoFor.keywords}
+                onChange={(e) => setSeoField("keywords", e.target.value)}
+                placeholder="paket wisata, open trip, …"
+              />
+            </div>
+          </div>
+
+          {/* SERP preview */}
+          <div className="space-y-2">
+            <p className="text-xs font-medium text-muted-foreground">
+              Pratinjau Hasil Pencarian Google
+            </p>
+            <div className="rounded-xl border bg-white p-4">
+              <div className="flex items-center gap-2">
+                <div className="flex h-7 w-7 items-center justify-center rounded-full bg-red-600 text-xs font-bold text-white">
+                  T
+                </div>
+                <div>
+                  <p className="text-xs leading-tight text-stone-800">
+                    TravelOS
+                  </p>
+                  <p className="text-[11px] leading-tight text-stone-500">
+                    travelos.id{seoPage === "home" ? "" : `/${seoPage}`}
+                  </p>
+                </div>
+              </div>
+              <p className="mt-2 text-lg leading-snug text-[#1a0dab]">
+                {seoFor.metaTitle || "Judul halaman akan tampil di sini"}
+              </p>
+              <p className="mt-1 text-sm leading-snug text-stone-600">
+                {seoFor.metaDescription ||
+                  "Deskripsi meta halaman akan tampil di sini. Tulis 120–160 karakter yang menjelaskan isi halaman."}
+              </p>
+            </div>
+            <p className="text-[11px] leading-relaxed text-muted-foreground">
+              Tips: meta title ideal 50–60 karakter, meta description 120–160
+              karakter. Judul melebihi batas akan terpotong di hasil pencarian.
+            </p>
+          </div>
+        </CardContent>
+      </Card>
 
       {/* Website enquiries → leads preview */}
       <Card>
