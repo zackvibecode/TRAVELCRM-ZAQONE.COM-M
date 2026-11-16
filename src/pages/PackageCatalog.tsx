@@ -1,7 +1,9 @@
 import { useMemo, useState } from "react";
 import { Package, Search, MapPin, Clock } from "lucide-react";
 import { mockPackages } from "@/lib/mock-data";
+import type { TravelPackage } from "@/lib/types";
 import { cn, formatCurrency } from "@/lib/utils";
+import PackageForm from "@/components/PackageForm";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
@@ -20,6 +22,8 @@ export default function PackageCatalog() {
   const [search, setSearch] = useState("");
   const [destination, setDestination] = useState<string>("all");
   const [maxDuration, setMaxDuration] = useState<number>(0);
+  const [formOpen, setFormOpen] = useState(false);
+  const [editing, setEditing] = useState<TravelPackage | null>(null);
 
   const packages = useMemo(() => {
     return mockPackages.filter((p) => {
@@ -52,7 +56,12 @@ export default function PackageCatalog() {
             Manage travel packages, pricing, and itineraries.
           </p>
         </div>
-        <Button>
+        <Button
+          onClick={() => {
+            setEditing(null);
+            setFormOpen(true);
+          }}
+        >
           <Package className="h-4 w-4" />
           New Package
         </Button>
@@ -124,7 +133,14 @@ export default function PackageCatalog() {
       ) : (
         <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
           {packages.map((p) => (
-            <Card key={p.id} className="flex flex-col">
+            <Card
+              key={p.id}
+              className="flex cursor-pointer flex-col transition-shadow hover:shadow-md"
+              onClick={() => {
+                setEditing(p);
+                setFormOpen(true);
+              }}
+            >
               <CardHeader className="pb-2">
                 <div className="flex items-start justify-between gap-2">
                   <CardTitle className="text-base font-semibold">
@@ -167,6 +183,16 @@ export default function PackageCatalog() {
           ))}
         </div>
       )}
+
+      <PackageForm
+        open={formOpen}
+        onOpenChange={setFormOpen}
+        existing={editing}
+        onSubmit={(values) => {
+          // Frontend mock: no persistence yet. Backend CRUD arrives in a later phase.
+          console.log("Package form submitted:", values);
+        }}
+      />
     </div>
   );
 }
