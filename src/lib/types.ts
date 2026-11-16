@@ -10,6 +10,37 @@ export type PaymentStatus = "unpaid" | "partial" | "paid";
 
 export type BookingType = "individual" | "group";
 
+export interface Customer {
+  id: string;
+  name: string;
+  phone: string;
+  email: string;
+}
+
+export interface TravelPackage {
+  id: string;
+  name: string;
+  destination: string;
+  durationDays: number;
+  adultPrice: number;
+  childPrice: number;
+  infantPrice: number;
+  inclusions: string[];
+}
+
+export interface Departure {
+  id: string;
+  packageId: string;
+  departureDate: string;
+  returnDate: string;
+  seatCapacity: number;
+  seatsBooked: number;
+  seatsHeld: number;
+  adultPrice: number;
+  childPrice: number;
+  status: "open" | "almost_full" | "full" | "closed";
+}
+
 export interface Passenger {
   id: string;
   fullName: string;

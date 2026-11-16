@@ -1,6 +1,7 @@
 import { useMemo, useState } from "react";
 import { Plus, Search, Eye, MoreHorizontal } from "lucide-react";
 import { mockBookings } from "@/lib/mock-data";
+import CreateBookingForm from "@/components/CreateBookingForm";
 import {
   type Booking,
   type BookingStatus,
@@ -70,6 +71,7 @@ function totalPax(b: Booking) {
 
 export default function BookingWorkspace() {
   const [search, setSearch] = useState("");
+  const [createOpen, setCreateOpen] = useState(false);
   const [statusFilter, setStatusFilter] =
     useState<(typeof statusFilters)[number]>("all");
 
@@ -113,7 +115,7 @@ export default function BookingWorkspace() {
             Manage customer bookings, passengers, pricing, and status.
           </p>
         </div>
-        <Button>
+        <Button onClick={() => setCreateOpen(true)}>
           <Plus className="h-4 w-4" />
           New Booking
         </Button>
@@ -285,6 +287,11 @@ export default function BookingWorkspace() {
           </Table>
         </CardContent>
       </Card>
+
+      <CreateBookingForm
+        open={createOpen}
+        onOpenChange={setCreateOpen}
+      />
     </div>
   );
 }

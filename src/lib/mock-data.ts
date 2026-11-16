@@ -1,7 +1,94 @@
-import type { Booking } from "@/lib/types";
+import type {
+  Booking,
+  Customer,
+  Departure,
+  TravelPackage,
+} from "@/lib/types";
 
 // Mock/stub data — frontend layer only. Backend (D1 + Hono) will replace this
 // with real API calls in a later phase.
+
+export const mockCustomers: Customer[] = [
+  { id: "c1", name: "Budi Santoso", phone: "+62 812 3456 7890", email: "budi@example.com" },
+  { id: "c2", name: "Keluarga Wijaya", phone: "+62 813 9876 5432", email: "wijaya@example.com" },
+  { id: "c3", name: "PT Maju Bersama", phone: "+62 811 2222 3333", email: "info@majubersama.co.id" },
+  { id: "c4", name: "Maria Lestari", phone: "+62 815 1111 2222", email: "maria@example.com" },
+  { id: "c5", name: "Hendra Gunawan", phone: "+62 816 4444 5555", email: "hendra@example.com" },
+  { id: "c6", name: "Sarah Permata", phone: "+62 818 6666 7777", email: "sarah@example.com" },
+];
+
+export const mockPackages: TravelPackage[] = [
+  {
+    id: "pk1",
+    name: "Japan Sakura Tour",
+    destination: "Tokyo & Osaka, Japan",
+    durationDays: 7,
+    adultPrice: 18000000,
+    childPrice: 16200000,
+    infantPrice: 3000000,
+    inclusions: ["Return flight", "4-star hotel", "Daily breakfast", "Tour guide", "Travel insurance"],
+  },
+  {
+    id: "pk2",
+    name: "Bali Family Retreat",
+    destination: "Bali, Indonesia",
+    durationDays: 5,
+    adultPrice: 6000000,
+    childPrice: 4500000,
+    infantPrice: 1500000,
+    inclusions: ["Return flight", "Villa accommodation", "Daily breakfast", "Airport transfer"],
+  },
+  {
+    id: "pk3",
+    name: "Singapore Corporate Trip",
+    destination: "Singapore",
+    durationDays: 4,
+    adultPrice: 8500000,
+    childPrice: 7500000,
+    infantPrice: 2000000,
+    inclusions: ["Return flight", "Hotel", "Daily breakfast", "Meeting package"],
+  },
+  {
+    id: "pk4",
+    name: "Korea Winter Package",
+    destination: "Seoul, South Korea",
+    durationDays: 6,
+    adultPrice: 15000000,
+    childPrice: 13500000,
+    infantPrice: 2500000,
+    inclusions: ["Return flight", "Hotel", "Ski tour", "Travel insurance"],
+  },
+  {
+    id: "pk5",
+    name: "Europe Grand Tour",
+    destination: "Paris, Amsterdam, Rome",
+    durationDays: 12,
+    adultPrice: 45000000,
+    childPrice: 41000000,
+    infantPrice: 6000000,
+    inclusions: ["Return flight", "4-star hotels", "Daily breakfast", "City tours", "Travel insurance"],
+  },
+  {
+    id: "pk6",
+    name: "Lombok Island Escape",
+    destination: "Lombok, Indonesia",
+    durationDays: 4,
+    adultPrice: 7800000,
+    childPrice: 5800000,
+    infantPrice: 1800000,
+    inclusions: ["Return flight", "Beach resort", "Daily breakfast", "Island hopping tour"],
+  },
+];
+
+export const mockDepartures: Departure[] = [
+  { id: "d1", packageId: "pk1", departureDate: "2026-03-18", returnDate: "2026-03-24", seatCapacity: 40, seatsBooked: 22, seatsHeld: 6, adultPrice: 18000000, childPrice: 16200000, status: "open" },
+  { id: "d2", packageId: "pk1", departureDate: "2026-04-08", returnDate: "2026-04-14", seatCapacity: 40, seatsBooked: 35, seatsHeld: 3, adultPrice: 18500000, childPrice: 16700000, status: "almost_full" },
+  { id: "d3", packageId: "pk2", departureDate: "2026-04-02", returnDate: "2026-04-06", seatCapacity: 30, seatsBooked: 15, seatsHeld: 5, adultPrice: 6000000, childPrice: 4500000, status: "open" },
+  { id: "d4", packageId: "pk3", departureDate: "2026-02-14", returnDate: "2026-02-17", seatCapacity: 50, seatsBooked: 48, seatsHeld: 2, adultPrice: 8500000, childPrice: 7500000, status: "almost_full" },
+  { id: "d5", packageId: "pk4", departureDate: "2026-01-30", returnDate: "2026-02-04", seatCapacity: 35, seatsBooked: 35, seatsHeld: 0, adultPrice: 15000000, childPrice: 13500000, status: "full" },
+  { id: "d6", packageId: "pk5", departureDate: "2026-05-20", returnDate: "2026-05-31", seatCapacity: 30, seatsBooked: 10, seatsHeld: 4, adultPrice: 45000000, childPrice: 41000000, status: "open" },
+  { id: "d7", packageId: "pk6", departureDate: "2026-03-05", returnDate: "2026-03-08", seatCapacity: 25, seatsBooked: 8, seatsHeld: 2, adultPrice: 7800000, childPrice: 5800000, status: "open" },
+];
 export const mockBookings: Booking[] = [
   {
     id: "b1",
