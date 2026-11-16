@@ -2,6 +2,7 @@ import { Hono } from "hono";
 import { drizzle, type DrizzleD1Database } from "drizzle-orm/d1";
 import * as schema from "./db/schema";
 import bookingsRouter from "./routes/bookings";
+import passengersRouter from "./routes/passengers";
 
 export type Env = {
   DB: D1Database;
@@ -35,5 +36,6 @@ app.get("/health", (c) => {
 });
 
 app.route("/bookings", bookingsRouter);
+app.route("/", passengersRouter);
 
 export default app;
