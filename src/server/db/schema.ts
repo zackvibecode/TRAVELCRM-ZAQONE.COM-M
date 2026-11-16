@@ -322,3 +322,91 @@ export const tripFlights = sqliteTable(
 
 export type TripFlightRow = typeof tripFlights.$inferSelect;
 export type NewTripFlightRow = typeof tripFlights.$inferInsert;
+
+// ---------------------------------------------------------------------------
+// Supplier directory & trip cost / profit tracking.
+// ---------------------------------------------------------------------------
+
+export const suppliers = sqliteTable(
+  "suppliers",
+  {
+    id: text("id").primaryKey(),
+    name: text("name").notNull(),
+    type: text("type", {
+      enum: ["airline", "hotel", "transport", "ground_agent", "other"],
+    }).notNull(),
+    contactName: text("contact_name"),
+    phone: text("phone"),
+    email: text("email"),
+    notes: text("notes"),
+    createdAt: text("created_at")
+      .notNull()
+      .default(sql`(datetime('now'))`),
+  },
+  (table) => ({
+    typeIdx: index("suppliers_type_idx").on(table.type),
+  }),
+);
+
+export type SupplierRow = typeof suppliers.$inferSelect;
+export type NewSupplierRow = typeof suppliers.$inferInsert;
+
+export const departureCosts = sqliteTable(
+  "departure_costs",
+  {
+    id: text("id").primaryKey(),
+    departureId: text("departure_id")
+      .notNull()
+      .references(() => departures.id, { onDelete: "cascade" }),
+    supplierId: text("supplier_id").references(() => suppliers.id, {
+      onDelete: "set null",
+    }),
+    category: text("category").notNull(),
+    description: text("description"),
+    estimatedAmount: integer("estimated_amount").notNull().default(0),
+    actualAmount: integer("actual_amount").notNull().default(0),
+    createdAt: text("created_at")
+      .notNull()
+      .default(sql`(datetime('now'))`),
+  },
+  (table) => ({
+    departureIdx: index("departure_costs_departure_idx").on(table.departureId),
+    supplierIdx: index("departure_costs_supplier_idx").on(table.supplierId),
+  }),
+);
+
+export type DepartureCostRow = typeof departureCosts.$inferSelect;
+export type NewDepartureCostRow = typeof departureCosts.$inferInsert;
+
+export const supplierPayments = sqliteTable(
+  "supplier_payments",
+  {
+    id: text("id").primaryKey(),
+    departureId: text("departure_id")
+      .notNull()
+      .references(() => departures.id, { onDelete: "cascade" }),
+    supplierId: text("supplier_id")
+      .notNull()
+      .references(() => suppliers.id, { onDelete: "restrict" }),
+    amount: integer("amount").notNull().default(0),
+    status: text("status", { enum: ["due", "paid"] })
+      .notNull()
+      .default("due"),
+    dueDate: text("due_date"),
+    paidAt: text("paid_at"),
+    reference: text("reference"),
+    createdAt: text("created_at")
+      .notNull()
+      .default(sql`(datetime('now'))`),
+  },
+  (table) => ({
+    departureIdx: index("supplier_payments_departure_idx").on(
+      table.departureId,
+    ),
+    supplierIdx: index("supplier_payments_supplier_idx").on(table.supplierId),
+    statusIdx: index("supplier_payments_status_idx").on(table.status),
+  }),
+);
+
+export type SupplierPaymentRow = typeof supplierPayments.$inferSelect;
+export type NewSupplierPaymentRow = typeof supplierPayments.$inferInsert;
