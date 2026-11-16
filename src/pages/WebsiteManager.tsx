@@ -10,9 +10,12 @@ import {
   LayoutDashboard,
   Save,
   X,
+  Inbox,
+  MessageCircle,
+  ArrowRight,
 } from "lucide-react";
 import { mockPackages } from "@/lib/mock-data";
-import { cn } from "@/lib/utils";
+import { cn, waLink } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
@@ -82,11 +85,56 @@ function slugify(value: string): string {
     .replace(/^-|-$/g, "");
 }
 
+interface WebsiteEnquiry {
+  id: string;
+  name: string;
+  phone: string;
+  packageName: string;
+  pax: number;
+  message: string;
+  receivedAt: string;
+  status: "new" | "contacted";
+}
+
+const INITIAL_ENQUIRIES: WebsiteEnquiry[] = [
+  {
+    id: "enq-1",
+    name: "Siti Rahma",
+    phone: "081298765432",
+    packageName: "Bali Family Retreat",
+    pax: 2,
+    message: "Mau tanya harga untuk family trip bulan Juni.",
+    receivedAt: "2026-11-16 14:22",
+    status: "new",
+  },
+  {
+    id: "enq-2",
+    name: "Andi Kurniawan",
+    phone: "081377788899",
+    packageName: "Japan Sakura Tour",
+    pax: 4,
+    message: "Apakah masih ada slot untuk keberangkatan April?",
+    receivedAt: "2026-11-16 10:05",
+    status: "new",
+  },
+  {
+    id: "enq-3",
+    name: "Maya Sari",
+    phone: "085612349876",
+    packageName: "Belum tahu — minta rekomendasi",
+    pax: 2,
+    message: "Honeymoon budget 20 juta, destinasi mana yang cocok?",
+    receivedAt: "2026-11-15 19:40",
+    status: "contacted",
+  },
+];
+
 export default function WebsiteManager() {
   const [pages, setPages] = useState<SitePage[]>(INITIAL_PAGES);
   const [editing, setEditing] = useState<SitePage | null>(null);
   const [isNew, setIsNew] = useState(false);
   const [previewSlug, setPreviewSlug] = useState<string | null>(null);
+  const [enquiries, setEnquiries] = useState<WebsiteEnquiry[]>(INITIAL_ENQUIRIES);
 
   const publishedCount = pages.filter((p) => p.status === "published").length;
 
@@ -211,6 +259,95 @@ export default function WebsiteManager() {
           </CardContent>
         </Card>
       </div>
+
+      {/* Website enquiries → leads preview */}
+      <Card>
+        <CardHeader className="flex-row items-center justify-between space-y-0 pb-3">
+          <div className="flex items-center gap-2">
+            <Inbox className="h-4 w-4 text-red-600" />
+            <CardTitle className="text-base">
+              Lead dari Website
+            </CardTitle>
+            <Badge
+              variant="outline"
+              className="border-red-200 bg-red-50 text-red-700"
+            >
+              {enquiries.filter((e) => e.status === "new").length} baru
+            </Badge>
+          </div>
+        </CardHeader>
+        <CardContent className="space-y-2">
+          {enquiries.map((enq) => (
+            <div
+              key={enq.id}
+              className="flex flex-wrap items-center gap-3 rounded-lg border p-3"
+            >
+              <div className="min-w-0 flex-1">
+                <div className="flex flex-wrap items-center gap-2">
+                  <p className="text-sm font-medium">{enq.name}</p>
+                  <Badge
+                    variant="outline"
+                    className={cn(
+                      enq.status === "new"
+                        ? "border-red-200 bg-red-50 text-red-700"
+                        : "border-stone-200 bg-stone-50 text-stone-600",
+                    )}
+                  >
+                    {enq.status === "new" ? "Baru" : "Dihubungi"}
+                  </Badge>
+                </div>
+                <p className="mt-0.5 text-xs text-muted-foreground">
+                  {enq.packageName} • {enq.pax} pax • masuk {enq.receivedAt}
+                </p>
+                {enq.message && (
+                  <p className="mt-1 line-clamp-2 rounded-md bg-muted/40 px-2 py-1 text-xs italic text-muted-foreground">
+                    “{enq.message}”
+                  </p>
+                )}
+              </div>
+              <div className="flex items-center gap-1">
+                <Button variant="outline" size="sm" asChild>
+                  <a
+                    href={waLink(enq.phone)}
+                    target="_blank"
+                    rel="noreferrer"
+                  >
+                    <MessageCircle className="mr-1.5 h-3.5 w-3.5" />
+                    WhatsApp
+                  </a>
+                </Button>
+                {enq.status === "new" && (
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={() =>
+                      setEnquiries((prev) =>
+                        prev.map((e) =>
+                          e.id === enq.id
+                            ? { ...e, status: "contacted" }
+                            : e,
+                        ),
+                      )
+                    }
+                    title="Tandai sudah dihubungi"
+                  >
+                    <ArrowRight className="h-3.5 w-3.5" />
+                  </Button>
+                )}
+              </div>
+            </div>
+          ))}
+          {enquiries.length === 0 && (
+            <p className="py-6 text-center text-sm text-muted-foreground">
+              Belum ada enquiry masuk dari website.
+            </p>
+          )}
+          <p className="pt-1 text-xs text-muted-foreground">
+            Enquiry dari form publik otomatis tersinkron ke pipeline Leads
+            saat backend aktif.
+          </p>
+        </CardContent>
+      </Card>
 
       {/* Pages table */}
       <Card>
