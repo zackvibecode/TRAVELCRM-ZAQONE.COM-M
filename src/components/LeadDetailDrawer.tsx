@@ -8,7 +8,7 @@ import {
   Users as UsersIcon,
   Wallet,
   History,
-  ArrowRightCircle,
+  CalendarClock,
 } from "lucide-react";
 import {
   LEAD_STAGES,
@@ -25,6 +25,13 @@ const ACTIVITY_ICONS: Record<LeadActivity["type"], string> = {
   email: "✉️",
   stage_change: "➡️",
 };
+
+const ACTIVITY_TYPE_OPTIONS: LeadActivity["type"][] = [
+  "note",
+  "call",
+  "whatsapp",
+  "email",
+];
 
 function formatRupiah(value: number): string {
   return new Intl.NumberFormat("id-ID", {
@@ -51,6 +58,12 @@ export interface LeadDetailDrawerProps {
   onOpenChange: (open: boolean) => void;
   onStageChange: (leadId: string, stage: LeadStage) => void;
   onAssigneeChange: (leadId: string, assignee: string) => void;
+  onFollowUpChange: (leadId: string, date: string | null) => void;
+  onActivityAdd: (
+    leadId: string,
+    type: LeadActivity["type"],
+    text: string,
+  ) => void;
   assignees: string[];
 }
 
@@ -60,15 +73,24 @@ export default function LeadDetailDrawer({
   onOpenChange,
   onStageChange,
   onAssigneeChange,
+  onFollowUpChange,
+  onActivityAdd,
   assignees,
 }: LeadDetailDrawerProps) {
   const [stage, setStage] = useState<LeadStage | "">("");
   const [assignee, setAssignee] = useState("");
+  const [followUp, setFollowUp] = useState("");
+  const [activityType, setActivityType] =
+    useState<LeadActivity["type"]>("note");
+  const [activityText, setActivityText] = useState("");
 
   useEffect(() => {
     if (lead) {
       setStage(lead.stage);
       setAssignee(lead.assignedTo);
+      setFollowUp(lead.nextFollowUp ?? "");
+      setActivityText("");
+      setActivityType("note");
     }
   }, [lead]);
 
@@ -76,6 +98,7 @@ export default function LeadDetailDrawer({
 
   const stageDirty = stage !== lead.stage;
   const assigneeDirty = assignee !== lead.assignedTo;
+  const followUpDirty = followUp !== (lead.nextFollowUp ?? "");
 
   return (
     <DialogPrimitive.Root open={open} onOpenChange={onOpenChange}>
@@ -188,18 +211,68 @@ export default function LeadDetailDrawer({
               </select>
             </div>
 
-            {/* Follow-up */}
-            {lead.nextFollowUp && (
-              <div className="flex items-center gap-2 rounded-lg border border-primary/30 bg-primary/5 p-3">
-                <ArrowRightCircle className="h-4 w-4 text-primary" />
-                <p className="text-sm">
-                  Follow-up berikutnya:{" "}
-                  <span className="font-semibold text-primary">
-                    {lead.nextFollowUp}
-                  </span>
-                </p>
+            {/* Follow-up reminder */}
+            <div className="space-y-2">
+              <p className="flex items-center gap-2 text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+                <CalendarClock className="h-4 w-4" /> Follow-up Berikutnya
+              </p>
+              <input
+                type="date"
+                value={followUp}
+                onChange={(e) => setFollowUp(e.target.value)}
+                className="h-9 w-full rounded-md border border-input bg-background px-3 text-sm"
+              />
+            </div>
+
+            {/* Add activity */}
+            <div className="space-y-2">
+              <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+                Tambah Aktivitas
+              </p>
+              <div className="flex gap-2">
+                <select
+                  value={activityType}
+                  onChange={(e) =>
+                    setActivityType(e.target.value as LeadActivity["type"])
+                  }
+                  className="h-9 shrink-0 rounded-md border border-input bg-background px-3 text-sm"
+                >
+                  {ACTIVITY_TYPE_OPTIONS.map((t) => (
+                    <option key={t} value={t}>
+                      {ACTIVITY_ICONS[t]}{" "}
+                      {t === "note"
+                        ? "Catatan"
+                        : t === "call"
+                          ? "Telepon"
+                          : t === "whatsapp"
+                            ? "WhatsApp"
+                            : "Email"}
+                    </option>
+                  ))}
+                </select>
+                <input
+                  type="text"
+                  placeholder="Ringkasan aktivitas..."
+                  value={activityText}
+                  onChange={(e) => setActivityText(e.target.value)}
+                  className="h-9 flex-1 rounded-md border border-input bg-background px-3 text-sm"
+                />
+                <Button
+                  variant="outline"
+                  disabled={!activityText.trim()}
+                  onClick={() => {
+                    onActivityAdd(
+                      lead.id,
+                      activityType,
+                      activityText.trim(),
+                    );
+                    setActivityText("");
+                  }}
+                >
+                  Tambah
+                </Button>
               </div>
-            )}
+            </div>
 
             {/* Activity timeline */}
             <div className="space-y-3">
@@ -250,10 +323,12 @@ export default function LeadDetailDrawer({
             </Button>
             <Button
               className="ml-auto"
-              disabled={!stageDirty && !assigneeDirty}
+              disabled={!stageDirty && !assigneeDirty && !followUpDirty}
               onClick={() => {
                 if (stageDirty) onStageChange(lead.id, stage as LeadStage);
                 if (assigneeDirty) onAssigneeChange(lead.id, assignee);
+                if (followUpDirty)
+                  onFollowUpChange(lead.id, followUp || null);
                 onOpenChange(false);
               }}
             >

@@ -136,6 +136,72 @@ export default function LeadsPipeline() {
     );
   }
 
+  function handleFollowUpChange(leadId: string, date: string | null) {
+    setLeads((prev) =>
+      prev.map((l) =>
+        l.id === leadId
+          ? {
+              ...l,
+              nextFollowUp: date ?? undefined,
+              activities: [
+                ...l.activities,
+                {
+                  id: `la-${Date.now()}`,
+                  at: new Date().toISOString(),
+                  type: "note" as const,
+                  text: date
+                    ? `Follow-up dijadwalkan: ${date}.`
+                    : "Follow-up dihapus.",
+                  user: "Anda (Sales)",
+                },
+              ],
+            }
+          : l,
+      ),
+    );
+  }
+
+  function handleActivityAdd(
+    leadId: string,
+    type: "note" | "call" | "whatsapp" | "email" | "stage_change",
+    text: string,
+  ) {
+    setLeads((prev) =>
+      prev.map((l) =>
+        l.id === leadId
+          ? {
+              ...l,
+              activities: [
+                ...l.activities,
+                {
+                  id: `la-${Date.now()}`,
+                  at: new Date().toISOString(),
+                  type,
+                  text,
+                  user: "Anda (Sales)",
+                },
+              ],
+              lastActivityAt: new Date().toISOString(),
+            }
+          : l,
+      ),
+    );
+  }
+
+  // Follow-up reminders: open leads with follow-up today or overdue.
+  const today = new Date().toISOString().slice(0, 10);
+  const reminders = useMemo(
+    () =>
+      leads.filter(
+        (l) =>
+          l.stage !== "won" &&
+          l.stage !== "lost" &&
+          l.nextFollowUp &&
+          l.nextFollowUp <= today,
+      ),
+    [leads, today],
+  );
+
   const assignees = useMemo(
     () => Array.from(new Set(leads.map((l) => l.assignedTo))).sort(),
     [leads],
@@ -262,6 +328,50 @@ export default function LeadsPipeline() {
           </CardContent>
         </Card>
       </div>
+
+      {/* Follow-up reminders */}
+      {reminders.length > 0 && (
+        <Card className="border-amber-200 bg-amber-50/50">
+          <CardContent className="space-y-2 p-4">
+            <p className="flex items-center gap-2 text-sm font-semibold text-amber-800">
+              <CalendarClock className="h-4 w-4" />
+              Follow-up perlu tindakan ({reminders.length})
+            </p>
+            <div className="flex flex-wrap gap-2">
+              {reminders.map((lead) => {
+                const overdue = lead.nextFollowUp! < today;
+                return (
+                  <button
+                    key={lead.id}
+                    onClick={() => openLead(lead)}
+                    className={cn(
+                      "flex items-center gap-2 rounded-full border px-3 py-1.5 text-xs font-medium transition-colors",
+                      overdue
+                        ? "border-red-200 bg-red-50 text-red-700 hover:bg-red-100"
+                        : "border-amber-200 bg-amber-100/70 text-amber-800 hover:bg-amber-200/70",
+                    )}
+                  >
+                    {lead.name} • {lead.destination}
+                    <Badge
+                      variant="outline"
+                      className={cn(
+                        "px-1.5 py-0 text-[10px]",
+                        overdue
+                          ? "border-red-300 bg-red-100 text-red-800"
+                          : "border-amber-300 bg-amber-50 text-amber-800",
+                      )}
+                    >
+                      {overdue
+                        ? `Terlambat ${lead.nextFollowUp}`
+                        : `Hari ini`}
+                    </Badge>
+                  </button>
+                );
+              })}
+            </div>
+          </CardContent>
+        </Card>
+      )}
 
       {/* Filters */}
       <div className="flex flex-col gap-3 lg:flex-row lg:items-center">
@@ -497,6 +607,8 @@ export default function LeadsPipeline() {
         onOpenChange={setDrawerOpen}
         onStageChange={handleStageChange}
         onAssigneeChange={handleAssigneeChange}
+        onFollowUpChange={handleFollowUpChange}
+        onActivityAdd={handleActivityAdd}
         assignees={assignees}
       />
     </div>
