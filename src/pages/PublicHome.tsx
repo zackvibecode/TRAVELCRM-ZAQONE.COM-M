@@ -1,4 +1,5 @@
 import { Link } from "react-router-dom";
+import { useMemo } from "react";
 import { ArrowRight, MapPin, CalendarDays, Users, ShieldCheck, Headset, Sparkles } from "lucide-react";
 import { mockPackages } from "@/lib/mock-data";
 import { cn } from "@/lib/utils";
@@ -49,6 +50,19 @@ const VALUE_PROPS = [
 
 export default function PublicHome() {
   const featured = mockPackages.filter((p) => p.published).slice(0, 3);
+
+  const destinations = useMemo(() => {
+    const byDest = new Map<string, number>();
+    for (const p of mockPackages) {
+      if (p.published === false) continue;
+      byDest.set(p.destination, (byDest.get(p.destination) ?? 0) + 1);
+    }
+    const list = [...byDest.entries()]
+      .map(([name, count]) => ({ name, count }))
+      .sort((a, b) => b.count - a.count)
+      .slice(0, 5);
+    return list.map((d, i) => ({ ...d, featured: i === 0 }));
+  }, []);
 
   return (
     <>
@@ -204,6 +218,55 @@ export default function PublicHome() {
                     </div>
                   </CardContent>
                 </Card>
+              </Link>
+            ))}
+          </div>
+        </div>
+      </section>
+
+      {/* Popular destinations */}
+      <section className="border-t bg-stone-50/60">
+        <div className="mx-auto max-w-6xl px-4 py-14">
+          <h2 className="text-2xl font-bold tracking-tight">
+            Destinasi Populer
+          </h2>
+          <p className="mt-1 text-sm text-stone-600">
+            Tempat favorit traveler tahun ini.
+          </p>
+          <div className="mt-6 grid grid-cols-2 gap-4 sm:grid-cols-3 lg:grid-cols-5">
+            {destinations.map((dest) => (
+              <Link
+                key={dest.name}
+                to="/site/packages"
+                className={cn(
+                  "group relative overflow-hidden rounded-xl border p-4 transition-shadow hover:shadow-md",
+                  dest.featured
+                    ? "bg-gradient-to-br from-red-500 to-red-600 text-white"
+                    : "bg-white",
+                )}
+              >
+                <MapPin
+                  className={cn(
+                    "h-4 w-4",
+                    dest.featured ? "text-white" : "text-red-600",
+                  )}
+                />
+                <p
+                  className={cn(
+                    "mt-2 text-sm font-bold",
+                    dest.featured ? "text-white" : "text-stone-900",
+                  )}
+                >
+                  {dest.name}
+                </p>
+                <p
+                  className={cn(
+                    "text-[11px]",
+                    dest.featured ? "text-red-100" : "text-stone-500",
+                  )}
+                >
+                  {dest.count} paket
+                </p>
               </Link>
             ))}
           </div>
