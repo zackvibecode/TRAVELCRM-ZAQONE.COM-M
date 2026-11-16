@@ -981,4 +981,206 @@ packagesRouter.delete(
   },
 );
 
+// ---- Package departure dates ----
+
+// GET /packages/:id/departure-dates — list scheduled departures.
+packagesRouter.get("/packages/:id/departure-dates", async (c) => {
+  const db = c.get("db");
+  const packageId = c.req.param("id");
+
+  const pkg = await db
+    .select({ id: schema.packages.id })
+    .from(schema.packages)
+    .where(eq(schema.packages.id, packageId))
+    .get();
+  if (!pkg) {
+    return c.json({ success: false, error: "Package not found" }, 404);
+  }
+
+  const rows = await db
+    .select()
+    .from(schema.packageDepartureDates)
+    .where(eq(schema.packageDepartureDates.packageId, packageId))
+    .orderBy(asc(schema.packageDepartureDates.departureDate))
+    .all();
+
+  return c.json({ success: true, departureDates: rows });
+});
+
+// POST /packages/:id/departure-dates — add a departure date.
+packagesRouter.post(
+  "/packages/:id/departure-dates",
+  requireRole("super_admin", "management", "sales"),
+  async (c) => {
+    const db = c.get("db");
+    const packageId = c.req.param("id");
+
+    const pkg = await db
+      .select({ id: schema.packages.id })
+      .from(schema.packages)
+      .where(eq(schema.packages.id, packageId))
+      .get();
+    if (!pkg) {
+      return c.json({ success: false, error: "Package not found" }, 404);
+    }
+
+    let body: Record<string, unknown>;
+    try {
+      body = await c.req.json();
+    } catch {
+      return c.json({ success: false, error: "Invalid JSON body" }, 400);
+    }
+
+    const departureDate =
+      typeof body.departureDate === "string" ? body.departureDate.trim() : "";
+    if (!/^\d{4}-\d{2}-\d{2}$/.test(departureDate)) {
+      return c.json(
+        { success: false, error: "departureDate must be YYYY-MM-DD" },
+        400,
+      );
+    }
+
+    const row: schema.NewPackageDepartureDateRow = {
+      id: crypto.randomUUID(),
+      packageId,
+      departureDate,
+      returnDate: (body.returnDate as string) ?? null,
+      seatCapacity: Number(body.seatCapacity ?? 0) || 0,
+      adultPrice: Number(body.adultPrice ?? 0) || 0,
+      childPrice: Number(body.childPrice ?? 0) || 0,
+      infantPrice: Number(body.infantPrice ?? 0) || 0,
+      status: "scheduled",
+      published: body.published === true,
+      createdAt: new Date().toISOString(),
+      updatedAt: new Date().toISOString(),
+    };
+
+    await db.insert(schema.packageDepartureDates).values(row).run();
+    await logAudit(db, {
+      actor: c.req.header("x-user-id") ?? null,
+      role: c.req.header("x-user-role") ?? null,
+      action: "package_departure_date.created",
+      entityType: "package_departure_date",
+      entityId: row.id,
+      detail: `${departureDate} for package ${packageId}`,
+    });
+
+    return c.json({ success: true, departureDate: row }, 201);
+  },
+);
+
+// PATCH /departure-dates/:dateId — update a departure date.
+packagesRouter.patch(
+  "/departure-dates/:dateId",
+  requireRole("super_admin", "management", "sales"),
+  async (c) => {
+    const db = c.get("db");
+    const dateId = c.req.param("dateId");
+
+    const existing = await db
+      .select()
+      .from(schema.packageDepartureDates)
+      .where(eq(schema.packageDepartureDates.id, dateId))
+      .get();
+    if (!existing) {
+      return c.json({ success: false, error: "Departure date not found" }, 404);
+    }
+
+    let body: Record<string, unknown>;
+    try {
+      body = await c.req.json();
+    } catch {
+      return c.json({ success: false, error: "Invalid JSON body" }, 400);
+    }
+
+    const patch: Partial<schema.NewPackageDepartureDateRow> = {};
+    if (body.departureDate !== undefined) {
+      const departureDate = String(body.departureDate).trim();
+      if (!/^\d{4}-\d{2}-\d{2}$/.test(departureDate)) {
+        return c.json(
+          { success: false, error: "departureDate must be YYYY-MM-DD" },
+          400,
+        );
+      }
+      patch.departureDate = departureDate;
+    }
+    if (body.returnDate !== undefined)
+      patch.returnDate = (body.returnDate as string) ?? null;
+    if (body.seatCapacity !== undefined)
+      patch.seatCapacity = Number(body.seatCapacity) || 0;
+    if (body.adultPrice !== undefined)
+      patch.adultPrice = Number(body.adultPrice) || 0;
+    if (body.childPrice !== undefined)
+      patch.childPrice = Number(body.childPrice) || 0;
+    if (body.infantPrice !== undefined)
+      patch.infantPrice = Number(body.infantPrice) || 0;
+    if (
+      ["scheduled", "open", "almost_full", "full", "closed", "cancelled"].includes(
+        body.status as string,
+      )
+    ) {
+      patch.status = body.status as schema.PackageDepartureDateRow["status"];
+    }
+    if (body.published !== undefined) patch.published = body.published === true;
+    patch.updatedAt = new Date().toISOString();
+
+    await db
+      .update(schema.packageDepartureDates)
+      .set(patch)
+      .where(eq(schema.packageDepartureDates.id, dateId))
+      .run();
+
+    const updated = await db
+      .select()
+      .from(schema.packageDepartureDates)
+      .where(eq(schema.packageDepartureDates.id, dateId))
+      .get();
+
+    await logAudit(db, {
+      actor: c.req.header("x-user-id") ?? null,
+      role: c.req.header("x-user-role") ?? null,
+      action: "package_departure_date.updated",
+      entityType: "package_departure_date",
+      entityId: dateId,
+      detail: `updated fields: ${Object.keys(patch).join(", ")}`,
+    });
+
+    return c.json({ success: true, departureDate: updated });
+  },
+);
+
+// DELETE /departure-dates/:dateId — remove a departure date.
+packagesRouter.delete(
+  "/departure-dates/:dateId",
+  requireRole("super_admin", "management", "sales"),
+  async (c) => {
+    const db = c.get("db");
+    const dateId = c.req.param("dateId");
+
+    const existing = await db
+      .select({ id: schema.packageDepartureDates.id })
+      .from(schema.packageDepartureDates)
+      .where(eq(schema.packageDepartureDates.id, dateId))
+      .get();
+    if (!existing) {
+      return c.json({ success: false, error: "Departure date not found" }, 404);
+    }
+
+    await db
+      .delete(schema.packageDepartureDates)
+      .where(eq(schema.packageDepartureDates.id, dateId))
+      .run();
+
+    await logAudit(db, {
+      actor: c.req.header("x-user-id") ?? null,
+      role: c.req.header("x-user-role") ?? null,
+      action: "package_departure_date.deleted",
+      entityType: "package_departure_date",
+      entityId: dateId,
+    });
+
+    return c.json({ success: true });
+  },
+);
+
 export default packagesRouter;
