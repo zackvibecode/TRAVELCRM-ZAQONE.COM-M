@@ -1,5 +1,5 @@
 import { Hono } from "hono";
-import { eq } from "drizzle-orm";
+import { and, desc, eq, like, or } from "drizzle-orm";
 import type { DrizzleD1Database } from "drizzle-orm/d1";
 import * as schema from "../db/schema";
 import { generateBookingReference } from "../lib/reference";
@@ -43,6 +43,102 @@ interface CreateBookingInput {
     flightInfo?: string;
   }>;
 }
+
+// GET /bookings — list with optional filters, search, and pagination.
+bookingsRouter.get("/", async (c) => {
+  const db = c.get("db");
+
+  const status = c.req.query("status") as
+    | (typeof schema.bookings.$inferSelect)["status"]
+    | undefined;
+  const type = c.req.query("type") as
+    | (typeof schema.bookings.$inferSelect)["type"]
+    | undefined;
+  const paymentStatus = c.req.query("paymentStatus") as
+    | (typeof schema.bookings.$inferSelect)["paymentStatus"]
+    | undefined;
+  const q = c.req.query("q")?.trim();
+  const limit = Math.min(Math.max(Number(c.req.query("limit") ?? "50"), 1), 200);
+  const offset = Math.max(Number(c.req.query("offset") ?? "0"), 0);
+
+  const conditions = [];
+  if (status) conditions.push(eq(schema.bookings.status, status));
+  if (type) conditions.push(eq(schema.bookings.type, type));
+  if (paymentStatus) {
+    conditions.push(eq(schema.bookings.paymentStatus, paymentStatus));
+  }
+  if (q) {
+    conditions.push(
+      or(
+        like(schema.bookings.reference, `%${q}%`),
+        like(schema.bookings.customerId, `%${q}%`),
+      )!,
+    );
+  }
+
+  const where = conditions.length > 0 ? and(...conditions) : undefined;
+
+  const [rows, total] = await Promise.all([
+    db
+      .select()
+      .from(schema.bookings)
+      .where(where)
+      .orderBy(desc(schema.bookings.createdAt))
+      .limit(limit)
+      .offset(offset)
+      .all(),
+    db
+      .select({ count: schema.bookings.id })
+      .from(schema.bookings)
+      .where(where)
+      .all(),
+  ]);
+
+  return c.json({
+    success: true,
+    bookings: rows,
+    total: total.length,
+    limit,
+    offset,
+  });
+});
+
+// GET /bookings/:id — detail with passengers and history.
+bookingsRouter.get("/:id", async (c) => {
+  const db = c.get("db");
+  const id = c.req.param("id");
+
+  const booking = await db
+    .select()
+    .from(schema.bookings)
+    .where(eq(schema.bookings.id, id))
+    .get();
+
+  if (!booking) {
+    return c.json({ success: false, error: "Booking not found" }, 404);
+  }
+
+  const [passengers, history] = await Promise.all([
+    db
+      .select()
+      .from(schema.passengers)
+      .where(eq(schema.passengers.bookingId, id))
+      .all(),
+    db
+      .select()
+      .from(schema.bookingHistory)
+      .where(eq(schema.bookingHistory.bookingId, id))
+      .orderBy(desc(schema.bookingHistory.at))
+      .all(),
+  ]);
+
+  return c.json({
+    success: true,
+    booking,
+    passengers,
+    history,
+  });
+});
 
 // POST /bookings — create a booking (with passengers) atomically.
 bookingsRouter.post("/", async (c) => {

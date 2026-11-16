@@ -34,13 +34,6 @@ app.get("/health", (c) => {
   return c.json({ status: "ok" });
 });
 
-// Placeholder: bookings endpoint wired to the schema.
-app.get("/bookings", async (c) => {
-  const db = c.get("db");
-  const rows = await db.select().from(schema.bookings).all();
-  return c.json({ bookings: rows });
-});
-
 app.route("/bookings", bookingsRouter);
 
 export default app;
