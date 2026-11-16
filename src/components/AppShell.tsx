@@ -13,6 +13,7 @@ import {
   X,
   Plane,
   TrendingUp,
+  FileBarChart,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 
@@ -32,6 +33,7 @@ const navSections = [
       { to: "/customers", label: "Customers", icon: Users },
       { to: "/leads", label: "Leads Pipeline", icon: TrendingUp },
       { to: "/billing", label: "Billing & Payments", icon: Banknote },
+      { to: "/reports", label: "Reports", icon: FileBarChart },
     ],
   },
   {

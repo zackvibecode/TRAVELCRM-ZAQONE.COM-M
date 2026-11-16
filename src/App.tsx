@@ -8,6 +8,7 @@ import Customers from "@/pages/Customers";
 import BillingWorkspace from "@/pages/BillingWorkspace";
 import Placeholder from "@/pages/Placeholder";
 import DashboardOverview from "@/pages/DashboardOverview";
+import ReportsPage from "@/pages/ReportsPage";
 
 export default function App() {
   return (
@@ -20,6 +21,7 @@ export default function App() {
         <Route path="/leads" element={<LeadsPipeline />} />
         <Route path="/customers" element={<Customers />} />
         <Route path="/billing" element={<BillingWorkspace />} />
+        <Route path="/reports" element={<ReportsPage />} />
         <Route
           path="/website"
           element={<Placeholder title="Website Manager" />}
