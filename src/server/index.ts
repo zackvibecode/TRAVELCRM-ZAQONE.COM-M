@@ -5,10 +5,12 @@ import bookingsRouter from "./routes/bookings";
 import passengersRouter from "./routes/passengers";
 import departuresRouter from "./routes/departures";
 import checklistRouter from "./routes/checklist";
+import documentsRouter from "./routes/documents";
 import { releaseExpiredHolds } from "./lib/seat-availability";
 
 export type Env = {
   DB: D1Database;
+  DOCUMENTS: R2Bucket;
 };
 
 type AppEnv = {
@@ -42,6 +44,7 @@ app.route("/bookings", bookingsRouter);
 app.route("/", passengersRouter);
 app.route("/departures", departuresRouter);
 app.route("/", checklistRouter);
+app.route("/", documentsRouter);
 
 export default app;
 

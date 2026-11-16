@@ -12,6 +12,12 @@
       "migrations_dir": "src/server/db/migrations"
     }
   ],
+  "r2_buckets": [
+    {
+      "binding": "DOCUMENTS",
+      "bucket_name": "travelos-suite-documents"
+    }
+  ],
   "triggers": {
     "crons": ["*/5 * * * *"]
   }
