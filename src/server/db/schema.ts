@@ -158,6 +158,50 @@ export type PackageRow = typeof packages.$inferSelect;
 export type NewPackageRow = typeof packages.$inferInsert;
 
 // ---------------------------------------------------------------------------
+// Package pricing tiers. Allows multiple pricing variants per package
+// (e.g. standard vs. peak season, or per-person vs. per-room), each carrying
+// its own adult/child/infant amounts and validity window.
+// ---------------------------------------------------------------------------
+
+export const packagePricing = sqliteTable(
+  "package_pricing",
+  {
+    id: text("id").primaryKey(),
+    packageId: text("package_id")
+      .notNull()
+      .references(() => packages.id, { onDelete: "cascade" }),
+    label: text("label").notNull(),
+    pricingType: text("pricing_type", {
+      enum: ["per_person", "per_package", "per_room"],
+    })
+      .notNull()
+      .default("per_person"),
+    adultPrice: integer("adult_price").notNull().default(0),
+    childPrice: integer("child_price").notNull().default(0),
+    infantPrice: integer("infant_price").notNull().default(0),
+    validFrom: text("valid_from"),
+    validTo: text("valid_to"),
+    isDefault: integer("is_default", { mode: "boolean" })
+      .notNull()
+      .default(false),
+    createdAt: text("created_at")
+      .notNull()
+      .default(sql`(datetime('now'))`),
+    updatedAt: text("updated_at")
+      .notNull()
+      .default(sql`(datetime('now'))`),
+  },
+  (table) => ({
+    packageIdx: index("package_pricing_package_idx").on(table.packageId),
+    typeIdx: index("package_pricing_type_idx").on(table.pricingType),
+    defaultIdx: index("package_pricing_default_idx").on(table.isDefault),
+  }),
+);
+
+export type PackagePricingRow = typeof packagePricing.$inferSelect;
+export type NewPackagePricingRow = typeof packagePricing.$inferInsert;
+
+// ---------------------------------------------------------------------------
 // Departures & seat inventory (referenced by bookings for seat release).
 // The full seat-hold / overbooking machinery lives in the "Trips & Seats"
 // feature; this minimal table is the target of seat deduction/release.
