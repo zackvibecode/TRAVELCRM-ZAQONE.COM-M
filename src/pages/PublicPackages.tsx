@@ -1,7 +1,7 @@
 import { useMemo, useState } from "react";
 import { Link } from "react-router-dom";
-import { MapPin, Search, Clock, ArrowRight } from "lucide-react";
-import { mockPackages } from "@/lib/mock-data";
+import { MapPin, Search, Clock, ArrowRight, CalendarDays, Flame } from "lucide-react";
+import { mockDepartures, mockPackages } from "@/lib/mock-data";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -47,6 +47,19 @@ export default function PublicPackages() {
       return true;
     });
   }, [search, destination]);
+
+  const today = new Date().toISOString().slice(0, 10);
+  const nextDeparture = (packageId: string) =>
+    mockDepartures
+      .filter((d) => d.packageId === packageId && d.status !== "closed")
+      .sort((a, b) => a.departureDate.localeCompare(b.departureDate))
+      .find((d) => d.departureDate >= today) ??
+    mockDepartures
+      .filter((d) => d.packageId === packageId && d.status !== "closed")
+      .sort((a, b) => b.departureDate.localeCompare(a.departureDate))[0];
+
+  const seatsLeft = (d: (typeof mockDepartures)[number]) =>
+    d.seatCapacity - d.seatsBooked - d.seatsHeld;
 
   return (
     <>
@@ -123,6 +136,54 @@ export default function PublicPackages() {
                     {pkg.durationDays} hari{" "}
                     {(pkg.durationDays ?? 1) - 1} malam
                   </p>
+
+                  {/* Availability */}
+                  {(() => {
+                    const next = nextDeparture(pkg.id);
+                    if (!next) {
+                      return (
+                        <p className="mt-2 flex items-center gap-1 text-xs text-stone-400">
+                          <CalendarDays className="h-3 w-3" />
+                          Jadwal menyusul — private trip tersedia
+                        </p>
+                      );
+                    }
+                    const left = seatsLeft(next);
+                    return (
+                      <div className="mt-2 flex flex-wrap items-center gap-1.5">
+                        <span className="flex items-center gap-1 text-xs text-stone-600">
+                          <CalendarDays className="h-3 w-3" />
+                          {new Date(next.departureDate).toLocaleDateString(
+                            "id-ID",
+                            { day: "numeric", month: "short", year: "numeric" },
+                          )}
+                        </span>
+                        {left <= 0 || next.status === "full" ? (
+                          <Badge
+                            variant="outline"
+                            className="border-red-200 bg-red-50 text-red-700"
+                          >
+                            Sold Out
+                          </Badge>
+                        ) : left <= 5 ? (
+                          <Badge
+                            variant="outline"
+                            className="border-amber-200 bg-amber-50 text-amber-700"
+                          >
+                            <Flame className="mr-0.5 h-3 w-3" />
+                            Sisa {left} seat
+                          </Badge>
+                        ) : (
+                          <Badge
+                            variant="outline"
+                            className="border-emerald-200 bg-emerald-50 text-emerald-700"
+                          >
+                            {left} seat tersedia
+                          </Badge>
+                        )}
+                      </div>
+                    );
+                  })()}
 
                   {/* Highlights */}
                   {pkg.highlights && pkg.highlights.length > 0 && (
