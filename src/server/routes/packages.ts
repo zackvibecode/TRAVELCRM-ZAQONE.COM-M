@@ -1420,4 +1420,117 @@ packagesRouter.delete(
   },
 );
 
+// ---- Package publish / unpublish ----
+
+// POST /packages/:id/publish — set a package live on the public website.
+// Only draft (or restored) packages can be published; archived packages
+// must be restored first (DELETE ?restore=true).
+packagesRouter.post(
+  "/packages/:id/publish",
+  requireRole("super_admin", "management"),
+  async (c) => {
+    const db = c.get("db");
+    const id = c.req.param("id");
+
+    const existing = await db
+      .select()
+      .from(schema.packages)
+      .where(eq(schema.packages.id, id))
+      .get();
+    if (!existing) {
+      return c.json({ success: false, error: "Package not found" }, 404);
+    }
+
+    if (existing.publishStatus === "archived") {
+      return c.json(
+        {
+          success: false,
+          error: "Package is archived. Restore it before publishing.",
+        },
+        409,
+      );
+    }
+
+    if (existing.publishStatus === "published") {
+      return c.json(
+        { success: true, package: existing, alreadyPublished: true },
+        200,
+      );
+    }
+
+    await db
+      .update(schema.packages)
+      .set({ publishStatus: "published", updatedAt: new Date().toISOString() })
+      .where(eq(schema.packages.id, id))
+      .run();
+
+    const updated = await db
+      .select()
+      .from(schema.packages)
+      .where(eq(schema.packages.id, id))
+      .get();
+
+    await logAudit(db, {
+      actor: c.req.header("x-user-id") ?? null,
+      role: c.req.header("x-user-role") ?? null,
+      action: "package.published",
+      entityType: "package",
+      entityId: id,
+      detail: existing.name,
+    });
+
+    return c.json({ success: true, package: updated });
+  },
+);
+
+// POST /packages/:id/unpublish — take a package off the public website
+// (back to draft, without archiving).
+packagesRouter.post(
+  "/packages/:id/unpublish",
+  requireRole("super_admin", "management"),
+  async (c) => {
+    const db = c.get("db");
+    const id = c.req.param("id");
+
+    const existing = await db
+      .select()
+      .from(schema.packages)
+      .where(eq(schema.packages.id, id))
+      .get();
+    if (!existing) {
+      return c.json({ success: false, error: "Package not found" }, 404);
+    }
+
+    if (existing.publishStatus !== "published") {
+      return c.json(
+        { success: true, package: existing, alreadyUnpublished: true },
+        200,
+      );
+    }
+
+    await db
+      .update(schema.packages)
+      .set({ publishStatus: "draft", updatedAt: new Date().toISOString() })
+      .where(eq(schema.packages.id, id))
+      .run();
+
+    const updated = await db
+      .select()
+      .from(schema.packages)
+      .where(eq(schema.packages.id, id))
+      .get();
+
+    await logAudit(db, {
+      actor: c.req.header("x-user-id") ?? null,
+      role: c.req.header("x-user-role") ?? null,
+      action: "package.unpublished",
+      entityType: "package",
+      entityId: id,
+      detail: existing.name,
+    });
+
+    return c.json({ success: true, package: updated });
+  },
+);
+
 export default packagesRouter;
