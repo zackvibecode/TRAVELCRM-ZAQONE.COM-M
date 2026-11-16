@@ -10,8 +10,9 @@ import {
 } from "lucide-react";
 import { mockPackages } from "@/lib/mock-data";
 import type { TravelPackage } from "@/lib/types";
-import { cn, formatCurrency } from "@/lib/utils";
+import { cn } from "@/lib/utils";
 import PackageForm from "@/components/PackageForm";
+import PricingTiers from "@/components/PricingTiers";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
@@ -193,13 +194,8 @@ export default function PackageCatalog() {
                   {p.durationDays} days
                 </div>
                 <div className="text-sm">
-                  <div className="text-muted-foreground">From</div>
-                  <div className="text-lg font-bold text-primary">
-                    {formatCurrency(p.adultPrice)}
-                  </div>
-                  <div className="text-xs text-muted-foreground">
-                    child {formatCurrency(p.childPrice)}
-                  </div>
+                  <div className="mb-1 text-muted-foreground">Pricing</div>
+                  <PricingTiers pkg={p} />
                 </div>
                 <div className="flex flex-wrap gap-1">
                   {p.inclusions.slice(0, 3).map((inc) => (
