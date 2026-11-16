@@ -4,6 +4,7 @@ import * as schema from "./db/schema";
 import bookingsRouter from "./routes/bookings";
 import passengersRouter from "./routes/passengers";
 import departuresRouter from "./routes/departures";
+import checklistRouter from "./routes/checklist";
 import { releaseExpiredHolds } from "./lib/seat-availability";
 
 export type Env = {
@@ -40,6 +41,7 @@ app.get("/health", (c) => {
 app.route("/bookings", bookingsRouter);
 app.route("/", passengersRouter);
 app.route("/departures", departuresRouter);
+app.route("/", checklistRouter);
 
 export default app;
 
