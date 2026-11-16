@@ -261,6 +261,53 @@ export type PackageMediaRow = typeof packageMedia.$inferSelect;
 export type NewPackageMediaRow = typeof packageMedia.$inferInsert;
 
 // ---------------------------------------------------------------------------
+// Package departure dates. A package can have many scheduled departures;
+// this is the catalog-level schedule that drives the public "dates & seats"
+// listing. Full seat inventory (booked/held) is tracked on the `departures`
+// table once a date becomes operational.
+// ---------------------------------------------------------------------------
+
+export const packageDepartureDates = sqliteTable(
+  "package_departure_dates",
+  {
+    id: text("id").primaryKey(),
+    packageId: text("package_id")
+      .notNull()
+      .references(() => packages.id, { onDelete: "cascade" }),
+    departureDate: text("departure_date").notNull(),
+    returnDate: text("return_date"),
+    seatCapacity: integer("seat_capacity").notNull().default(0),
+    adultPrice: integer("adult_price").notNull().default(0),
+    childPrice: integer("child_price").notNull().default(0),
+    infantPrice: integer("infant_price").notNull().default(0),
+    status: text("status", {
+      enum: ["scheduled", "open", "almost_full", "full", "closed", "cancelled"],
+    })
+      .notNull()
+      .default("scheduled"),
+    published: integer("published", { mode: "boolean" })
+      .notNull()
+      .default(false),
+    createdAt: text("created_at")
+      .notNull()
+      .default(sql`(datetime('now'))`),
+    updatedAt: text("updated_at")
+      .notNull()
+      .default(sql`(datetime('now'))`),
+  },
+  (table) => ({
+    packageIdx: index("package_departure_dates_package_idx").on(
+      table.packageId,
+    ),
+    dateIdx: index("package_departure_dates_date_idx").on(table.departureDate),
+    statusIdx: index("package_departure_dates_status_idx").on(table.status),
+  }),
+);
+
+export type PackageDepartureDateRow = typeof packageDepartureDates.$inferSelect;
+export type NewPackageDepartureDateRow = typeof packageDepartureDates.$inferInsert;
+
+// ---------------------------------------------------------------------------
 // Departures & seat inventory (referenced by bookings for seat release).
 // The full seat-hold / overbooking machinery lives in the "Trips & Seats"
 // feature; this minimal table is the target of seat deduction/release.

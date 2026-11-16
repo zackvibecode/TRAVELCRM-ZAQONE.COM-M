@@ -71,6 +71,13 @@
       "when": 1794815433469,
       "tag": "0009_rainy_unicorn",
       "breakpoints": true
+    },
+    {
+      "idx": 10,
+      "version": "6",
+      "when": 1794819380265,
+      "tag": "0010_worthless_wither",
+      "breakpoints": true
     }
   ]
 }
