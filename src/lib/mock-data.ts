@@ -82,13 +82,13 @@ export const mockPackages: TravelPackage[] = [
 ];
 
 export const mockDepartures: Departure[] = [
-  { id: "d1", packageId: "pk1", departureDate: "2026-03-18", returnDate: "2026-03-24", seatCapacity: 40, seatsBooked: 22, seatsHeld: 6, adultPrice: 18000000, childPrice: 16200000, status: "open" },
-  { id: "d2", packageId: "pk1", departureDate: "2026-04-08", returnDate: "2026-04-14", seatCapacity: 40, seatsBooked: 35, seatsHeld: 3, adultPrice: 18500000, childPrice: 16700000, status: "almost_full" },
-  { id: "d3", packageId: "pk2", departureDate: "2026-04-02", returnDate: "2026-04-06", seatCapacity: 30, seatsBooked: 15, seatsHeld: 5, adultPrice: 6000000, childPrice: 4500000, status: "open" },
-  { id: "d4", packageId: "pk3", departureDate: "2026-02-14", returnDate: "2026-02-17", seatCapacity: 50, seatsBooked: 48, seatsHeld: 2, adultPrice: 8500000, childPrice: 7500000, status: "almost_full" },
-  { id: "d5", packageId: "pk4", departureDate: "2026-01-30", returnDate: "2026-02-04", seatCapacity: 35, seatsBooked: 35, seatsHeld: 0, adultPrice: 15000000, childPrice: 13500000, status: "full" },
-  { id: "d6", packageId: "pk5", departureDate: "2026-05-20", returnDate: "2026-05-31", seatCapacity: 30, seatsBooked: 10, seatsHeld: 4, adultPrice: 45000000, childPrice: 41000000, status: "open" },
-  { id: "d7", packageId: "pk6", departureDate: "2026-03-05", returnDate: "2026-03-08", seatCapacity: 25, seatsBooked: 8, seatsHeld: 2, adultPrice: 7800000, childPrice: 5800000, status: "open" },
+  { id: "d1", packageId: "pk1", departureDate: "2026-03-18", returnDate: "2026-03-24", seatCapacity: 40, seatsBooked: 22, seatsHeld: 6, adultPrice: 18000000, childPrice: 16200000, status: "open", tourLeader: "Agus Saputra", notes: "Visa group processing in progress" },
+  { id: "d2", packageId: "pk1", departureDate: "2026-04-08", returnDate: "2026-04-14", seatCapacity: 40, seatsBooked: 35, seatsHeld: 3, adultPrice: 18500000, childPrice: 16700000, status: "almost_full", tourLeader: "Agus Saputra" },
+  { id: "d3", packageId: "pk2", departureDate: "2026-04-02", returnDate: "2026-04-06", seatCapacity: 30, seatsBooked: 15, seatsHeld: 5, adultPrice: 6000000, childPrice: 4500000, status: "open", tourLeader: "Maya Pratiwi" },
+  { id: "d4", packageId: "pk3", departureDate: "2026-02-14", returnDate: "2026-02-17", seatCapacity: 50, seatsBooked: 48, seatsHeld: 2, adultPrice: 8500000, childPrice: 7500000, status: "almost_full", tourLeader: "Bambang Hartono", notes: "Corporate group — meeting package confirmed" },
+  { id: "d5", packageId: "pk4", departureDate: "2026-01-30", returnDate: "2026-02-04", seatCapacity: 35, seatsBooked: 35, seatsHeld: 0, adultPrice: 15000000, childPrice: 13500000, status: "full", tourLeader: "Agus Saputra" },
+  { id: "d6", packageId: "pk5", departureDate: "2026-05-20", returnDate: "2026-05-31", seatCapacity: 30, seatsBooked: 10, seatsHeld: 4, adultPrice: 45000000, childPrice: 41000000, status: "open", tourLeader: "Maya Pratiwi" },
+  { id: "d7", packageId: "pk6", departureDate: "2026-03-05", returnDate: "2026-03-08", seatCapacity: 25, seatsBooked: 8, seatsHeld: 2, adultPrice: 7800000, childPrice: 5800000, status: "open", tourLeader: "Bambang Hartono" },
 ];
 export const mockBookings: Booking[] = [
   {

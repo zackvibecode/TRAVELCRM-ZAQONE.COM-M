@@ -39,7 +39,16 @@ export interface Departure {
   adultPrice: number;
   childPrice: number;
   status: "open" | "almost_full" | "full" | "closed";
+  tourLeader?: string;
+  notes?: string;
 }
+
+export const departureStatusLabels: Record<Departure["status"], string> = {
+  open: "Open",
+  almost_full: "Almost Full",
+  full: "Full",
+  closed: "Closed",
+};
 
 export interface Passenger {
   id: string;

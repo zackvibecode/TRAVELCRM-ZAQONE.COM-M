@@ -1,6 +1,7 @@
 import { Routes, Route } from "react-router-dom";
 import AppShell from "@/components/AppShell";
 import BookingWorkspace from "@/pages/BookingWorkspace";
+import TripsDashboard from "@/pages/TripsDashboard";
 import Placeholder from "@/pages/Placeholder";
 
 export default function App() {
@@ -9,7 +10,7 @@ export default function App() {
       <Route element={<AppShell />}>
         <Route index element={<Placeholder title="Dashboard" />} />
         <Route path="/bookings" element={<BookingWorkspace />} />
-        <Route path="/trips" element={<Placeholder title="Trips & Seats" />} />
+        <Route path="/trips" element={<TripsDashboard />} />
         <Route path="/packages" element={<Placeholder title="Packages" />} />
         <Route path="/customers" element={<Placeholder title="Customers" />} />
         <Route
