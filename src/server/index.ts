@@ -41,7 +41,7 @@ app.use("*", async (c, next) => {
 
 app.get("/", (c) => {
   return c.json({
-    name: "TravelOS Suite API",
+    name: "ZAQONE TRAVEL CRM API",
     status: "ok",
   });
 });

@@ -10,6 +10,7 @@ import {
 } from "lucide-react";
 import { mockBookings, mockInvoices, mockLeads } from "@/lib/mock-data";
 import { cn } from "@/lib/utils";
+import { useLang } from "@/lib/i18n";
 import { Button } from "@/components/ui/button";
 import {
   Card,
@@ -44,26 +45,40 @@ interface ReportColumn {
 
 const REPORTS: Record<
   ReportKind,
-  { label: string; description: string; icon: typeof BarChart3 }
+  {
+    labelMs: string;
+    labelEn: string;
+    descMs: string;
+    descEn: string;
+    icon: typeof BarChart3;
+  }
 > = {
   sales: {
-    label: "Laporan Sales",
-    description: "Booking, nilai transaksi, dan pembayaran per bulan",
+    labelMs: "Laporan Jualan",
+    labelEn: "Sales Report",
+    descMs: "Tempahan, nilai transaksi, dan pembayaran setiap bulan",
+    descEn: "Bookings, transaction value, and monthly payments",
     icon: BarChart3,
   },
   finance: {
-    label: "Laporan Keuangan",
-    description: "Invoice, tagihan terkumpul, outstanding, dan refund",
+    labelMs: "Laporan Kewangan",
+    labelEn: "Finance Report",
+    descMs: "Invois, kutipan, baki tertunggak, dan bayaran balik",
+    descEn: "Invoices, collections, outstanding balances, and refunds",
     icon: Wallet,
   },
   occupancy: {
-    label: "Laporan Okupansi",
-    description: "Pax terisi per paket dan status keberangkatan",
+    labelMs: "Laporan Okupansi",
+    labelEn: "Occupancy Report",
+    descMs: "Pax terisi setiap pakej dan status keberangkatan",
+    descEn: "Pax filled per package and departure status",
     icon: BedDouble,
   },
   staff: {
-    label: "Laporan Staf",
-    description: "Aktivitas dan kontribusi per agent",
+    labelMs: "Laporan Staf",
+    labelEn: "Staff Report",
+    descMs: "Aktiviti dan sumbangan setiap ejen",
+    descEn: "Activity and contribution per agent",
     icon: Users,
   },
 };
@@ -179,6 +194,7 @@ function toCSV(columns: ReportColumn[], rows: Record<string, string | number>[])
 }
 
 export default function ReportsPage() {
+  const { t } = useLang();
   const [kind, setKind] = useState<ReportKind>("sales");
   const report = useMemo(() => buildRows(kind), [kind]);
   const meta = REPORTS[kind];
@@ -197,9 +213,14 @@ export default function ReportsPage() {
   return (
     <div className="space-y-6">
       <div>
-        <h1 className="text-2xl font-bold tracking-tight">Laporan & Ekspor</h1>
+        <h1 className="text-2xl font-bold tracking-tight">
+          {t("Laporan & Eksport", "Reports & Exports")}
+        </h1>
         <p className="text-sm text-muted-foreground">
-          Pratinjau laporan bisnis dan unduh sebagai CSV atau cetak PDF.
+          {t(
+            "Pratonton laporan perniagaan dan muat turun sebagai CSV atau cetak PDF.",
+            "Preview business reports and download as CSV or print to PDF.",
+          )}
         </p>
       </div>
 
@@ -226,10 +247,12 @@ export default function ReportsPage() {
                     active ? "text-red-600" : "text-muted-foreground",
                   )}
                 />
-                <span className="text-sm font-semibold">{r.label}</span>
+                <span className="text-sm font-semibold">
+                  {t(r.labelMs, r.labelEn)}
+                </span>
               </div>
               <p className="mt-1 text-xs text-muted-foreground">
-                {r.description}
+                {t(r.descMs, r.descEn)}
               </p>
             </button>
           );
@@ -242,17 +265,17 @@ export default function ReportsPage() {
           <div className="flex items-center gap-2">
             <FileText className="h-4 w-4 text-muted-foreground" />
             <CardTitle className="text-base">
-              {meta.label} — {report.rows.length} baris
+              {t(meta.labelMs, meta.labelEn)} — {report.rows.length} {t("baris", "rows")}
             </CardTitle>
           </div>
           <div className="flex gap-2">
             <Button variant="outline" size="sm" onClick={() => window.print()}>
               <Printer className="mr-1.5 h-3.5 w-3.5" />
-              Cetak
+              {t("Cetak", "Print")}
             </Button>
             <Button size="sm" onClick={handleExport}>
               <Download className="mr-1.5 h-3.5 w-3.5" />
-              Ekspor CSV
+              {t("Eksport CSV", "Export CSV")}
             </Button>
           </div>
         </CardHeader>
@@ -295,7 +318,7 @@ export default function ReportsPage() {
                     colSpan={report.columns.length}
                     className="text-center text-muted-foreground"
                   >
-                    Tidak ada data.
+                    {t("Tiada data.", "No data.")}
                   </TableCell>
                 </TableRow>
               )}

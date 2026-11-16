@@ -404,7 +404,7 @@ quotationsRouter.get(
 <body>
   <header>
     <div>
-      <h1>TravelOS Suite</h1>
+      <h1>ZAQONE TRAVEL CRM</h1>
       <div class="muted">Penawaran Perjalanan</div>
     </div>
     <div style="text-align:right">
@@ -452,7 +452,7 @@ quotationsRouter.get(
   <footer>
     Penawaran ini bukan tiket/konfirmasi booking. Harga dapat berubah tanpa
     pemberitahuan sebelum pembayaran deposit. Dokumen ini dihasilkan oleh
-    TravelOS Suite.
+    ZAQONE TRAVEL CRM.
   </footer>
 </body>
 </html>`;

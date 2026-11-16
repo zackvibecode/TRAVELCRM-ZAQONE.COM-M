@@ -1,18 +1,20 @@
 import { Link, Outlet } from "react-router-dom";
 import { Plane, Menu, X, Phone, Mail, Instagram, Facebook } from "lucide-react";
 import { useState } from "react";
+import { cn } from "@/lib/utils";
+import { useLang, type Lang } from "@/lib/i18n";
 import { Button } from "@/components/ui/button";
-
-const NAV_ITEMS = [
-  { to: "/site", label: "Home", end: true },
-  { to: "/site/packages", label: "Paket Wisata" },
-  { to: "/site/promos", label: "Promo" },
-  { to: "/site/about", label: "Tentang Kami" },
-  { to: "/site/contact", label: "Kontak" },
-];
 
 export default function PublicSiteShell() {
   const [mobileOpen, setMobileOpen] = useState(false);
+  const { lang, setLang, t } = useLang();
+
+  const NAV_ITEMS = [
+    { to: "/site", label: t("Utama", "Home"), end: true },
+    { to: "/site/packages", label: t("Pakej Pelancongan", "Tour Packages") },
+    { to: "/site/promos", label: t("Promosi", "Promos") },
+    { to: "/site/contact", label: t("Hubungi Kami", "Contact Us") },
+  ];
 
   return (
     <div className="min-h-screen bg-white text-stone-900">
@@ -21,13 +23,13 @@ export default function PublicSiteShell() {
         <div className="mx-auto flex max-w-6xl items-center justify-between px-4 py-1.5 text-xs">
           <div className="flex items-center gap-4">
             <span className="flex items-center gap-1.5">
-              <Phone className="h-3 w-3" /> +62 21 5555 0123
+              <Phone className="h-3 w-3" /> +60 3 5555 0123
             </span>
             <span className="flex items-center gap-1.5">
-              <Mail className="h-3 w-3" /> hello@travelos.id
+              <Mail className="h-3 w-3" /> hello@zaqonetravel.com
             </span>
           </div>
-          <span>Senin–Sabtu, 09.00–18.00 WIB</span>
+          <span>{t("Isnin–Sabtu, 09.00–18.00", "Mon–Sat, 9am–6pm")}</span>
         </div>
       </div>
 
@@ -40,10 +42,11 @@ export default function PublicSiteShell() {
             </div>
             <div>
               <span className="block text-base font-bold leading-tight tracking-tight">
-                TravelOS
+                ZAQONE
+                <span className="text-red-600"> TRAVEL</span>
               </span>
               <span className="block text-[10px] font-medium uppercase tracking-widest text-muted-foreground">
-                Tour & Travel
+                Tour &amp; Travel
               </span>
             </div>
           </Link>
@@ -61,9 +64,28 @@ export default function PublicSiteShell() {
             ))}
           </nav>
 
-          <div className="hidden md:block">
+          <div className="hidden items-center gap-2 md:flex">
+            {/* Language switcher */}
+            <div className="flex items-center rounded-full border p-0.5">
+              {(["ms", "en"] as Lang[]).map((code) => (
+                <button
+                  key={code}
+                  onClick={() => setLang(code)}
+                  className={cn(
+                    "rounded-full px-2 py-0.5 text-xs font-semibold transition-colors",
+                    lang === code
+                      ? "bg-red-600 text-white"
+                      : "text-stone-500 hover:text-stone-900",
+                  )}
+                >
+                  {code === "ms" ? "BM" : "EN"}
+                </button>
+              ))}
+            </div>
             <Button size="sm" asChild>
-              <Link to="/site/contact">Konsultasi Gratis</Link>
+              <Link to="/site/contact">
+                {t("Konsultasi Percuma", "Free Consultation")}
+              </Link>
             </Button>
           </div>
 
@@ -91,6 +113,25 @@ export default function PublicSiteShell() {
                   {item.label}
                 </Link>
               ))}
+              <div className="mt-2 flex items-center gap-2 px-3">
+                <span className="text-xs text-stone-500">
+                  {t("Bahasa", "Language")}:
+                </span>
+                {(["ms", "en"] as Lang[]).map((code) => (
+                  <button
+                    key={code}
+                    onClick={() => setLang(code)}
+                    className={cn(
+                      "rounded-full border px-2.5 py-0.5 text-xs font-semibold",
+                      lang === code
+                        ? "border-red-300 bg-red-50 text-red-700"
+                        : "border-stone-200 text-stone-500",
+                    )}
+                  >
+                    {code === "ms" ? "BM" : "EN"}
+                  </button>
+                ))}
+              </div>
             </div>
           </nav>
         )}
@@ -109,11 +150,15 @@ export default function PublicSiteShell() {
               <div className="rounded-lg bg-red-600 p-1.5">
                 <Plane className="h-4 w-4 text-white" />
               </div>
-              <span className="text-base font-bold text-white">TravelOS</span>
+              <span className="text-base font-bold text-white">
+                ZAQONE <span className="text-red-500">TRAVEL</span>
+              </span>
             </div>
             <p className="mt-3 text-xs leading-relaxed text-stone-400">
-              Travel agency all-in-one: paket wisata domestik dan internasional,
-              group trip, dan corporate travel.
+              {t(
+                "Agensi pelancongan serba lengkap: pakej pelancongan domestik dan antarabangsa, trip berkumpulan, dan korporat.",
+                "All-in-one travel agency: domestic and international tour packages, group trips, and corporate travel.",
+              )}
             </p>
             <div className="mt-4 flex gap-3">
               <a href="#" aria-label="Instagram" className="rounded-lg border border-stone-700 p-2 hover:border-red-500">
@@ -126,7 +171,9 @@ export default function PublicSiteShell() {
           </div>
 
           <div>
-            <h3 className="text-sm font-semibold text-white">Navigasi</h3>
+            <h3 className="text-sm font-semibold text-white">
+              {t("Navigasi", "Navigation")}
+            </h3>
             <ul className="mt-3 space-y-2 text-xs">
               {NAV_ITEMS.map((item) => (
                 <li key={item.to}>
@@ -139,26 +186,30 @@ export default function PublicSiteShell() {
           </div>
 
           <div>
-            <h3 className="text-sm font-semibold text-white">Kontak</h3>
+            <h3 className="text-sm font-semibold text-white">
+              {t("Hubungi", "Contact")}
+            </h3>
             <ul className="mt-3 space-y-2 text-xs text-stone-400">
-              <li>Jl. Sudirman Kav. 52, Jakarta</li>
-              <li>+62 21 5555 0123</li>
-              <li>hello@travelos.id</li>
-              <li>WA: +62 812 3456 7890</li>
+              <li>{t("Jalan Sultan Ismail, Kuala Lumpur", "Jalan Sultan Ismail, Kuala Lumpur")}</li>
+              <li>+60 3 5555 0123</li>
+              <li>hello@zaqonetravel.com</li>
+              <li>WA: +60 12 345 6789</li>
             </ul>
           </div>
 
           <div>
-            <h3 className="text-sm font-semibold text-white">Jam Operasional</h3>
+            <h3 className="text-sm font-semibold text-white">
+              {t("Waktu Operasi", "Operating Hours")}
+            </h3>
             <ul className="mt-3 space-y-2 text-xs text-stone-400">
-              <li>Senin–Jumat: 09.00–18.00</li>
-              <li>Sabtu: 09.00–15.00</li>
-              <li>Minggu & Libur: Tutup</li>
+              <li>{t("Isnin–Jumaat: 09.00–18.00", "Mon–Fri: 9am–6pm")}</li>
+              <li>{t("Sabtu: 09.00–15.00", "Sat: 9am–3pm")}</li>
+              <li>{t("Ahad & Cuti: Tutup", "Sun & Holidays: Closed")}</li>
             </ul>
           </div>
         </div>
         <div className="border-t border-stone-800 py-4 text-center text-[11px] text-stone-500">
-          © {new Date().getFullYear()} TravelOS Suite. Semua hak dilindungi.
+          © {new Date().getFullYear()} ZAQONE TRAVEL CRM. {t("Hak cipta terpelihara.", "All rights reserved.")}
         </div>
       </footer>
     </div>

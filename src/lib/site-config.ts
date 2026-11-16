@@ -45,22 +45,22 @@ export const siteBanners: Banner[] = [
 
 export const siteSeo: Record<string, SeoSettings> = {
   home: {
-    metaTitle: "TravelOS — Paket Wisata Domestik & Internasional",
+    metaTitle: "ZAQONE TRAVEL — Pakej Pelancongan Domestik & Antarabangsa",
     metaDescription:
-      "Travel agency all-in-one: open trip, private tour, dan corporate travel dengan itinerary terkurasi dan harga transparan. Booking mudah, pendampingan penuh.",
-    keywords: "paket wisata, open trip, tour travel jakarta, travel murah",
+      "Agensi pelancongan serba lengkap: open trip, private tour, dan korporat dengan itinerary terkurasi dan harga telus. Tempahan mudah, sokongan penuh.",
+    keywords: "pakej pelancongan, open trip, agensi travel malaysia, travel murah",
   },
   promos: {
-    metaTitle: "Promo & Penawaran Spesial — TravelOS",
+    metaTitle: "Promosi & Tawaran Istimewa — ZAQONE TRAVEL",
     metaDescription:
-      "Diskon flash sale, harga early bird, dan penawaran grup untuk paket wisata pilihan. Kuota terbatas!",
-    keywords: "promo wisata, diskon tiket tour, flash sale travel",
+      "Diskaun flash sale, harga early bird, dan tawaran kumpulan untuk pakej pelancongan pilihan. Kuota terhad!",
+    keywords: "promosi pelancongan, diskaun tiket tour, flash sale travel",
   },
   packages: {
-    metaTitle: "Paket Wisata Lengkap — TravelOS",
+    metaTitle: "Pakej Pelancongan Lengkap — ZAQONE TRAVEL",
     metaDescription:
-      "Jelajahi semua paket wisata TravelOS: Jepang, Korea, Bali, Lombok, Singapore, hingga Eropa. Harga per pax jelas, keberangkatan terjadwal.",
-    keywords: "paket tour jepang, wisata bali, tour korea, paket eropa",
+      "Terokai semua pakej pelancongan ZAQONE TRAVEL: Jepun, Korea, Bali, Lombok, Singapura, hingga Eropah. Harga per pax jelas, keberangkatan berjadual.",
+    keywords: "pakej tour jepang, wisata bali, tour korea, pakej eropah",
   },
 };
 

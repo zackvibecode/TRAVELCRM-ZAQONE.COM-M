@@ -11,6 +11,7 @@ import {
   Users,
 } from "lucide-react";
 import { mockDepartures, mockPackages } from "@/lib/mock-data";
+import { useLang } from "@/lib/i18n";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import {
@@ -30,6 +31,7 @@ function formatRupiah(value: number): string {
 
 export default function PublicPackageDetail() {
   const { id } = useParams<{ id: string }>();
+  const { t, lang } = useLang();
   const pkg = useMemo(
     () => mockPackages.find((p) => p.id === id),
     [id],
@@ -46,14 +48,19 @@ export default function PublicPackageDetail() {
   if (!pkg) {
     return (
       <div className="mx-auto flex max-w-6xl flex-col items-center gap-3 px-4 py-24 text-center">
-        <h1 className="text-2xl font-bold">Paket tidak ditemukan</h1>
+        <h1 className="text-2xl font-bold">
+          {t("Pakej tidak dijumpai", "Package not found")}
+        </h1>
         <p className="text-sm text-stone-600">
-          Paket yang Anda cari mungkin sudah tidak tersedia.
+          {t(
+            "Pakej yang anda cari mungkin sudah tidak tersedia.",
+            "The package you're looking for may no longer be available.",
+          )}
         </p>
         <Button asChild variant="outline">
           <Link to="/site/packages">
             <ArrowLeft className="mr-1.5 h-4 w-4" />
-            Kembali ke Katalog
+            {t("Kembali ke Katalog", "Back to Catalog")}
           </Link>
         </Button>
       </div>
@@ -73,7 +80,7 @@ export default function PublicPackageDetail() {
             className="mb-4 inline-flex items-center gap-1 text-xs font-medium text-stone-500 hover:text-red-600"
           >
             <ArrowLeft className="h-3 w-3" />
-            Semua Paket
+            {t("Semua Pakej", "All Packages")}
           </Link>
 
           <div className="grid gap-8 lg:grid-cols-3">
@@ -89,11 +96,11 @@ export default function PublicPackageDetail() {
               <div className="mt-3 flex flex-wrap gap-4 text-sm text-stone-600">
                 <span className="flex items-center gap-1.5">
                   <Clock className="h-4 w-4 text-red-600" />
-                  {pkg.durationDays} hari {(pkg.durationDays ?? 1) - 1} malam
+                  {pkg.durationDays} {t("hari", "days")} {(pkg.durationDays ?? 1) - 1} {t("malam", "nights")}
                 </span>
                 <span className="flex items-center gap-1.5">
                   <Users className="h-4 w-4 text-red-600" />
-                  Open trip & private group
+                  {t("Open trip & kumpulan persendirian", "Open trip & private group")}
                 </span>
               </div>
 
@@ -101,7 +108,7 @@ export default function PublicPackageDetail() {
               {pkg.highlights && pkg.highlights.length > 0 && (
                 <div className="mt-6">
                   <h2 className="text-sm font-bold uppercase tracking-wide text-stone-500">
-                    Highlight Perjalanan
+                    {t("Sorotan Perjalanan", "Trip Highlights")}
                   </h2>
                   <div className="mt-3 grid gap-2 sm:grid-cols-2">
                     {pkg.highlights.map((h) => (
@@ -136,7 +143,7 @@ export default function PublicPackageDetail() {
                         </div>
                         <div className="pb-6">
                           <p className="text-sm font-semibold">
-                            Hari {day.day}: {day.title}
+                            {t("Hari", "Day")} {day.day}: {day.title}
                           </p>
                           <p className="mt-1 text-sm leading-relaxed text-stone-600">
                             {day.description}
@@ -153,7 +160,7 @@ export default function PublicPackageDetail() {
                 <Card>
                   <CardHeader className="pb-2">
                     <CardTitle className="text-sm">
-                      Harga Termasuk
+                      {t("Harga Termasuk", "Price Includes")}
                     </CardTitle>
                   </CardHeader>
                   <CardContent className="space-y-2">
@@ -171,7 +178,7 @@ export default function PublicPackageDetail() {
                 <Card>
                   <CardHeader className="pb-2">
                     <CardTitle className="text-sm">
-                      Harga Tidak Termasuk
+                      {t("Harga Tidak Termasuk", "Price Excludes")}
                     </CardTitle>
                   </CardHeader>
                   <CardContent className="space-y-2">
@@ -193,26 +200,26 @@ export default function PublicPackageDetail() {
             <div className="space-y-4">
               <Card className="sticky top-24">
                 <CardContent className="p-5">
-                  <p className="text-xs text-stone-500">mulai dari / pax</p>
+                  <p className="text-xs text-stone-500">{t("mula dari / pax", "from / pax")}</p>
                   <p className="text-3xl font-bold text-red-600">
                     {formatRupiah(pkg.adultPrice)}
                   </p>
 
                   <div className="mt-4 space-y-2 border-t pt-4 text-sm">
                     <div className="flex justify-between">
-                      <span className="text-stone-600">Dewasa</span>
+                      <span className="text-stone-600">{t("Dewasa", "Adult")}</span>
                       <span className="font-semibold">
                         {formatRupiah(pkg.adultPrice)}
                       </span>
                     </div>
                     <div className="flex justify-between">
-                      <span className="text-stone-600">Anak (2–11 th)</span>
+                      <span className="text-stone-600">{t("Kanak-kanak (2–11 th)", "Child (2–11 yrs)")}</span>
                       <span className="font-semibold">
                         {formatRupiah(pkg.childPrice)}
                       </span>
                     </div>
                     <div className="flex justify-between">
-                      <span className="text-stone-600">Bayi (di bawah 2 th)</span>
+                      <span className="text-stone-600">{t("Bayi (bawah 2 th)", "Infant (under 2 yrs)")}</span>
                       <span className="font-semibold">
                         {formatRupiah(pkg.infantPrice)}
                       </span>
@@ -221,12 +228,15 @@ export default function PublicPackageDetail() {
 
                   <Button asChild className="mt-5 w-full" size="lg">
                     <Link to="/site/contact">
-                      Booking Sekarang
+                      {t("Tempahkan Sekarang", "Book Now")}
                       <ArrowRight className="ml-2 h-4 w-4" />
                     </Link>
                   </Button>
                   <p className="mt-2 text-center text-[11px] text-stone-500">
-                    Gratis konsultasi • Deposit 30% untuk kunci seat
+                    {t(
+                      "Konsultasi percuma • Deposit 30% untuk tempah seat",
+                      "Free consultation • 30% deposit to lock your seat",
+                    )}
                   </p>
                 </CardContent>
               </Card>
@@ -236,13 +246,16 @@ export default function PublicPackageDetail() {
                 <CardHeader className="pb-2">
                   <CardTitle className="flex items-center gap-1.5 text-sm">
                     <CalendarDays className="h-4 w-4 text-red-600" />
-                    Jadwal Keberangkatan
+                    {t("Jadual Keberangkatan", "Departure Schedule")}
                   </CardTitle>
                 </CardHeader>
                 <CardContent className="space-y-2">
                   {departures.length === 0 && (
                     <p className="text-xs text-stone-500">
-                      Jadwal akan diumumkan — hubungi kami untuk private trip.
+                      {t(
+                        "Jadual akan diumumkan — hubungi kami untuk private trip.",
+                        "Schedule to be announced — contact us for a private trip.",
+                      )}
                     </p>
                   )}
                   {departures.map((d) => {
@@ -255,7 +268,7 @@ export default function PublicPackageDetail() {
                         <div>
                           <p className="text-sm font-semibold">
                             {new Date(d.departureDate).toLocaleDateString(
-                              "id-ID",
+                              lang === "ms" ? "ms-MY" : "en-GB",
                               {
                                 day: "numeric",
                                 month: "long",
@@ -264,7 +277,7 @@ export default function PublicPackageDetail() {
                             )}
                           </p>
                           <p className="text-[11px] text-stone-500">
-                            {d.seatsBooked}/{d.seatCapacity} seat terisi
+                            {d.seatsBooked}/{d.seatCapacity} {t("seat terisi", "seats filled")}
                             {d.tourLeader ? ` • TL: ${d.tourLeader}` : ""}
                           </p>
                         </div>
@@ -279,8 +292,8 @@ export default function PublicPackageDetail() {
                           }
                         >
                           {d.status === "full"
-                            ? "Penuh"
-                            : `${left} seat`}
+                            ? t("Penuh", "Full")
+                            : `${left} ${t("seat", "seats")}`}
                         </Badge>
                       </div>
                     );

@@ -1,4 +1,4 @@
-import { useState } from "react";
+﻿import { useState } from "react";
 import {
   Send,
   CheckCircle2,
@@ -9,6 +9,7 @@ import {
   MessageCircle,
 } from "lucide-react";
 import { mockPackages } from "@/lib/mock-data";
+import { useLang } from "@/lib/i18n";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
@@ -38,6 +39,7 @@ const EMPTY_FORM: EnquiryForm = {
 };
 
 export default function PublicContact() {
+  const { t, lang } = useLang();
   const [form, setForm] = useState<EnquiryForm>(EMPTY_FORM);
   const [errors, setErrors] = useState<Partial<Record<keyof EnquiryForm, string>>>({});
   const [submitted, setSubmitted] = useState(false);
@@ -49,13 +51,13 @@ export default function PublicContact() {
 
   const validate = (): boolean => {
     const next: Partial<Record<keyof EnquiryForm, string>> = {};
-    if (!form.name.trim()) next.name = "Nama wajib diisi";
-    if (!form.phone.trim()) next.phone = "Nomor WhatsApp wajib diisi";
-    else if (!/^(\+62|62|0)8\d{7,12}$/.test(form.phone.replace(/[\s-]/g, "")))
-      next.phone = "Format nomor WhatsApp tidak valid (cth: 081234567890)";
+    if (!form.name.trim()) next.name = t("Nama wajib diisi", "Name is required");
+    if (!form.phone.trim()) next.phone = t("Nombor WhatsApp wajib diisi", "WhatsApp number is required");
+    else if (!/^(\+?6?01|01)\d{7,9}$/.test(form.phone.replace(/[\s-]/g, "")))
+      next.phone = t("Format nombor WhatsApp tidak sah (cth\\: 0123456789)", "Invalid WhatsApp number format (e.g. 0123456789)");
     if (form.email && !/^\S+@\S+\.\S+$/.test(form.email))
-      next.email = "Format email tidak valid";
-    if (!form.packageName) next.packageName = "Pilih paket atau destinasi";
+      next.email = t("Format email tidak sah", "Invalid email format");
+    if (!form.packageName) next.packageName = t("Pilih pakej atau destinasi", "Please choose a package or destination");
     return Object.keys(next).length === 0 ? true : (setErrors(next), false);
   };
 
@@ -75,31 +77,41 @@ export default function PublicContact() {
             <CheckCircle2 className="h-10 w-10 text-emerald-600" />
           </div>
           <h1 className="mt-5 text-2xl font-bold tracking-tight sm:text-3xl">
-            Terima kasih, {form.name.split(" ")[0]}!
+            {t("Terima kasih", "Thank you")}, {form.name.split(" ")[0]}!
           </h1>
           <p className="mt-3 max-w-lg text-sm leading-relaxed text-stone-600">
-            Permintaan Anda untuk <strong>{form.packageName}</strong> sudah
-            kami terima. Tim TravelOS akan menghubungi Anda via WhatsApp ke{" "}
-            <strong>{form.phone}</strong> dalam 1×24 jam kerja.
+            {t(
+              "Permintaan anda untuk",
+              "Your request for",
+            )} <strong>{form.packageName}</strong>{" "}
+            {t(
+              "telah kami terima. Pasukan ZAQONE TRAVEL akan menghubungi anda melalui WhatsApp ke",
+              "has been received. The ZAQONE TRAVEL team will contact you via WhatsApp at",
+            )}{" "}
+            <strong>{form.phone}</strong>{" "}
+            {t("dalam 1×24 jam bekerja.", "within 1 business day.")}
           </p>
 
           <Card className="mt-6 w-full max-w-md text-left">
             <CardContent className="space-y-2 p-5 text-sm">
               {[
-                ["Nama", form.name],
+                [t("Nama", "Name"), form.name],
                 ["WhatsApp", form.phone],
                 ["Email", form.email || "—"],
-                ["Paket", form.packageName],
-                ["Jumlah pax", form.pax],
+                [t("Pakej", "Package"), form.packageName],
+                [t("Bilangan pax", "Number of pax"), form.pax],
                 [
-                  "Rencana tanggal",
+                  t("Tarikh dirancang", "Planned date"),
                   form.departureDate
-                    ? new Date(form.departureDate).toLocaleDateString("id-ID", {
-                        day: "numeric",
-                        month: "long",
-                        year: "numeric",
-                      })
-                    : "Fleksibel",
+                    ? new Date(form.departureDate).toLocaleDateString(
+                        lang === "ms" ? "ms-MY" : "en-GB",
+                        {
+                          day: "numeric",
+                          month: "long",
+                          year: "numeric",
+                        },
+                      )
+                    : t("Fleksibel", "Flexible"),
                 ],
               ].map(([label, value]) => (
                 <div key={label} className="flex justify-between gap-4">
@@ -118,7 +130,7 @@ export default function PublicContact() {
               setSubmitted(false);
             }}
           >
-            Kirim permintaan lain
+            {t("Hantar permintaan lain", "Send another request")}
           </Button>
         </div>
       </section>
@@ -131,11 +143,13 @@ export default function PublicContact() {
       <section className="bg-gradient-to-b from-red-50/70 to-white">
         <div className="mx-auto max-w-6xl px-4 py-12">
           <h1 className="text-3xl font-bold tracking-tight sm:text-4xl">
-            Hubungi Kami
+            {t("Hubungi Kami", "Contact Us")}
           </h1>
           <p className="mt-3 max-w-2xl text-sm leading-relaxed text-stone-600">
-            Isi form di bawah — konsultasi gratis, tanpa komitmen. Tim kami
-            balas dalam 1×24 jam kerja via WhatsApp.
+            {t(
+              "Isi borang di bawah — konsultasi percuma, tanpa komitmen. Pasukan kami membalas dalam 1×24 jam bekerja melalui WhatsApp.",
+              "Fill in the form below — free consultation, no commitment. Our team replies within 1 business day via WhatsApp.",
+            )}
           </p>
         </div>
       </section>
@@ -147,23 +161,23 @@ export default function PublicContact() {
             {[
               {
                 icon: MessageCircle,
-                title: "WhatsApp (tercepat)",
-                lines: ["+62 812 3456 7890", "Chat langsung dengan sales"],
+                title: t("WhatsApp (terpantas)", "WhatsApp (fastest)"),
+                lines: ["+60 12 345 6789", t("Sembang terus dengan jualan", "Chat directly with sales")],
               },
               {
                 icon: Phone,
-                title: "Telepon Kantor",
-                lines: ["+62 21 5555 0123", "Senin–Sabtu 09.00–18.00"],
+                title: t("Telefon Pejabat", "Office Phone"),
+                lines: ["+60 3 5555 0123", t("Isnin–Sabtu 09.00–18.00", "Mon–Sat 9am–6pm")],
               },
               {
                 icon: Mail,
                 title: "Email",
-                lines: ["hello@travelos.id", "Balasan maks 1×24 jam"],
+                lines: ["hello@zaqonetravel.com", t("Balasan maks 1×24 jam", "Reply within 1 business day")],
               },
               {
                 icon: MapPin,
-                title: "Kantor",
-                lines: ["Jl. Sudirman Kav. 52, Jakarta", "Kunjungan dengan appointment"],
+                title: t("Pejabat", "Office"),
+                lines: ["Jalan Sultan Ismail, Kuala Lumpur", t("Lawatan dengan temujanji", "Visits by appointment")],
               },
             ].map((item) => (
               <Card key={item.title}>
@@ -191,12 +205,12 @@ export default function PublicContact() {
                 <div className="grid gap-4 sm:grid-cols-2">
                   <div className="space-y-1.5">
                     <label className="text-xs font-medium">
-                      Nama Lengkap *
+                      {t("Nama Penuh", "Full Name")} *
                     </label>
                     <Input
                       value={form.name}
                       onChange={(e) => set("name", e.target.value)}
-                      placeholder="cth: Budi Santoso"
+                      placeholder={t("cth\: Ahmad Zaqi", "e.g. John Smith")}
                     />
                     {errors.name && (
                       <p className="text-xs text-red-600">{errors.name}</p>
@@ -204,12 +218,12 @@ export default function PublicContact() {
                   </div>
                   <div className="space-y-1.5">
                     <label className="text-xs font-medium">
-                      Nomor WhatsApp *
+                      {t("Nombor WhatsApp", "WhatsApp Number")} *
                     </label>
                     <Input
                       value={form.phone}
                       onChange={(e) => set("phone", e.target.value)}
-                      placeholder="cth: 081234567890"
+                      placeholder={t("cth\: 0123456789", "e.g. 0123456789")}
                     />
                     {errors.phone && (
                       <p className="text-xs text-red-600">{errors.phone}</p>
@@ -220,7 +234,7 @@ export default function PublicContact() {
                 <div className="grid gap-4 sm:grid-cols-2">
                   <div className="space-y-1.5">
                     <label className="text-xs font-medium">
-                      Email (opsional)
+                      {t("Email (pilihan)", "Email (optional)")}
                     </label>
                     <Input
                       type="email"
@@ -234,14 +248,14 @@ export default function PublicContact() {
                   </div>
                   <div className="space-y-1.5">
                     <label className="text-xs font-medium">
-                      Paket / Destinasi *
+                      {t("Pakej / Destinasi", "Package / Destination")} *
                     </label>
                     <select
                       value={form.packageName}
                       onChange={(e) => set("packageName", e.target.value)}
                       className="h-9 w-full rounded-md border border-input bg-transparent px-3 text-sm shadow-sm focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
                     >
-                      <option value="">Pilih paket…</option>
+                      <option value="">{t("Pilih pakej…", "Choose a package…")}</option>
                       {mockPackages
                         .filter((p) => p.status !== "archived")
                         .map((p) => (
@@ -250,7 +264,10 @@ export default function PublicContact() {
                           </option>
                         ))}
                       <option value="Belum tahu — minta rekomendasi">
-                        Belum tahu — minta rekomendasi
+                        {t(
+                          "Belum tahu — minta cadangan",
+                          "Not sure yet — ask for a recommendation",
+                        )}
                       </option>
                     </select>
                     {errors.packageName && (
@@ -264,7 +281,7 @@ export default function PublicContact() {
                 <div className="grid gap-4 sm:grid-cols-2">
                   <div className="space-y-1.5">
                     <label className="text-xs font-medium">
-                      Jumlah Pax (perkiraan)
+                      {t("Bilangan Pax (anggaran)", "Number of Pax (estimate)")}
                     </label>
                     <Input
                       type="number"
@@ -275,7 +292,7 @@ export default function PublicContact() {
                   </div>
                   <div className="space-y-1.5">
                     <label className="text-xs font-medium">
-                      Rencana Tanggal (opsional)
+                      {t("Tarikh Dirancang (pilihan)", "Planned Date (optional)")}
                     </label>
                     <Input
                       type="date"
@@ -286,23 +303,28 @@ export default function PublicContact() {
                 </div>
 
                 <div className="space-y-1.5">
-                  <label className="text-xs font-medium">Pesan</label>
+                  <label className="text-xs font-medium">{t("Mesej", "Message")}</label>
                   <Textarea
                     value={form.message}
                     onChange={(e) => set("message", e.target.value)}
                     rows={4}
-                    placeholder="Ceritakan kebutuhan Anda — budget, preferensi hotel, destinasi impian, dsb."
+                    placeholder={t(
+                      "Ceritakan keperluan anda — bajet, pilihan hotel, destinasi impian, dll.",
+                      "Tell us your needs — budget, hotel preference, dream destination, etc.",
+                    )}
                   />
                 </div>
 
                 <Button type="submit" size="lg" className="w-full">
                   <Send className="mr-2 h-4 w-4" />
-                  Kirim Permintaan
+                  {t("Hantar Permintaan", "Send Request")}
                 </Button>
                 <p className="flex items-center justify-center gap-1 text-center text-[11px] text-stone-500">
                   <Clock className="h-3 w-3" />
-                  Data Anda aman dan hanya digunakan untuk keperluan follow-up
-                  perjalanan.
+                  {t(
+                    "Data anda selamat dan hanya digunakan untuk susulan perjalanan.",
+                    "Your data is safe and used only for trip follow-up.",
+                  )}
                 </p>
               </form>
             </CardContent>

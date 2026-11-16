@@ -14,40 +14,43 @@ import {
   Plane,
   TrendingUp,
   FileBarChart,
+  Languages,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
-
-const navSections = [
-  {
-    title: "Workspace",
-    items: [
-      { to: "/", label: "Dashboard", icon: LayoutDashboard, end: true },
-      { to: "/bookings", label: "Bookings", icon: BookOpenCheck },
-      { to: "/trips", label: "Trips & Seats", icon: CalendarDays },
-      { to: "/packages", label: "Packages", icon: Luggage },
-    ],
-  },
-  {
-    title: "Sales & Finance",
-    items: [
-      { to: "/customers", label: "Customers", icon: Users },
-      { to: "/leads", label: "Leads Pipeline", icon: TrendingUp },
-      { to: "/billing", label: "Billing & Payments", icon: Banknote },
-      { to: "/reports", label: "Reports", icon: FileBarChart },
-    ],
-  },
-  {
-    title: "System",
-    items: [
-      { to: "/website", label: "Website Manager", icon: Globe },
-      { to: "/settings", label: "Settings", icon: Settings },
-    ],
-  },
-];
+import { useLang, type Lang } from "@/lib/i18n";
 
 export default function AppShell() {
   const [collapsed, setCollapsed] = useState(false);
   const [mobileOpen, setMobileOpen] = useState(false);
+  const { lang, setLang, t } = useLang();
+
+  const navSections = [
+    {
+      title: t("Ruang Kerja", "Workspace"),
+      items: [
+        { to: "/", label: t("Papan Pemuka", "Dashboard"), icon: LayoutDashboard, end: true },
+        { to: "/bookings", label: t("Tempahan", "Bookings"), icon: BookOpenCheck },
+        { to: "/trips", label: t("Trip & Kerusi", "Trips & Seats"), icon: CalendarDays },
+        { to: "/packages", label: t("Pakej", "Packages"), icon: Luggage },
+      ],
+    },
+    {
+      title: t("Jualan & Kewangan", "Sales & Finance"),
+      items: [
+        { to: "/customers", label: t("Pelanggan", "Customers"), icon: Users },
+        { to: "/leads", label: t("Saluran Leads", "Leads Pipeline"), icon: TrendingUp },
+        { to: "/billing", label: t("Billing & Pembayaran", "Billing & Payments"), icon: Banknote },
+        { to: "/reports", label: t("Laporan", "Reports"), icon: FileBarChart },
+      ],
+    },
+    {
+      title: t("Sistem", "System"),
+      items: [
+        { to: "/website", label: t("Pengurus Laman", "Website Manager"), icon: Globe },
+        { to: "/settings", label: t("Tetapan", "Settings"), icon: Settings },
+      ],
+    },
+  ];
 
   return (
     <div className="flex min-h-screen bg-background">
@@ -64,8 +67,12 @@ export default function AppShell() {
             <Plane className="h-4 w-4" />
           </div>
           {!collapsed && (
-            <span className="font-display text-lg font-bold tracking-tight">
-              Travel<span className="text-primary">OS</span>
+            <span className="font-display text-base font-bold leading-tight tracking-tight">
+              ZAQONE
+              <span className="text-primary"> TRAVEL</span>
+              <span className="block text-[9px] font-medium uppercase tracking-widest text-muted-foreground">
+                CRM
+              </span>
             </span>
           )}
         </div>
@@ -106,7 +113,7 @@ export default function AppShell() {
           <button
             onClick={() => setCollapsed((c) => !c)}
             className="hidden w-full items-center justify-center rounded-md p-2 text-muted-foreground hover:bg-muted lg:flex"
-            title={collapsed ? "Expand" : "Collapse"}
+            title={collapsed ? t("Kembangkan", "Expand") : t("Kuncupkan", "Collapse")}
           >
             {collapsed ? <Menu className="h-4 w-4" /> : <X className="h-4 w-4" />}
           </button>
@@ -132,10 +139,28 @@ export default function AppShell() {
               <Menu className="h-5 w-5" />
             </button>
             <span className="text-sm font-medium text-muted-foreground">
-              Travel Agency Management
+              {t("Pengurusan Agensi Pelancongan", "Travel Agency Management")}
             </span>
           </div>
           <div className="flex items-center gap-3">
+            {/* Language switcher */}
+            <div className="flex items-center rounded-full border p-0.5">
+              <Languages className="mx-1.5 h-3.5 w-3.5 text-muted-foreground" />
+              {(["ms", "en"] as Lang[]).map((code) => (
+                <button
+                  key={code}
+                  onClick={() => setLang(code)}
+                  className={cn(
+                    "rounded-full px-2 py-0.5 text-xs font-semibold transition-colors",
+                    lang === code
+                      ? "bg-primary text-white"
+                      : "text-muted-foreground hover:text-foreground",
+                  )}
+                >
+                  {code === "ms" ? "BM" : "EN"}
+                </button>
+              ))}
+            </div>
             <div className="flex h-8 w-8 items-center justify-center rounded-full bg-primary/10 text-sm font-semibold text-primary">
               SA
             </div>

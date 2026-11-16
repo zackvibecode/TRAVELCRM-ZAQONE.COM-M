@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+﻿import { useMemo, useState } from "react";
 import {
   Globe,
   Plus,
@@ -66,7 +66,7 @@ const INITIAL_PAGES: SitePage[] = [
     slug: "about",
     title: "Tentang Kami",
     content:
-      "TravelOS adalah travel agency dengan 8 tahun pengalaman melayani 12.000+ traveler.",
+      "ZAQONE TRAVEL ialah agensi pelancongan dengan 8 tahun pengalaman melayani 12,000+ pelancong.",
     status: "draft",
     updatedAt: "2026-11-08 16:45",
   },
@@ -75,7 +75,7 @@ const INITIAL_PAGES: SitePage[] = [
     slug: "contact",
     title: "Kontak",
     content:
-      "Kantor: Jl. Sudirman Kav. 52, Jakarta. Telepon: +62 21 5555 0123. Email: hello@travelos.id.",
+      "Pejabat: Jalan Sultan Ismail, Kuala Lumpur. Telefon: +60 3 5555 0123. Emel: hello@zaqonetravel.com.",
     status: "published",
     updatedAt: "2026-11-05 11:20",
   },
@@ -176,21 +176,21 @@ const INITIAL_BANNERS: Banner[] = [
 
 const INITIAL_SEO: Record<string, SeoSettings> = {
   home: {
-    metaTitle: "TravelOS — Paket Wisata Domestik & Internasional",
+    metaTitle: "ZAQONE TRAVEL — Paket Wisata Domestik & Internasional",
     metaDescription:
       "Travel agency all-in-one: open trip, private tour, dan corporate travel dengan itinerary terkurasi dan harga transparan. Booking mudah, pendampingan penuh.",
     keywords: "paket wisata, open trip, tour travel jakarta, travel murah",
   },
   promos: {
-    metaTitle: "Promo & Penawaran Spesial — TravelOS",
+    metaTitle: "Promo & Penawaran Spesial — ZAQONE TRAVEL",
     metaDescription:
       "Diskon flash sale, harga early bird, dan penawaran grup untuk paket wisata pilihan. Kuota terbatas!",
     keywords: "promo wisata, diskon tiket tour, flash sale travel",
   },
   packages: {
-    metaTitle: "Paket Wisata Lengkap — TravelOS",
+    metaTitle: "Paket Wisata Lengkap — ZAQONE TRAVEL",
     metaDescription:
-      "Jelajahi semua paket wisata TravelOS: Jepang, Korea, Bali, Lombok, Singapore, hingga Eropa. Harga per pax jelas, keberangkatan terjadwal.",
+      "Jelajahi semua paket wisata ZAQONE TRAVEL: Jepang, Korea, Bali, Lombok, Singapore, hingga Eropa. Harga per pax jelas, keberangkatan terjadwal.",
     keywords: "paket tour jepang, wisata bali, tour korea, paket eropa",
   },
 };
@@ -720,10 +720,10 @@ export default function WebsiteManager() {
                 </div>
                 <div>
                   <p className="text-xs leading-tight text-stone-800">
-                    TravelOS
+                    ZAQONE TRAVEL
                   </p>
                   <p className="text-[11px] leading-tight text-stone-500">
-                    travelos.id{seoPage === "home" ? "" : `/${seoPage}`}
+                    zaqonetravel.com{seoPage === "home" ? "" : `/${seoPage}`}
                   </p>
                 </div>
               </div>

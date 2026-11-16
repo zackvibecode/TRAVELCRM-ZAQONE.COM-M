@@ -593,7 +593,7 @@ invoicesRouter.get(
 <body>
   <header>
     <div>
-      <h1>TravelOS Suite</h1>
+      <h1>ZAQONE TRAVEL CRM</h1>
       <div class="muted">Invoice</div>
     </div>
     <div style="text-align:right">
@@ -639,7 +639,7 @@ invoicesRouter.get(
   ${invoice.notes ? `<p style="font-size:12px"><strong>Catatan:</strong> ${invoice.notes}</p>` : ""}
 
   <footer>
-    Invoice ini dihasilkan oleh TravelOS Suite. Pembayaran dapat diverifikasi
+    Invoice ini dihasilkan oleh ZAQONE TRAVEL CRM. Pembayaran dapat diverifikasi
     melalui kanal transfer bank / e-wallet terdaftar.
   </footer>
 </body>

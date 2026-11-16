@@ -238,7 +238,7 @@ leadsRouter.get(
       ...lead,
       whatsapp: whatsappLink(
         lead.phone,
-        `Halo ${lead.name}, ini dari TravelOS Suite.`,
+        `Halo ${lead.name}, ini dari ZAQONE TRAVEL CRM.`,
       ),
       activities,
       followUps,

@@ -18,6 +18,7 @@ import {
 } from "@/lib/mock-data";
 import type { Booking } from "@/lib/types";
 import { cn } from "@/lib/utils";
+import { useLang } from "@/lib/i18n";
 import { Badge } from "@/components/ui/badge";
 import {
   Card,
@@ -92,6 +93,8 @@ function buildMonthlyRevenue(bookings: Booking[]): {
 }
 
 export default function DashboardOverview() {
+  const { t, lang } = useLang();
+
   const stats = useMemo(() => {
     const activeLeads = mockLeads.filter(
       (l) => !["won", "lost"].includes(l.stage),
@@ -169,35 +172,35 @@ export default function DashboardOverview() {
 
   const kpis = [
     {
-      label: "Leads Aktif",
+      label: t("Leads Aktif", "Active Leads"),
       value: String(stats.openLeads),
       sub: `${stats.totalLeads} total • win rate ${stats.winRate}%`,
       icon: UserPlus,
       accent: "text-blue-600 bg-blue-50",
     },
     {
-      label: "Customers",
+      label: t("Pelanggan", "Customers"),
       value: String(stats.totalCustomers),
-      sub: "Sepanjang waktu",
+      sub: t("Sepanjang masa", "All time"),
       icon: Users,
       accent: "text-violet-600 bg-violet-50",
     },
     {
-      label: "Bookings Aktif",
+      label: t("Tempahan Aktif", "Active Bookings"),
       value: String(stats.bookingCount),
       sub: `${stats.confirmedCount} confirmed`,
       icon: CalendarCheck,
       accent: "text-emerald-600 bg-emerald-50",
     },
     {
-      label: "Sales Terkumpul",
+      label: t("Jualan Terkumpul", "Collected Sales"),
       value: formatCompact(stats.collected),
       sub: formatRupiah(stats.collected),
       icon: Wallet,
       accent: "text-teal-600 bg-teal-50",
     },
     {
-      label: "Outstanding",
+      label: t("Baki Tertunggak", "Outstanding"),
       value: formatCompact(stats.outstanding),
       sub: formatRupiah(stats.outstanding),
       icon: AlertCircle,
@@ -205,14 +208,20 @@ export default function DashboardOverview() {
     },
   ];
 
+  const locale = lang === "ms" ? "ms-MY" : "en-GB";
+
   return (
     <div className="space-y-6">
       <div>
         <h1 className="text-2xl font-bold tracking-tight">
-          Dashboard
+          {t("Papan Pemuka", "Dashboard")}
         </h1>
         <p className="text-sm text-muted-foreground">
-          Ringkasan performa bisnis hari ini — {new Date().toLocaleDateString("id-ID", { weekday: "long", day: "numeric", month: "long", year: "numeric" })}
+          {t(
+            "Ringkasan prestasi perniagaan hari ini",
+            "Today's business performance summary",
+          )}{" "}
+          — {new Date().toLocaleDateString(locale, { weekday: "long", day: "numeric", month: "long", year: "numeric" })}
         </p>
       </div>
 
@@ -243,8 +252,8 @@ export default function DashboardOverview() {
             <AlertCircle className="h-5 w-5 text-red-600" />
             <div className="flex-1">
               <p className="text-sm font-semibold text-red-900">
-                {stats.overdueInvoices.length} invoice overdue — total{" "}
-                {formatRupiah(stats.overdueAmount)}
+                {stats.overdueInvoices.length} {t("invois tertunggak", "overdue invoices")} —{" "}
+                {t("jumlah", "total")} {formatRupiah(stats.overdueAmount)}
               </p>
               <p className="text-xs text-red-700">
                 {stats.overdueInvoices
@@ -255,7 +264,7 @@ export default function DashboardOverview() {
               </p>
             </div>
             <Badge variant="outline" className="border-red-300 bg-white text-red-700">
-              Butuh tindakan
+              {t("Perlu tindakan", "Action needed")}
             </Badge>
           </CardContent>
         </Card>
@@ -267,7 +276,9 @@ export default function DashboardOverview() {
         {/* Monthly revenue chart */}
         <Card className="lg:col-span-2">
           <CardHeader className="flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-base">Revenue Bulanan (12 bulan)</CardTitle>
+            <CardTitle className="text-base">
+              {t("Jualan Bulanan (12 bulan)", "Monthly Revenue (12 months)")}
+            </CardTitle>
             <TrendingUp className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
@@ -291,7 +302,7 @@ export default function DashboardOverview() {
                           : "bg-red-200 group-hover:bg-red-400",
                       )}
                       style={{ height: `${Math.max(pct, m.revenue > 0 ? 6 : 2)}%` }}
-                      title={`${m.month}: ${formatRupiah(m.revenue)} • ${m.count} booking`}
+                      title={`${m.month}: ${formatRupiah(m.revenue)} • ${m.count} ${t("tempahan", "bookings")}`}
                     />
                     <span className="text-[10px] text-muted-foreground">
                       {m.month}
@@ -301,7 +312,10 @@ export default function DashboardOverview() {
               })}
             </div>
             <p className="mt-3 text-xs text-muted-foreground">
-              Menampilkan pembayaran terverifikasi per bulan. Hover untuk detail.
+              {t(
+                "Memaparkan pembayaran disahkan setiap bulan. Hover untuk butiran.",
+                "Showing verified payments per month. Hover for details.",
+              )}
             </p>
           </CardContent>
         </Card>
@@ -309,13 +323,15 @@ export default function DashboardOverview() {
         {/* Top packages */}
         <Card>
           <CardHeader className="flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-base">Paket Terlaris</CardTitle>
+            <CardTitle className="text-base">
+              {t("Pakej Terlaris", "Top Packages")}
+            </CardTitle>
             <Package className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent className="space-y-3">
             {topPackages.length === 0 && (
               <p className="text-sm text-muted-foreground">
-                Belum ada booking.
+                {t("Belum ada tempahan.", "No bookings yet.")}
               </p>
             )}
             {topPackages.map((p, idx) => (
@@ -326,7 +342,7 @@ export default function DashboardOverview() {
                 <div className="min-w-0 flex-1">
                   <p className="truncate text-sm font-medium">{p.name}</p>
                   <p className="text-xs text-muted-foreground">
-                    {p.bookings} booking
+                    {p.bookings} {t("tempahan", "bookings")}
                   </p>
                 </div>
                 <span className="text-sm font-semibold tabular-nums">
@@ -345,13 +361,18 @@ export default function DashboardOverview() {
         {/* Upcoming departures */}
         <Card>
           <CardHeader className="flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-base">Keberangkatan Terdekat</CardTitle>
+            <CardTitle className="text-base">
+              {t("Keberangkatan Terdekat", "Upcoming Departures")}
+            </CardTitle>
             <Clock className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent className="space-y-2">
             {upcomingDepartures.length === 0 && (
               <p className="text-sm text-muted-foreground">
-                Tidak ada keberangkatan terjadwal.
+                {t(
+                  "Tiada keberangkatan dijadualkan.",
+                  "No scheduled departures.",
+                )}
               </p>
             )}
             {upcomingDepartures.map((b) => (
@@ -371,7 +392,7 @@ export default function DashboardOverview() {
                 <div className="text-right">
                   <p className="text-sm font-semibold">
                     {b.departureDate &&
-                      new Date(b.departureDate).toLocaleDateString("id-ID", {
+                      new Date(b.departureDate).toLocaleDateString(locale, {
                         day: "numeric",
                         month: "short",
                       })}
@@ -388,15 +409,17 @@ export default function DashboardOverview() {
         {/* Quick links */}
         <Card>
           <CardHeader className="flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-base">Aksi Cepat</CardTitle>
+            <CardTitle className="text-base">
+              {t("Tindakan Pantas", "Quick Actions")}
+            </CardTitle>
             <ArrowUpRight className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent className="grid grid-cols-2 gap-3">
             {[
-              { label: "Booking Baru", href: "/bookings" },
-              { label: "Pipeline Leads", href: "/leads" },
-              { label: "Tagihan & Pembayaran", href: "/billing" },
-              { label: "Jadwal Trip", href: "/trips" },
+              { label: t("Tempahan Baharu", "New Booking"), href: "/bookings" },
+              { label: t("Saluran Leads", "Leads Pipeline"), href: "/leads" },
+              { label: t("Billing & Pembayaran", "Billing & Payments"), href: "/billing" },
+              { label: t("Jadual Trip", "Trip Schedule"), href: "/trips" },
             ].map((link) => (
               <a
                 key={link.href}

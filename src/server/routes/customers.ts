@@ -153,7 +153,7 @@ customersRouter.get(
       ...customer,
       whatsapp: whatsappLink(
         customer.phone,
-        `Halo ${customer.name}, ini dari TravelOS Suite.`,
+        `Halo ${customer.name}, ini dari ZAQONE TRAVEL CRM.`,
       ),
       lead: leadRow[0] ?? null,
       bookings: bookingRows,

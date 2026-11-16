@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+﻿import { useMemo, useState } from "react";
 import { Eye, Plus, Save, Trash2 } from "lucide-react";
 import type { InvoiceItem, Quotation } from "@/lib/types";
 import { Badge } from "@/components/ui/badge";
@@ -324,7 +324,7 @@ export default function QuotationBuilder({
               <div className="flex items-center justify-between">
                 <div>
                   <p className="font-display text-lg font-bold">
-                    TravelOS Suite
+                    ZAQONE TRAVEL CRM
                   </p>
                   <p className="text-xs text-muted-foreground">
                     Penawaran Perjalanan

@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+﻿import { useMemo, useState } from "react";
 import { Eye, Plus, Save, Trash2 } from "lucide-react";
 import type { Invoice, InvoiceItem } from "@/lib/types";
 import { Badge } from "@/components/ui/badge";
@@ -280,7 +280,7 @@ export default function InvoiceBuilder({ onCreated }: InvoiceBuilderProps) {
               <div className="flex items-start justify-between">
                 <div>
                   <p className="font-display text-lg font-bold">
-                    TravelOS Suite
+                    ZAQONE TRAVEL CRM
                   </p>
                   <p className="text-xs text-muted-foreground">
                     INVOICE

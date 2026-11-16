@@ -1,9 +1,10 @@
-import { useEffect, useMemo, useState } from "react";
+﻿import { useEffect, useMemo, useState } from "react";
 import { Link } from "react-router-dom";
 import { MapPin, Search, Clock, ArrowRight, CalendarDays, Flame } from "lucide-react";
 import { mockDepartures, mockPackages } from "@/lib/mock-data";
 import { cn } from "@/lib/utils";
 import { applySeo } from "@/lib/site-config";
+import { useLang } from "@/lib/i18n";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
@@ -21,13 +22,14 @@ function formatRupiah(value: number): string {
 }
 
 export default function PublicPackages() {
+  const { t, lang } = useLang();
   const [search, setSearch] = useState("");
   const [destination, setDestination] = useState<string>("all");
 
   useEffect(() => {
     applySeo("packages");
     return () => {
-      document.title = "TravelOS Suite";
+      document.title = "ZAQONE TRAVEL CRM";
     };
   }, []);
 
@@ -75,11 +77,13 @@ export default function PublicPackages() {
       <section className="bg-gradient-to-b from-red-50/70 to-white">
         <div className="mx-auto max-w-6xl px-4 py-12">
           <h1 className="text-3xl font-bold tracking-tight sm:text-4xl">
-            Paket Wisata
+            {t("Pakej Pelancongan", "Tour Packages")}
           </h1>
           <p className="mt-3 max-w-2xl text-sm leading-relaxed text-stone-600">
-            Semua paket open trip dan private tour dari TravelOS — harga
-            transparan per pax, itinerary jelas, keberangkatan terjadwal.
+            {t(
+              "Semua pakej open trip dan private tour daripada ZAQONE TRAVEL — harga telus per pax, itinerary jelas, keberangkatan berjadual.",
+              "All open trip and private tour packages from ZAQONE TRAVEL — transparent per-pax pricing, clear itineraries, scheduled departures.",
+            )}
           </p>
 
           {/* Search & filter */}
@@ -89,7 +93,7 @@ export default function PublicPackages() {
               <Input
                 value={search}
                 onChange={(e) => setSearch(e.target.value)}
-                placeholder="Cari paket atau destinasi…"
+                placeholder={t("Cari pakej atau destinasi…", "Search packages or destinations…")}
                 className="pl-9"
               />
             </div>
@@ -105,7 +109,7 @@ export default function PublicPackages() {
                       : "border-stone-200 bg-white text-stone-600 hover:border-stone-300",
                   )}
                 >
-                  {dest === "all" ? "Semua" : dest}
+                  {dest === "all" ? t("Semua", "All") : dest}
                 </button>
               ))}
             </div>
@@ -117,7 +121,7 @@ export default function PublicPackages() {
       <section>
         <div className="mx-auto max-w-6xl px-4 py-10">
           <p className="mb-4 text-sm text-stone-500">
-            {packages.length} paket ditemukan
+            {packages.length} {t("pakej dijumpai", "packages found")}
           </p>
 
           <div className="grid gap-5 sm:grid-cols-2 lg:grid-cols-3">
@@ -141,8 +145,8 @@ export default function PublicPackages() {
                   <h3 className="text-base font-bold">{pkg.name}</h3>
                   <p className="mt-1 flex items-center gap-1 text-xs text-stone-500">
                     <Clock className="h-3 w-3" />
-                    {pkg.durationDays} hari{" "}
-                    {(pkg.durationDays ?? 1) - 1} malam
+                    {pkg.durationDays} {t("hari", "days")}{" "}
+                    {(pkg.durationDays ?? 1) - 1} {t("malam", "nights")}
                   </p>
 
                   {/* Availability */}
@@ -152,7 +156,10 @@ export default function PublicPackages() {
                       return (
                         <p className="mt-2 flex items-center gap-1 text-xs text-stone-400">
                           <CalendarDays className="h-3 w-3" />
-                          Jadwal menyusul — private trip tersedia
+                          {t(
+                            "Jadual menyusul — private trip tersedia",
+                            "Schedule coming soon — private trips available",
+                          )}
                         </p>
                       );
                     }
@@ -162,7 +169,7 @@ export default function PublicPackages() {
                         <span className="flex items-center gap-1 text-xs text-stone-600">
                           <CalendarDays className="h-3 w-3" />
                           {new Date(next.departureDate).toLocaleDateString(
-                            "id-ID",
+                            lang === "ms" ? "ms-MY" : "en-GB",
                             { day: "numeric", month: "short", year: "numeric" },
                           )}
                         </span>
@@ -171,7 +178,7 @@ export default function PublicPackages() {
                             variant="outline"
                             className="border-red-200 bg-red-50 text-red-700"
                           >
-                            Sold Out
+                            {t("Habis", "Sold Out")}
                           </Badge>
                         ) : left <= 5 ? (
                           <Badge
@@ -179,14 +186,14 @@ export default function PublicPackages() {
                             className="border-amber-200 bg-amber-50 text-amber-700"
                           >
                             <Flame className="mr-0.5 h-3 w-3" />
-                            Sisa {left} seat
+                            {t("Baki", "Only")} {left} {t("seat", "seats")}
                           </Badge>
                         ) : (
                           <Badge
                             variant="outline"
                             className="border-emerald-200 bg-emerald-50 text-emerald-700"
                           >
-                            {left} seat tersedia
+                            {left} {t("seat tersedia", "seats available")}
                           </Badge>
                         )}
                       </div>
@@ -212,7 +219,7 @@ export default function PublicPackages() {
                     <div className="flex items-end justify-between border-t pt-3">
                       <div>
                         <p className="text-[10px] text-stone-500">
-                          mulai dari / pax
+                          {t("mula dari / pax", "from / pax")}
                         </p>
                         <p className="text-lg font-bold text-red-600">
                           {formatRupiah(pkg.adultPrice)}
@@ -220,7 +227,7 @@ export default function PublicPackages() {
                       </div>
                       <Button asChild size="sm">
                         <Link to={`/site/packages/${pkg.id}`}>
-                          Lihat Detail
+                          {t("Lihat Butiran", "View Details")}
                           <ArrowRight className="ml-1.5 h-3.5 w-3.5" />
                         </Link>
                       </Button>
@@ -234,9 +241,14 @@ export default function PublicPackages() {
           {packages.length === 0 && (
             <div className="flex flex-col items-center gap-2 py-16 text-center">
               <Search className="h-8 w-8 text-stone-300" />
-              <p className="text-sm font-medium">Tidak ada paket ditemukan</p>
+              <p className="text-sm font-medium">
+                {t("Tiada pakej dijumpai", "No packages found")}
+              </p>
               <p className="text-xs text-stone-500">
-                Coba kata kunci lain atau reset filter destinasi.
+                {t(
+                  "Cuba kata kunci lain atau set semula penapis destinasi.",
+                  "Try other keywords or reset the destination filter.",
+                )}
               </p>
             </div>
           )}

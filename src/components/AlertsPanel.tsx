@@ -12,6 +12,7 @@ import {
   mockPayments,
 } from "@/lib/mock-data";
 import { cn } from "@/lib/utils";
+import { useLang } from "@/lib/i18n";
 import {
   Card,
   CardContent,
@@ -39,24 +40,26 @@ const KIND_STYLES = {
   overdue: {
     icon: AlertCircle,
     iconClass: "text-red-600 bg-red-50",
-    label: "Overdue",
+    labelKey: ["Tertunggak", "Overdue"] as const,
     labelClass: "border-red-200 bg-red-50 text-red-700",
   },
   pending_payment: {
     icon: Clock,
     iconClass: "text-amber-600 bg-amber-50",
-    label: "Menunggu Verifikasi",
+    labelKey: ["Menunggu Pengesahan", "Pending Verification"] as const,
     labelClass: "border-amber-200 bg-amber-50 text-amber-700",
   },
   follow_up: {
     icon: MessageCircle,
     iconClass: "text-blue-600 bg-blue-50",
-    label: "Follow-up",
+    labelKey: ["Susulan", "Follow-up"] as const,
     labelClass: "border-blue-200 bg-blue-50 text-blue-700",
   },
 } as const;
 
 export default function AlertsPanel() {
+  const { t } = useLang();
+
   const alerts = useMemo<AlertItem[]>(() => {
     const items: AlertItem[] = [];
     const today = new Date().toISOString().slice(0, 10);
@@ -122,16 +125,16 @@ export default function AlertsPanel() {
   return (
     <Card>
       <CardHeader className="flex-row items-center justify-between space-y-0 pb-2">
-        <CardTitle className="text-base">Perlu Perhatian</CardTitle>
+        <CardTitle className="text-base">{t("Perlu Perhatian", "Needs Attention")}</CardTitle>
         <FileWarning className="h-4 w-4 text-muted-foreground" />
       </CardHeader>
       <CardContent>
         {/* Summary chips */}
         <div className="mb-4 flex flex-wrap gap-2">
           {[
-            { label: "Overdue", count: overdueCount, class: "border-red-200 bg-red-50 text-red-700" },
-            { label: "Verifikasi", count: pendingCount, class: "border-amber-200 bg-amber-50 text-amber-700" },
-            { label: "Follow-up", count: followUpCount, class: "border-blue-200 bg-blue-50 text-blue-700" },
+            { label: t("Tertunggak", "Overdue"), count: overdueCount, class: "border-red-200 bg-red-50 text-red-700" },
+            { label: t("Pengesahan", "Verify"), count: pendingCount, class: "border-amber-200 bg-amber-50 text-amber-700" },
+            { label: t("Susulan", "Follow-up"), count: followUpCount, class: "border-blue-200 bg-blue-50 text-blue-700" },
           ].map((chip) => (
             <span
               key={chip.label}
@@ -150,10 +153,12 @@ export default function AlertsPanel() {
         {alerts.length === 0 ? (
           <div className="flex flex-col items-center gap-2 py-8 text-center">
             <CheckCircle2 className="h-8 w-8 text-emerald-500" />
-            <p className="text-sm font-medium">Semua beres!</p>
+            <p className="text-sm font-medium">{t("Semua beres!", "All clear!")}</p>
             <p className="text-xs text-muted-foreground">
-              Tidak ada invoice overdue, pembayaran tertunda, atau follow-up
-              terlewat.
+              {t(
+                "Tiada invois tertunggak, pembayaran tertunda, atau susulan terlewat.",
+                "No overdue invoices, pending payments, or missed follow-ups.",
+              )}
             </p>
           </div>
         ) : (
@@ -182,14 +187,14 @@ export default function AlertsPanel() {
                       style.labelClass,
                     )}
                   >
-                    {style.label}
+                    {t(style.labelKey[0], style.labelKey[1])}
                   </span>
                 </li>
               );
             })}
             {alerts.length > 8 && (
               <li className="pt-1 text-center text-xs text-muted-foreground">
-                +{alerts.length - 8} lainnya
+                +{alerts.length - 8} {t("lagi", "more")}
               </li>
             )}
           </ul>

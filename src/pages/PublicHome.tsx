@@ -4,6 +4,7 @@ import { MapPin, CalendarDays, Users, ShieldCheck, Headset, Sparkles, ArrowRight
 import { mockPackages } from "@/lib/mock-data";
 import { cn } from "@/lib/utils";
 import { activeBanners, applySeo } from "@/lib/site-config";
+import { useLang } from "@/lib/i18n";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import {
@@ -20,40 +21,51 @@ function formatRupiah(value: number): string {
 }
 
 const HERO_STATS = [
-  { label: "Tujuan", value: "20+" },
-  { label: "Traveler puas", value: "12.000+" },
-  { label: "Rating", value: "4.9/5" },
-  { label: "Pengalaman", value: "8 tahun" },
+  { labelMs: "Destinasi", labelEn: "Destinations", valueMs: "20+", valueEn: "20+" },
+  { labelMs: "Pelancong berpuas hati", labelEn: "Happy travellers", valueMs: "12,000+", valueEn: "12,000+" },
+  { labelMs: "Penilaian", labelEn: "Rating", valueMs: "4.9/5", valueEn: "4.9/5" },
+  { labelMs: "Pengalaman", labelEn: "Experience", valueMs: "8 tahun", valueEn: "8 years" },
 ];
+
 
 const VALUE_PROPS = [
   {
     icon: ShieldCheck,
-    title: "Aman & Terpercaya",
-    desc: "Legalitas resmi, pembayaran terlindungi, dan tim operasional berpengalaman.",
+    titleMs: "Selamat & Dipercaya",
+    titleEn: "Safe & Trusted",
+    descMs: "Kedudukan sah, pembayaran terlindungi, dan pasukan operasi berpengalaman.",
+    descEn: "Fully licensed, protected payments, and an experienced operations team.",
   },
   {
     icon: CalendarDays,
-    title: "Jadwal Fleksibel",
-    desc: "Keberangkatan rutin setiap bulan dan grup privat sesuai permintaan.",
+    titleMs: "Jadual Fleksibel",
+    titleEn: "Flexible Schedule",
+    descMs: "Keberangkatan rutin setiap bulan dan kumpulan persendirian mengikut permintaan.",
+    descEn: "Regular monthly departures and private groups on request.",
   },
   {
     icon: Headset,
-    title: "Dampingi 24/7",
-    desc: "Tour leader lokal dan support darurat sepanjang perjalanan.",
+    titleMs: "Dibantu 24/7",
+    titleEn: "Supported 24/7",
+    descMs: "Pemandu pelancongan tempatan dan sokongan kecemasan sepanjang perjalanan.",
+    descEn: "Local tour leaders and emergency support throughout your journey.",
   },
   {
     icon: Sparkles,
-    title: "Itinerary Kurasi",
-    desc: "Rute dirancang tim in-house — bukan template massal.",
+    titleMs: "Itinerary Terkurasi",
+    titleEn: "Curated Itineraries",
+    descMs: "Laluan direka oleh pasukan dalaman kami — bukan templat umum.",
+    descEn: "Routes designed by our in-house team — not mass templates.",
   },
 ];
 
 export default function PublicHome() {
+  const { t } = useLang();
+
   useEffect(() => {
     applySeo("home");
     return () => {
-      document.title = "TravelOS Suite";
+      document.title = "ZAQONE TRAVEL CRM";
     };
   }, []);
 
@@ -109,38 +121,41 @@ export default function PublicHome() {
         <div className="mx-auto grid max-w-6xl items-center gap-10 px-4 py-16 lg:grid-cols-2 lg:py-24">
           <div>
             <Badge variant="outline" className="mb-4 border-red-200 bg-red-50 text-red-700">
-              Open Trip & Private Tour 2026
+              {t("Open Trip & Private Tour 2026", "Open Trip & Private Tour 2026")}
             </Badge>
             <h1 className="text-4xl font-bold leading-tight tracking-tight sm:text-5xl">
-              Jelajahi Dunia,
+              {t("Terokai Dunia,", "Explore the World,")}
               <br />
-              <span className="text-red-600">Tanpa Ribet.</span>
+              <span className="text-red-600">{t("Tanpa Ribet.", "Hassle-Free.")}</span>
             </h1>
             <p className="mt-4 max-w-lg text-base leading-relaxed text-stone-600">
-              Paket wisata domestik dan internasional dengan itinerary
-              terkurasi, harga transparan, dan pendampingan penuh dari tim
-              TravelOS — dari booking sampai pulang dengan selamat.
+              {t(
+                "Pakej pelancongan domestik dan antarabangsa dengan itinerary terkurasi, harga telus, dan pendampingan penuh daripada pasukan ZAQONE TRAVEL — daripada tempahan sehingga pulang dengan selamat.",
+                "Domestic and international tour packages with curated itineraries, transparent pricing, and full support from the ZAQONE TRAVEL team — from booking until you return home safely.",
+              )}
             </p>
             <div className="mt-6 flex flex-wrap gap-3">
               <Button asChild size="lg">
                 <Link to="/site/packages">
-                  Lihat Paket Wisata
+                  {t("Lihat Pakej Pelancongan", "View Tour Packages")}
                   <ArrowRight className="ml-2 h-4 w-4" />
                 </Link>
               </Button>
               <Button asChild size="lg" variant="outline">
-                <Link to="/site/contact">Konsultasi Gratis</Link>
+                <Link to="/site/contact">{t("Konsultasi Percuma", "Free Consultation")}</Link>
               </Button>
             </div>
 
             {/* Stats */}
             <div className="mt-10 grid grid-cols-2 gap-6 sm:grid-cols-4">
               {HERO_STATS.map((stat) => (
-                <div key={stat.label}>
+                <div key={stat.labelEn}>
                   <p className="text-2xl font-bold text-stone-900">
-                    {stat.value}
+                    {t(stat.valueMs, stat.valueEn)}
                   </p>
-                  <p className="text-xs text-stone-500">{stat.label}</p>
+                  <p className="text-xs text-stone-500">
+                    {t(stat.labelMs, stat.labelEn)}
+                  </p>
                 </div>
               ))}
             </div>
@@ -167,11 +182,11 @@ export default function PublicHome() {
                     </span>
                     <h3 className="mt-1 text-lg font-bold">{pkg.name}</h3>
                     <p className="mt-1 text-sm text-stone-600">
-                      {pkg.durationDays} hari • {pkg.highlights?.length ?? 0} highlight
+                      {pkg.durationDays} {t("hari", "days")} • {pkg.highlights?.length ?? 0} highlight
                     </p>
                   </div>
                   <div className="text-right">
-                    <p className="text-xs text-stone-500">mulai dari</p>
+                    <p className="text-xs text-stone-500">{t("mula dari", "from")}</p>
                     <p className="text-lg font-bold text-red-600">
                       {formatRupiah(pkg.adultPrice)}
                     </p>
@@ -188,18 +203,20 @@ export default function PublicHome() {
       <section className="border-t bg-stone-50/60">
         <div className="mx-auto max-w-6xl px-4 py-14">
           <h2 className="text-center text-2xl font-bold tracking-tight">
-            Kenapa Travel<span className="text-red-600">OS</span>?
+            {t("Kenapa ZAQONE", "Why ZAQONE")} <span className="text-red-600">TRAVEL</span>?
           </h2>
           <div className="mt-8 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
             {VALUE_PROPS.map((prop) => (
-              <Card key={prop.title} className="border-stone-200">
+              <Card key={prop.titleEn} className="border-stone-200">
                 <CardContent className="p-5">
                   <div className="w-fit rounded-lg bg-red-50 p-2.5">
                     <prop.icon className="h-5 w-5 text-red-600" />
                   </div>
-                  <h3 className="mt-3 text-sm font-semibold">{prop.title}</h3>
+                  <h3 className="mt-3 text-sm font-semibold">
+                    {t(prop.titleMs, prop.titleEn)}
+                  </h3>
                   <p className="mt-1.5 text-xs leading-relaxed text-stone-600">
-                    {prop.desc}
+                    {t(prop.descMs, prop.descEn)}
                   </p>
                 </CardContent>
               </Card>
@@ -214,15 +231,18 @@ export default function PublicHome() {
           <div className="flex items-end justify-between">
             <div>
               <h2 className="text-2xl font-bold tracking-tight">
-                Paket Populer
+                {t("Pakej Popular", "Popular Packages")}
               </h2>
               <p className="mt-1 text-sm text-stone-600">
-                Dipilih traveler, dijadwalkan rutin setiap bulan.
+                {t(
+                  "Pilihan pelancong, dijadualkan secara rutin setiap bulan.",
+                  "Traveller favourites, scheduled regularly every month.",
+                )}
               </p>
             </div>
             <Button asChild variant="ghost" size="sm">
               <Link to="/site/packages">
-                Semua paket
+                {t("Semua pakej", "All packages")}
                 <ArrowRight className="ml-1.5 h-3.5 w-3.5" />
               </Link>
             </Button>
@@ -240,15 +260,18 @@ export default function PublicHome() {
                     <h3 className="mt-1.5 text-base font-bold">{pkg.name}</h3>
                     <p className="mt-2 line-clamp-2 flex-1 text-xs leading-relaxed text-stone-600">
                       {pkg.highlights?.slice(0, 2).join(" • ") ??
-                        `Paket ${pkg.durationDays} hari ke ${pkg.destination}`}
+                        t(
+                          `Pakej ${pkg.durationDays} hari ke ${pkg.destination}`,
+                          `${pkg.durationDays}-day package to ${pkg.destination}`,
+                        )}
                     </p>
                     <div className="mt-4 flex items-center justify-between border-t pt-3">
                       <span className="flex items-center gap-1 text-[11px] text-stone-500">
                         <Users className="h-3 w-3" />
-                        {pkg.durationDays} hari
+                        {pkg.durationDays} {t("hari", "days")}
                       </span>
                       <div className="text-right">
-                        <p className="text-[10px] text-stone-500">mulai</p>
+                        <p className="text-[10px] text-stone-500">{t("mula", "from")}</p>
                         <p className="text-sm font-bold text-red-600">
                           {formatRupiah(pkg.adultPrice)}
                         </p>
@@ -266,10 +289,13 @@ export default function PublicHome() {
       <section className="border-t bg-stone-50/60">
         <div className="mx-auto max-w-6xl px-4 py-14">
           <h2 className="text-2xl font-bold tracking-tight">
-            Destinasi Populer
+            {t("Destinasi Popular", "Popular Destinations")}
           </h2>
           <p className="mt-1 text-sm text-stone-600">
-            Tempat favorit traveler tahun ini.
+            {t(
+              "Tempat kegemaran pelancong tahun ini.",
+              "Traveller favourites this year.",
+            )}
           </p>
           <div className="mt-6 grid grid-cols-2 gap-4 sm:grid-cols-3 lg:grid-cols-5">
             {destinations.map((dest) => (
@@ -303,7 +329,7 @@ export default function PublicHome() {
                     dest.featured ? "text-red-100" : "text-stone-500",
                   )}
                 >
-                  {dest.count} paket
+                  {dest.count} {t("pakej", "packages")}
                 </p>
               </Link>
             ))}
@@ -315,15 +341,20 @@ export default function PublicHome() {
       <section className="bg-stone-900">
         <div className="mx-auto flex max-w-6xl flex-col items-center gap-5 px-4 py-14 text-center">
           <h2 className="text-2xl font-bold text-white sm:text-3xl">
-            Rencanakan trip impian Anda hari ini
+            {t(
+              "Rancang trip impian anda hari ini",
+              "Plan your dream trip today",
+            )}
           </h2>
           <p className="max-w-xl text-sm text-stone-400">
-            Tim kami siap membantu memilih destinasi, menyesuaikan itinerary,
-            dan mengatur anggaran — gratis, tanpa komitmen.
+            {t(
+              "Pasukan kami sedia membantu memilih destinasi, menyesuaikan itinerary, dan mengurus bajet — percuma, tanpa komitmen.",
+              "Our team is ready to help you pick a destination, tailor the itinerary, and manage your budget — free, no commitment.",
+            )}
           </p>
           <div className="flex flex-wrap justify-center gap-3">
             <Button asChild size="lg">
-              <Link to="/site/contact">Hubungi Kami</Link>
+              <Link to="/site/contact">{t("Hubungi Kami", "Contact Us")}</Link>
             </Button>
             <Button
               asChild
@@ -331,7 +362,7 @@ export default function PublicHome() {
               variant="outline"
               className="border-stone-700 bg-transparent text-white hover:bg-stone-800 hover:text-white"
             >
-              <Link to="/site/packages">Jelajahi Paket</Link>
+              <Link to="/site/packages">{t("Terokai Pakej", "Explore Packages")}</Link>
             </Button>
           </div>
         </div>

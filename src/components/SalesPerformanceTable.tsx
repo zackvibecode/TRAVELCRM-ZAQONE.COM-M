@@ -2,6 +2,7 @@ import { useMemo } from "react";
 import { Trophy, Target, TrendingUp } from "lucide-react";
 import { mockBookings, mockLeads } from "@/lib/mock-data";
 import { cn } from "@/lib/utils";
+import { useLang } from "@/lib/i18n";
 import {
   Card,
   CardContent,
@@ -36,6 +37,8 @@ const AGENT_TARGETS: Record<string, number> = {
 const DEFAULT_TARGET = 100_000_000;
 
 export default function SalesPerformanceTable() {
+  const { t } = useLang();
+
   const agents = useMemo(() => {
     const byAgent = new Map<
       string,
@@ -96,7 +99,7 @@ export default function SalesPerformanceTable() {
     <Card>
       <CardHeader className="flex-row items-center justify-between space-y-0 pb-2">
         <CardTitle className="text-base">
-          Performa Sales Agent
+          {t("Prestasi Ejen Jualan", "Sales Agent Performance")}
         </CardTitle>
         <TrendingUp className="h-4 w-4 text-muted-foreground" />
       </CardHeader>
@@ -104,12 +107,12 @@ export default function SalesPerformanceTable() {
         <Table>
           <TableHeader>
             <TableRow>
-              <TableHead>Agent</TableHead>
+              <TableHead>{t("Ejen", "Agent")}</TableHead>
               <TableHead className="text-right">Leads</TableHead>
-              <TableHead className="text-right">Win Rate</TableHead>
-              <TableHead className="text-right">Pipeline</TableHead>
-              <TableHead className="text-right">Revenue</TableHead>
-              <TableHead>Target</TableHead>
+              <TableHead className="text-right">{t("Kadar Menang", "Win Rate")}</TableHead>
+              <TableHead className="text-right">{t("Paip", "Pipeline")}</TableHead>
+              <TableHead className="text-right">{t("Jualan", "Revenue")}</TableHead>
+              <TableHead>{t("Sasaran", "Target")}</TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
@@ -134,7 +137,7 @@ export default function SalesPerformanceTable() {
                   <TableCell className="text-right tabular-nums">
                     {agent.leads}
                     <span className="ml-1 text-[11px] text-muted-foreground">
-                      ({agent.openLeads} aktif)
+                      ({agent.openLeads} {t("aktif", "active")})
                     </span>
                   </TableCell>
                   <TableCell className="text-right tabular-nums">
@@ -176,7 +179,7 @@ export default function SalesPerformanceTable() {
                   colSpan={6}
                   className="text-center text-muted-foreground"
                 >
-                  Belum ada data leads.
+                  {t("Belum ada data leads.", "No lead data yet.")}
                 </TableCell>
               </TableRow>
             )}
