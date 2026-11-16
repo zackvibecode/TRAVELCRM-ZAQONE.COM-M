@@ -263,7 +263,8 @@ packagesRouter.patch(
   },
 );
 
-// POST /packages/:id/duplicate — duplicate a package (new id, draft status).
+// POST /packages/:id/duplicate — duplicate a package (new id, draft status),
+// including its pricing tiers, itinerary, media, and departure dates.
 packagesRouter.post(
   "/packages/:id/duplicate",
   requireRole("super_admin", "management", "sales"),
@@ -280,37 +281,111 @@ packagesRouter.post(
       return c.json({ success: false, error: "Package not found" }, 404);
     }
 
+    const copyId = crypto.randomUUID();
+    const now = new Date().toISOString();
     const copy: schema.NewPackageRow = {
       ...existing,
-      id: crypto.randomUUID(),
+      id: copyId,
       name: `${existing.name} (Copy)`,
       publishStatus: "draft",
-      createdAt: new Date().toISOString(),
-      updatedAt: new Date().toISOString(),
+      createdAt: now,
+      updatedAt: now,
     };
 
-    await db.insert(schema.packages).values(copy).run();
+    // Copy the package plus all child records in one atomic batch.
+    const [pricingRows, itineraryRows, mediaRows, dateRows] = await Promise.all([
+      db
+        .select()
+        .from(schema.packagePricing)
+        .where(eq(schema.packagePricing.packageId, id))
+        .all(),
+      db
+        .select()
+        .from(schema.packageItineraryItems)
+        .where(eq(schema.packageItineraryItems.packageId, id))
+        .all(),
+      db
+        .select()
+        .from(schema.packageMedia)
+        .where(eq(schema.packageMedia.packageId, id))
+        .all(),
+      db
+        .select()
+        .from(schema.packageDepartureDates)
+        .where(eq(schema.packageDepartureDates.packageId, id))
+        .all(),
+    ]);
+
+    await db.batch([
+      db.insert(schema.packages).values(copy),
+      ...pricingRows.map((row) =>
+        db
+          .insert(schema.packagePricing)
+          .values({
+            ...row,
+            id: crypto.randomUUID(),
+            packageId: copyId,
+            createdAt: now,
+            updatedAt: now,
+          }),
+      ),
+      ...itineraryRows.map((row) =>
+        db
+          .insert(schema.packageItineraryItems)
+          .values({ ...row, id: crypto.randomUUID(), packageId: copyId, createdAt: now }),
+      ),
+      ...mediaRows.map((row) =>
+        db
+          .insert(schema.packageMedia)
+          .values({ ...row, id: crypto.randomUUID(), packageId: copyId, createdAt: now }),
+      ),
+      ...dateRows.map((row) =>
+        db
+          .insert(schema.packageDepartureDates)
+          .values({
+            ...row,
+            id: crypto.randomUUID(),
+            packageId: copyId,
+            createdAt: now,
+            updatedAt: now,
+          }),
+      ),
+    ]);
 
     await logAudit(db, {
       actor: c.req.header("x-user-id") ?? null,
       role: c.req.header("x-user-role") ?? null,
       action: "package.duplicated",
       entityType: "package",
-      entityId: copy.id,
-      detail: `duplicated from ${id}`,
+      entityId: copyId,
+      detail: `duplicated from ${id} with ${pricingRows.length} pricing, ${itineraryRows.length} itinerary, ${mediaRows.length} media, ${dateRows.length} departure date(s)`,
     });
 
-    return c.json({ success: true, package: copy }, 201);
+    return c.json(
+      {
+        success: true,
+        package: copy,
+        copied: {
+          pricing: pricingRows.length,
+          itinerary: itineraryRows.length,
+          media: mediaRows.length,
+          departureDates: dateRows.length,
+        },
+      },
+      201,
+    );
   },
 );
 
 // DELETE /packages/:id — archive (soft archive, not hard delete).
+// Pass ?restore=true to unarchive back to draft.
 packagesRouter.delete(
   "/packages/:id",
   requireRole("super_admin", "management"),
   async (c) => {
     const db = c.get("db");
     const id = c.req.param("id");
+    const restore = c.req.query("restore") === "true";
 
     const existing = await db
       .select({ id: schema.packages.id })
@@ -321,21 +396,25 @@ packagesRouter.delete(
       return c.json({ success: false, error: "Package not found" }, 404);
     }
 
+    const newStatus: schema.PackageRow["publishStatus"] = restore
+      ? "draft"
+      : "archived";
+
     await db
       .update(schema.packages)
-      .set({ publishStatus: "archived", updatedAt: new Date().toISOString() })
+      .set({ publishStatus: newStatus, updatedAt: new Date().toISOString() })
       .where(eq(schema.packages.id, id))
       .run();
 
     await logAudit(db, {
       actor: c.req.header("x-user-id") ?? null,
       role: c.req.header("x-user-role") ?? null,
-      action: "package.archived",
+      action: restore ? "package.restored" : "package.archived",
       entityType: "package",
       entityId: id,
     });
 
-    return c.json({ success: true });
+    return c.json({ success: true, publishStatus: newStatus });
   },
 );
 
