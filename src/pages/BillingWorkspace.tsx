@@ -20,6 +20,7 @@ import {
 } from "lucide-react";
 import { mockInvoices, mockPayments, mockRefunds, mockQuotations } from "@/lib/mock-data";
 import QuotationBuilder from "@/components/QuotationBuilder";
+import InvoiceBuilder from "@/components/InvoiceBuilder";
 import type { Invoice, InvoiceStatus, Quotation, QuotationStatus } from "@/lib/types";
 import { cn, waLink } from "@/lib/utils";
 import { Badge } from "@/components/ui/badge";
@@ -93,6 +94,7 @@ export default function BillingWorkspace() {
   >("all");
   const [selectedInvoice, setSelectedInvoice] = useState<Invoice | null>(null);
   const [showBuilder, setShowBuilder] = useState(false);
+  const [showInvoiceBuilder, setShowInvoiceBuilder] = useState(false);
 
   const filteredInvoices = useMemo(() => {
     const q = search.toLowerCase();
@@ -236,6 +238,12 @@ export default function BillingWorkspace() {
     setTab("quotations");
   }
 
+  function handleInvoiceCreated(invoice: Invoice) {
+    setInvoices((prev) => [invoice, ...prev]);
+    setShowInvoiceBuilder(false);
+    setTab("invoices");
+  }
+
   return (
     <div className="space-y-6">
       {/* Header */}
@@ -248,11 +256,39 @@ export default function BillingWorkspace() {
             Invoice, pembayaran, deposit, dan refund.
           </p>
         </div>
-        <Button className="gap-2" onClick={() => setShowBuilder(true)}>
-          <Plus className="h-4 w-4" />
-          Buat Quotation
-        </Button>
+        <div className="flex gap-2">
+          <Button
+            variant="outline"
+            className="gap-2"
+            onClick={() => setShowInvoiceBuilder(true)}
+          >
+            <Plus className="h-4 w-4" />
+            Buat Invoice
+          </Button>
+          <Button className="gap-2" onClick={() => setShowBuilder(true)}>
+            <Plus className="h-4 w-4" />
+            Buat Quotation
+          </Button>
+        </div>
       </div>
+
+      {/* Invoice builder (overlay mode) */}
+      {showInvoiceBuilder && (
+        <div className="space-y-4">
+          <div className="flex items-center justify-between">
+            <h2 className="font-display text-lg font-bold">
+              Buat Invoice Baru
+            </h2>
+            <Button
+              variant="outline"
+              onClick={() => setShowInvoiceBuilder(false)}
+            >
+              Tutup
+            </Button>
+          </div>
+          <InvoiceBuilder onCreated={handleInvoiceCreated} />
+        </div>
+      )}
 
       {/* Quotation builder (overlay mode) */}
       {showBuilder && (
@@ -269,7 +305,7 @@ export default function BillingWorkspace() {
         </div>
       )}
 
-      {!showBuilder && (
+      {!showBuilder && !showInvoiceBuilder && (
         <>
           {/* KPI */}
       <div className="grid grid-cols-2 gap-4 lg:grid-cols-4">
