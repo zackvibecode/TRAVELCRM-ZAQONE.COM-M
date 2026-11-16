@@ -257,3 +257,68 @@ export const tripChecklistItems = sqliteTable(
 
 export type TripChecklistItemRow = typeof tripChecklistItems.$inferSelect;
 export type NewTripChecklistItemRow = typeof tripChecklistItems.$inferInsert;
+
+// ---------------------------------------------------------------------------
+// Rooming lists. Assigns passengers to rooms (room type, number, hotel) for a
+// departure. One row per room; occupant passenger IDs stored as JSON array.
+// ---------------------------------------------------------------------------
+
+export const roomingAssignments = sqliteTable(
+  "rooming_assignments",
+  {
+    id: text("id").primaryKey(),
+    departureId: text("departure_id")
+      .notNull()
+      .references(() => departures.id, { onDelete: "cascade" }),
+    roomNumber: text("room_number").notNull(),
+    roomType: text("room_type"),
+    hotelName: text("hotel_name"),
+    passengerIds: text("passenger_ids", { mode: "json" })
+      .$type<string[]>()
+      .notNull()
+      .default([]),
+    note: text("note"),
+    createdAt: text("created_at")
+      .notNull()
+      .default(sql`(datetime('now'))`),
+  },
+  (table) => ({
+    departureIdx: index("rooming_departure_idx").on(table.departureId),
+  }),
+);
+
+export type RoomingAssignmentRow = typeof roomingAssignments.$inferSelect;
+export type NewRoomingAssignmentRow = typeof roomingAssignments.$inferInsert;
+
+// ---------------------------------------------------------------------------
+// Trip flight / transport info per departure (airlines, routes, times).
+// ---------------------------------------------------------------------------
+
+export const tripFlights = sqliteTable(
+  "trip_flights",
+  {
+    id: text("id").primaryKey(),
+    departureId: text("departure_id")
+      .notNull()
+      .references(() => departures.id, { onDelete: "cascade" }),
+    kind: text("kind", { enum: ["flight", "transport", "other"] })
+      .notNull()
+      .default("flight"),
+    code: text("code"),
+    airline: text("airline"),
+    origin: text("origin"),
+    destination: text("destination"),
+    departAt: text("depart_at"),
+    arriveAt: text("arrive_at"),
+    note: text("note"),
+    createdAt: text("created_at")
+      .notNull()
+      .default(sql`(datetime('now'))`),
+  },
+  (table) => ({
+    departureIdx: index("trip_flights_departure_idx").on(table.departureId),
+  }),
+);
+
+export type TripFlightRow = typeof tripFlights.$inferSelect;
+export type NewTripFlightRow = typeof tripFlights.$inferInsert;
