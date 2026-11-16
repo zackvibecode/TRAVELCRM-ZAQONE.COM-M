@@ -29,7 +29,7 @@ const DESTINATIONS = Array.from(
 
 export default function PackageCatalog() {
   const [allPackages, setAllPackages] = useState<TravelPackage[]>(
-    () => mockPackages.map((p) => ({ ...p, status: "active" })),
+    () => mockPackages.map((p) => ({ ...p, status: "active", published: true })),
   );
   const [search, setSearch] = useState("");
   const [destination, setDestination] = useState<string>("all");
@@ -75,6 +75,14 @@ export default function PackageCatalog() {
               status: p.status === "archived" ? "active" : "archived",
             }
           : p,
+      ),
+    );
+  }
+
+  function togglePublish(pkg: TravelPackage) {
+    setAllPackages((prev) =>
+      prev.map((p) =>
+        p.id === pkg.id ? { ...p, published: !p.published } : p,
       ),
     );
   }
@@ -179,9 +187,14 @@ export default function PackageCatalog() {
                   <CardTitle className="text-base font-semibold">
                     {p.name}
                   </CardTitle>
-                  {p.status === "archived" && (
-                    <Badge variant="outline">Archived</Badge>
-                  )}
+                  <div className="flex shrink-0 gap-1">
+                    {p.published && (
+                      <Badge variant="default">Published</Badge>
+                    )}
+                    {p.status === "archived" && (
+                      <Badge variant="outline">Archived</Badge>
+                    )}
+                  </div>
                 </div>
                 <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
                   <MapPin className="h-3.5 w-3.5" />
@@ -245,6 +258,14 @@ export default function PackageCatalog() {
                   >
                     <Copy className="h-3.5 w-3.5" />
                     Duplicate
+                  </Button>
+                  <Button
+                    variant={p.published ? "default" : "outline"}
+                    size="sm"
+                    onClick={() => togglePublish(p)}
+                    title={p.published ? "Unpublish" : "Publish"}
+                  >
+                    {p.published ? "Unpublish" : "Publish"}
                   </Button>
                   <Button
                     variant="outline"

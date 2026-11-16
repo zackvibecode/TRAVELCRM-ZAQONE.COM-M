@@ -37,6 +37,7 @@ export interface TravelPackage {
   itinerary?: ItineraryDay[];
   images?: string[];
   status?: "active" | "archived";
+  published?: boolean;
 }
 
 export interface Departure {
