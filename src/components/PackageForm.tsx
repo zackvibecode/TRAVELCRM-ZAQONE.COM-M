@@ -3,6 +3,9 @@ import type { ItineraryDay, TravelPackage } from "@/lib/types";
 import InclusionsExclusionsEditor from "@/components/InclusionsExclusionsEditor";
 import HighlightsItineraryBuilder from "@/components/HighlightsItineraryBuilder";
 import MediaUploadPreview from "@/components/MediaUploadPreview";
+import DepartureDatesManager, {
+  type DepartureDateEntry,
+} from "@/components/DepartureDatesManager";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -58,6 +61,7 @@ export default function PackageForm({
   onSubmit,
 }: PackageFormProps) {
   const [values, setValues] = useState<FormValues>(EMPTY);
+  const [departureDates, setDepartureDates] = useState<DepartureDateEntry[]>([]);
 
   useEffect(() => {
     if (open) {
@@ -78,6 +82,7 @@ export default function PackageForm({
             }
           : EMPTY,
       );
+      setDepartureDates([]);
     }
   }, [open, existing]);
 
@@ -203,6 +208,12 @@ export default function PackageForm({
           <MediaUploadPreview
             images={values.images}
             onChange={(images) => setValues((prev) => ({ ...prev, images }))}
+          />
+
+          <DepartureDatesManager
+            packageId={existing?.id ?? "new"}
+            value={departureDates}
+            onChange={setDepartureDates}
           />
         </div>
 
