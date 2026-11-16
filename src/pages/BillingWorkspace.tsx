@@ -21,7 +21,14 @@ import {
 import { mockInvoices, mockPayments, mockRefunds, mockQuotations } from "@/lib/mock-data";
 import QuotationBuilder from "@/components/QuotationBuilder";
 import InvoiceBuilder from "@/components/InvoiceBuilder";
-import type { Invoice, InvoiceStatus, Quotation, QuotationStatus } from "@/lib/types";
+import PaymentProofForm from "@/components/PaymentProofForm";
+import type {
+  Invoice,
+  InvoiceStatus,
+  Payment,
+  Quotation,
+  QuotationStatus,
+} from "@/lib/types";
 import { cn, waLink } from "@/lib/utils";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -86,6 +93,7 @@ type Tab = "invoices" | "quotations" | "payments" | "refunds";
 export default function BillingWorkspace() {
   const [invoices, setInvoices] = useState<Invoice[]>(mockInvoices);
   const [quotations, setQuotations] = useState<Quotation[]>(mockQuotations);
+  const [payments, setPayments] = useState<Payment[]>(mockPayments);
   const [tab, setTab] = useState<Tab>("invoices");
   const [search, setSearch] = useState("");
   const [statusFilter, setStatusFilter] = useState<"all" | InvoiceStatus>("all");
@@ -95,6 +103,9 @@ export default function BillingWorkspace() {
   const [selectedInvoice, setSelectedInvoice] = useState<Invoice | null>(null);
   const [showBuilder, setShowBuilder] = useState(false);
   const [showInvoiceBuilder, setShowInvoiceBuilder] = useState(false);
+  const [recordPaymentFor, setRecordPaymentFor] = useState<Invoice | null>(
+    null,
+  );
 
   const filteredInvoices = useMemo(() => {
     const q = search.toLowerCase();
@@ -133,14 +144,14 @@ export default function BillingWorkspace() {
 
   const filteredPayments = useMemo(() => {
     const q = search.toLowerCase();
-    return mockPayments.filter((p) => {
+    return payments.filter((p) => {
       if (!q) return true;
       return (
         p.invoiceNumber.toLowerCase().includes(q) ||
         p.customerName.toLowerCase().includes(q)
       );
     });
-  }, [search]);
+  }, [payments, search]);
 
   const filteredRefunds = useMemo(() => {
     const q = search.toLowerCase();
@@ -166,8 +177,8 @@ export default function BillingWorkspace() {
 
   const paymentsForInvoice = useMemo(() => {
     if (!selectedInvoice) return [];
-    return mockPayments.filter((p) => p.invoiceId === selectedInvoice.id);
-  }, [selectedInvoice]);
+    return payments.filter((p) => p.invoiceId === selectedInvoice.id);
+  }, [selectedInvoice, payments]);
 
   function markInvoicePaid(invoiceId: string) {
     setInvoices((prev) =>
@@ -230,6 +241,90 @@ export default function BillingWorkspace() {
       notes: `Duplikat dari ${source.number}.`,
     };
     setInvoices((prev) => [copy, ...prev]);
+  }
+
+  function handlePaymentRecorded(
+    invoice: Invoice,
+    payment: Omit<Payment, "id" | "invoiceId" | "invoiceNumber" | "customerName">,
+  ) {
+    const newPayment: Payment = {
+      ...payment,
+      id: crypto.randomUUID(),
+      invoiceId: invoice.id,
+      invoiceNumber: invoice.number,
+      customerName: invoice.customerName,
+    };
+    setPayments((prev) => [newPayment, ...prev]);
+    if (newPayment.status === "verified") {
+      setInvoices((prev) =>
+        prev.map((inv) => {
+          if (inv.id !== invoice.id) return inv;
+          const paidAmount = inv.paidAmount + newPayment.amount;
+          const balanceDue = Math.max(0, inv.total - paidAmount);
+          return {
+            ...inv,
+            paidAmount,
+            balanceDue,
+            status:
+              balanceDue === 0
+                ? "paid"
+                : paidAmount > 0
+                  ? "partially_paid"
+                  : inv.status,
+          };
+        }),
+      );
+    }
+    setRecordPaymentFor(null);
+    setSelectedInvoice((prev) =>
+      prev && prev.id === invoice.id
+        ? {
+            ...prev,
+            paidAmount:
+              newPayment.status === "verified"
+                ? prev.paidAmount + newPayment.amount
+                : prev.paidAmount,
+            balanceDue:
+              newPayment.status === "verified"
+                ? Math.max(0, prev.total - (prev.paidAmount + newPayment.amount))
+                : prev.balanceDue,
+          }
+        : prev,
+    );
+  }
+
+  function verifyPayment(paymentId: string, accepted: boolean) {
+    const payment = payments.find((p) => p.id === paymentId);
+    if (!payment || payment.status !== "pending_verification") return;
+    setPayments((prev) =>
+      prev.map((p) =>
+        p.id === paymentId
+          ? {
+              ...p,
+              status: accepted ? "verified" : "rejected",
+              verifiedBy: accepted ? "Finance Team" : undefined,
+            }
+          : p,
+      ),
+    );
+    if (accepted) {
+      setInvoices((prev) =>
+        prev.map((inv) => {
+          if (inv.id !== payment.invoiceId) return inv;
+          const paidAmount = inv.paidAmount + payment.amount;
+          const balanceDue = Math.max(0, inv.total - paidAmount);
+          return {
+            ...inv,
+            paidAmount,
+            balanceDue,
+            status:
+              balanceDue === 0
+                ? "paid"
+                : "partially_paid",
+          };
+        }),
+      );
+    }
   }
 
   function handleQuotationCreated(quotation: Quotation) {
@@ -750,6 +845,14 @@ export default function BillingWorkspace() {
                       </Button>
                       <Button
                         variant="outline"
+                        className="gap-2"
+                        onClick={() => setRecordPaymentFor(selectedInvoice)}
+                      >
+                        <Banknote className="h-4 w-4" />
+                        Catat Pembayaran
+                      </Button>
+                      <Button
+                        variant="outline"
                         className="gap-2 border-red-200 text-red-700 hover:bg-red-50"
                         onClick={() => voidInvoice(selectedInvoice.id)}
                       >
@@ -760,6 +863,15 @@ export default function BillingWorkspace() {
                   )}
               </CardContent>
             </Card>
+          )}
+
+          {/* Record payment form */}
+          {recordPaymentFor && (
+            <PaymentProofForm
+              invoice={recordPaymentFor}
+              onRecorded={handlePaymentRecorded}
+              onCancel={() => setRecordPaymentFor(null)}
+            />
           )}
         </div>
       )}
@@ -918,6 +1030,7 @@ export default function BillingWorkspace() {
                   <TableHead>Tanggal</TableHead>
                   <TableHead>Bukti</TableHead>
                   <TableHead>Status</TableHead>
+                  <TableHead className="text-right">Aksi</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
@@ -958,6 +1071,30 @@ export default function BillingWorkspace() {
                             ? "Menunggu Verifikasi"
                             : "Ditolak"}
                       </Badge>
+                    </TableCell>
+                    <TableCell className="text-right">
+                      {p.status === "pending_verification" && (
+                        <div className="flex items-center justify-end gap-1">
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            className="h-8 gap-1 border-green-200 text-green-700 hover:bg-green-50"
+                            onClick={() => verifyPayment(p.id, true)}
+                          >
+                            <CheckCircle2 className="h-3.5 w-3.5" />
+                            Verifikasi
+                          </Button>
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            className="h-8 gap-1 border-red-200 text-red-700 hover:bg-red-50"
+                            onClick={() => verifyPayment(p.id, false)}
+                          >
+                            <XCircle className="h-3.5 w-3.5" />
+                            Tolak
+                          </Button>
+                        </div>
+                      )}
                     </TableCell>
                   </TableRow>
                 ))}
