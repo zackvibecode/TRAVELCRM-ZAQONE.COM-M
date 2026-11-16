@@ -1,7 +1,13 @@
 import { Hono } from "hono";
-import { and, gte, lte, type SQL } from "drizzle-orm";
+import { and, eq, gte, lte, type SQL } from "drizzle-orm";
 import type { DrizzleD1Database } from "drizzle-orm/d1";
 import * as schema from "../db/schema";
+import {
+  convertHold,
+  getAvailability,
+  holdSeats,
+  releaseHold,
+} from "../lib/seat-availability";
 
 export type DeparturesEnv = {
   DB: D1Database;
@@ -62,6 +68,73 @@ departuresRouter.get("/calendar", async (c) => {
     }));
 
   return c.json({ success: true, months });
+});
+
+// GET /departures/:id/availability — current seat availability.
+departuresRouter.get("/:id/availability", async (c) => {
+  const db = c.get("db");
+  const id = c.req.param("id");
+
+  const availability = await getAvailability(db, id);
+  if (!availability) {
+    return c.json({ success: false, error: "Departure not found" }, 404);
+  }
+
+  return c.json({ success: true, ...availability });
+});
+
+// POST /departures/:id/hold — atomically hold seats.
+departuresRouter.post("/:id/hold", async (c) => {
+  const db = c.get("db");
+  const id = c.req.param("id");
+
+  let body: { count?: number; heldBy?: string; holdMinutes?: number };
+  try {
+    body = await c.req.json();
+  } catch {
+    return c.json({ success: false, error: "Invalid JSON body" }, 400);
+  }
+
+  const count = body.count ?? 1;
+  if (count < 1) {
+    return c.json({ success: false, error: "count must be >= 1" }, 400);
+  }
+
+  const result = await holdSeats(db, id, count, body.heldBy, body.holdMinutes);
+  if (!result.ok) {
+    return c.json(
+      { success: false, reason: result.reason, seatsAvailable: result.seatsAvailable },
+      result.reason === "not_found" ? 404 : 409,
+    );
+  }
+
+  return c.json({ success: true, holdId: result.holdId, seatsAvailable: result.seatsAvailable }, 201);
+});
+
+// POST /seat-holds/:id/convert — convert a hold into booked seats.
+departuresRouter.post("/seat-holds/:id/convert", async (c) => {
+  const db = c.get("db");
+  const id = c.req.param("id");
+
+  const result = await convertHold(db, id);
+  if (!result.ok) {
+    return c.json({ success: false, error: "Hold not found or not active" }, 404);
+  }
+
+  return c.json({ success: true });
+});
+
+// POST /seat-holds/:id/release — release a hold back to available.
+departuresRouter.post("/seat-holds/:id/release", async (c) => {
+  const db = c.get("db");
+  const id = c.req.param("id");
+
+  const result = await releaseHold(db, id);
+  if (!result.ok) {
+    return c.json({ success: false, error: "Hold not found or not active" }, 404);
+  }
+
+  return c.json({ success: true });
 });
 
 export default departuresRouter;
