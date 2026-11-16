@@ -61,6 +61,15 @@ export default function CreateBookingForm({
 
   const totalPax = pax.adult + pax.child + pax.infant;
 
+  const seatsAvailable = selectedDeparture
+    ? selectedDeparture.seatCapacity -
+      selectedDeparture.seatsBooked -
+      selectedDeparture.seatsHeld
+    : 0;
+
+  const seatsExceeded =
+    selectedDeparture !== undefined && totalPax > seatsAvailable;
+
   const subtotal = useMemo(() => {
     if (!selectedPackage) return 0;
     return (
@@ -72,12 +81,6 @@ export default function CreateBookingForm({
 
   const totalAmount = Math.max(0, subtotal - discount);
   const balanceDue = Math.max(0, totalAmount - deposit);
-
-  const seatsAvailable = selectedDeparture
-    ? selectedDeparture.seatCapacity -
-      selectedDeparture.seatsBooked -
-      selectedDeparture.seatsHeld
-    : 0;
 
   function resetForm() {
     setBookingType("individual");
@@ -279,6 +282,12 @@ export default function CreateBookingForm({
                 </div>
               ))}
             </div>
+            {seatsExceeded && (
+              <p className="rounded-md bg-red-50 px-3 py-2 text-xs font-medium text-red-700">
+                Not enough seats: you requested {totalPax} passengers but only{" "}
+                {seatsAvailable} seats are available on this departure.
+              </p>
+            )}
           </div>
 
           {/* Pricing */}
@@ -437,7 +446,13 @@ export default function CreateBookingForm({
           </Button>
           <Button
             onClick={handleSubmit}
-            disabled={!customerId || !packageId || !departureId || totalPax === 0}
+            disabled={
+              !customerId ||
+              !packageId ||
+              !departureId ||
+              totalPax === 0 ||
+              seatsExceeded
+            }
           >
             Create Booking
           </Button>
