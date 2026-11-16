@@ -14,6 +14,7 @@ import leadSourcesRouter from "./routes/lead-sources";
 import quotationsRouter from "./routes/quotations";
 import invoicesRouter from "./routes/invoices";
 import paymentsRouter from "./routes/payments";
+import refundsRouter from "./routes/refunds";
 import { releaseExpiredHolds } from "./lib/seat-availability";
 
 export type Env = {
@@ -61,6 +62,7 @@ app.route("/lead-sources", leadSourcesRouter);
 app.route("/quotations", quotationsRouter);
 app.route("/invoices", invoicesRouter);
 app.route("/payments", paymentsRouter);
+app.route("/refunds", refundsRouter);
 
 export default app;
 
