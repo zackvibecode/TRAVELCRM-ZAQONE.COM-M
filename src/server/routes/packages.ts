@@ -743,4 +743,242 @@ packagesRouter.put(
   },
 );
 
+// ---- Package highlights & structured itinerary ----
+
+// PUT /packages/:id/highlights — replace the highlights list.
+packagesRouter.put(
+  "/packages/:id/highlights",
+  requireRole("super_admin", "management", "sales"),
+  async (c) => {
+    const db = c.get("db");
+    const id = c.req.param("id");
+
+    const pkg = await db
+      .select({ id: schema.packages.id })
+      .from(schema.packages)
+      .where(eq(schema.packages.id, id))
+      .get();
+    if (!pkg) {
+      return c.json({ success: false, error: "Package not found" }, 404);
+    }
+
+    let body: Record<string, unknown>;
+    try {
+      body = await c.req.json();
+    } catch {
+      return c.json({ success: false, error: "Invalid JSON body" }, 400);
+    }
+
+    if (!Array.isArray(body.highlights)) {
+      return c.json(
+        { success: false, error: "highlights must be an array of strings" },
+        400,
+      );
+    }
+
+    await db
+      .update(schema.packages)
+      .set({
+        highlights: (body.highlights as string[]).map((s) => String(s)),
+        updatedAt: new Date().toISOString(),
+      })
+      .where(eq(schema.packages.id, id))
+      .run();
+
+    await logAudit(db, {
+      actor: c.req.header("x-user-id") ?? null,
+      role: c.req.header("x-user-role") ?? null,
+      action: "package.highlights_updated",
+      entityType: "package",
+      entityId: id,
+      detail: `${(body.highlights as string[]).length} highlight(s)`,
+    });
+
+    return c.json({ success: true, highlights: body.highlights });
+  },
+);
+
+// GET /packages/:id/itinerary — list structured itinerary items.
+packagesRouter.get("/packages/:id/itinerary", async (c) => {
+  const db = c.get("db");
+  const packageId = c.req.param("id");
+
+  const pkg = await db
+    .select({ id: schema.packages.id })
+    .from(schema.packages)
+    .where(eq(schema.packages.id, packageId))
+    .get();
+  if (!pkg) {
+    return c.json({ success: false, error: "Package not found" }, 404);
+  }
+
+  const rows = await db
+    .select()
+    .from(schema.packageItineraryItems)
+    .where(eq(schema.packageItineraryItems.packageId, packageId))
+    .orderBy(asc(schema.packageItineraryItems.dayNumber))
+    .all();
+
+  return c.json({ success: true, itinerary: rows });
+});
+
+// POST /packages/:id/itinerary — add an itinerary day.
+packagesRouter.post(
+  "/packages/:id/itinerary",
+  requireRole("super_admin", "management", "sales"),
+  async (c) => {
+    const db = c.get("db");
+    const packageId = c.req.param("id");
+
+    const pkg = await db
+      .select({ id: schema.packages.id })
+      .from(schema.packages)
+      .where(eq(schema.packages.id, packageId))
+      .get();
+    if (!pkg) {
+      return c.json({ success: false, error: "Package not found" }, 404);
+    }
+
+    let body: Record<string, unknown>;
+    try {
+      body = await c.req.json();
+    } catch {
+      return c.json({ success: false, error: "Invalid JSON body" }, 400);
+    }
+
+    const dayNumber = Number(body.dayNumber ?? 0);
+    if (!Number.isInteger(dayNumber) || dayNumber < 1) {
+      return c.json(
+        { success: false, error: "dayNumber must be a positive integer" },
+        400,
+      );
+    }
+
+    const row: schema.NewPackageItineraryItemRow = {
+      id: crypto.randomUUID(),
+      packageId,
+      dayNumber,
+      title: (body.title as string) ?? null,
+      description: (body.description as string) ?? null,
+      mealIncluded: (body.mealIncluded as string[]) ?? [],
+      sortOrder: Number(body.sortOrder ?? dayNumber) || dayNumber,
+      createdAt: new Date().toISOString(),
+    };
+
+    await db.insert(schema.packageItineraryItems).values(row).run();
+    await logAudit(db, {
+      actor: c.req.header("x-user-id") ?? null,
+      role: c.req.header("x-user-role") ?? null,
+      action: "package_itinerary.created",
+      entityType: "package_itinerary_item",
+      entityId: row.id,
+      detail: `day ${dayNumber} for package ${packageId}`,
+    });
+
+    return c.json({ success: true, item: row }, 201);
+  },
+);
+
+// PATCH /itinerary/:itemId — update an itinerary day.
+packagesRouter.patch(
+  "/itinerary/:itemId",
+  requireRole("super_admin", "management", "sales"),
+  async (c) => {
+    const db = c.get("db");
+    const itemId = c.req.param("itemId");
+
+    const existing = await db
+      .select()
+      .from(schema.packageItineraryItems)
+      .where(eq(schema.packageItineraryItems.id, itemId))
+      .get();
+    if (!existing) {
+      return c.json({ success: false, error: "Itinerary item not found" }, 404);
+    }
+
+    let body: Record<string, unknown>;
+    try {
+      body = await c.req.json();
+    } catch {
+      return c.json({ success: false, error: "Invalid JSON body" }, 400);
+    }
+
+    const patch: Partial<schema.NewPackageItineraryItemRow> = {};
+    if (body.dayNumber !== undefined) {
+      const dayNumber = Number(body.dayNumber);
+      if (!Number.isInteger(dayNumber) || dayNumber < 1) {
+        return c.json(
+          { success: false, error: "dayNumber must be a positive integer" },
+          400,
+        );
+      }
+      patch.dayNumber = dayNumber;
+    }
+    if (body.title !== undefined) patch.title = (body.title as string) ?? null;
+    if (body.description !== undefined)
+      patch.description = (body.description as string) ?? null;
+    if (body.mealIncluded !== undefined)
+      patch.mealIncluded = (body.mealIncluded as string[]) ?? [];
+    if (body.sortOrder !== undefined)
+      patch.sortOrder = Number(body.sortOrder) || 0;
+
+    await db
+      .update(schema.packageItineraryItems)
+      .set(patch)
+      .where(eq(schema.packageItineraryItems.id, itemId))
+      .run();
+
+    const updated = await db
+      .select()
+      .from(schema.packageItineraryItems)
+      .where(eq(schema.packageItineraryItems.id, itemId))
+      .get();
+
+    await logAudit(db, {
+      actor: c.req.header("x-user-id") ?? null,
+      role: c.req.header("x-user-role") ?? null,
+      action: "package_itinerary.updated",
+      entityType: "package_itinerary_item",
+      entityId: itemId,
+      detail: `updated fields: ${Object.keys(patch).join(", ")}`,
+    });
+
+    return c.json({ success: true, item: updated });
+  },
+);
+
+// DELETE /itinerary/:itemId — remove an itinerary day.
+packagesRouter.delete(
+  "/itinerary/:itemId",
+  requireRole("super_admin", "management", "sales"),
+  async (c) => {
+    const db = c.get("db");
+    const itemId = c.req.param("itemId");
+
+    const existing = await db
+      .select({ id: schema.packageItineraryItems.id })
+      .from(schema.packageItineraryItems)
+      .where(eq(schema.packageItineraryItems.id, itemId))
+      .get();
+    if (!existing) {
+      return c.json({ success: false, error: "Itinerary item not found" }, 404);
+    }
+
+    await db
+      .delete(schema.packageItineraryItems)
+      .where(eq(schema.packageItineraryItems.id, itemId))
+      .run();
+
+    await logAudit(db, {
+      actor: c.req.header("x-user-id") ?? null,
+      role: c.req.header("x-user-role") ?? null,
+      action: "package_itinerary.deleted",
+      entityType: "package_itinerary_item",
+      entityId: itemId,
+    });
+
+    return c.json({ success: true });
+  },
+);
+
 export default packagesRouter;
