@@ -339,4 +339,329 @@ packagesRouter.delete(
   },
 );
 
+// ---- Package pricing tiers ----
+
+// GET /packages/:id/pricing — list pricing tiers for a package.
+packagesRouter.get("/packages/:id/pricing", async (c) => {
+  const db = c.get("db");
+  const packageId = c.req.param("id");
+
+  const pkg = await db
+    .select({ id: schema.packages.id })
+    .from(schema.packages)
+    .where(eq(schema.packages.id, packageId))
+    .get();
+  if (!pkg) {
+    return c.json({ success: false, error: "Package not found" }, 404);
+  }
+
+  const rows = await db
+    .select()
+    .from(schema.packagePricing)
+    .where(eq(schema.packagePricing.packageId, packageId))
+    .orderBy(desc(schema.packagePricing.isDefault))
+    .all();
+
+  return c.json({ success: true, pricing: rows });
+});
+
+// POST /packages/:id/pricing — add a pricing tier.
+packagesRouter.post(
+  "/packages/:id/pricing",
+  requireRole("super_admin", "management", "sales"),
+  async (c) => {
+    const db = c.get("db");
+    const packageId = c.req.param("id");
+
+    const pkg = await db
+      .select({ id: schema.packages.id })
+      .from(schema.packages)
+      .where(eq(schema.packages.id, packageId))
+      .get();
+    if (!pkg) {
+      return c.json({ success: false, error: "Package not found" }, 404);
+    }
+
+    let body: Record<string, unknown>;
+    try {
+      body = await c.req.json();
+    } catch {
+      return c.json({ success: false, error: "Invalid JSON body" }, 400);
+    }
+
+    const label = typeof body.label === "string" ? body.label.trim() : "";
+    if (!label) {
+      return c.json({ success: false, error: "label is required" }, 400);
+    }
+
+    const pricingType = (
+      ["per_person", "per_package", "per_room"] as const
+    ).includes(body.pricingType as never)
+      ? (body.pricingType as schema.PackagePricingRow["pricingType"])
+      : "per_person";
+
+    const isDefault = body.isDefault === true;
+
+    // Only one default tier per package: clear the flag on others first.
+    if (isDefault) {
+      await db
+        .update(schema.packagePricing)
+        .set({ isDefault: false })
+        .where(eq(schema.packagePricing.packageId, packageId))
+        .run();
+    }
+
+    const row: schema.NewPackagePricingRow = {
+      id: crypto.randomUUID(),
+      packageId,
+      label,
+      pricingType,
+      adultPrice: Number(body.adultPrice ?? 0) || 0,
+      childPrice: Number(body.childPrice ?? 0) || 0,
+      infantPrice: Number(body.infantPrice ?? 0) || 0,
+      validFrom: (body.validFrom as string) ?? null,
+      validTo: (body.validTo as string) ?? null,
+      isDefault,
+      createdAt: new Date().toISOString(),
+      updatedAt: new Date().toISOString(),
+    };
+
+    await db.insert(schema.packagePricing).values(row).run();
+    await logAudit(db, {
+      actor: c.req.header("x-user-id") ?? null,
+      role: c.req.header("x-user-role") ?? null,
+      action: "package_pricing.created",
+      entityType: "package_pricing",
+      entityId: row.id,
+      detail: `${label} for package ${packageId}`,
+    });
+
+    return c.json({ success: true, pricing: row }, 201);
+  },
+);
+
+// PATCH /pricing/:pricingId — update a pricing tier.
+packagesRouter.patch(
+  "/pricing/:pricingId",
+  requireRole("super_admin", "management", "sales"),
+  async (c) => {
+    const db = c.get("db");
+    const pricingId = c.req.param("pricingId");
+
+    const existing = await db
+      .select()
+      .from(schema.packagePricing)
+      .where(eq(schema.packagePricing.id, pricingId))
+      .get();
+    if (!existing) {
+      return c.json({ success: false, error: "Pricing tier not found" }, 404);
+    }
+
+    let body: Record<string, unknown>;
+    try {
+      body = await c.req.json();
+    } catch {
+      return c.json({ success: false, error: "Invalid JSON body" }, 400);
+    }
+
+    const patch: Partial<schema.NewPackagePricingRow> = {};
+    if (typeof body.label === "string" && body.label.trim())
+      patch.label = body.label.trim();
+    if (body.adultPrice !== undefined)
+      patch.adultPrice = Number(body.adultPrice) || 0;
+    if (body.childPrice !== undefined)
+      patch.childPrice = Number(body.childPrice) || 0;
+    if (body.infantPrice !== undefined)
+      patch.infantPrice = Number(body.infantPrice) || 0;
+    if (body.validFrom !== undefined)
+      patch.validFrom = (body.validFrom as string) ?? null;
+    if (body.validTo !== undefined)
+      patch.validTo = (body.validTo as string) ?? null;
+    if (body.isDefault === true) {
+      // Only one default tier per package.
+      await db
+        .update(schema.packagePricing)
+        .set({ isDefault: false })
+        .where(eq(schema.packagePricing.packageId, existing.packageId))
+        .run();
+      patch.isDefault = true;
+    } else if (body.isDefault === false) {
+      patch.isDefault = false;
+    }
+    if (
+      ["per_person", "per_package", "per_room"].includes(
+        body.pricingType as string,
+      )
+    ) {
+      patch.pricingType = body.pricingType as schema.PackagePricingRow["pricingType"];
+    }
+    patch.updatedAt = new Date().toISOString();
+
+    await db
+      .update(schema.packagePricing)
+      .set(patch)
+      .where(eq(schema.packagePricing.id, pricingId))
+      .run();
+
+    const updated = await db
+      .select()
+      .from(schema.packagePricing)
+      .where(eq(schema.packagePricing.id, pricingId))
+      .get();
+
+    await logAudit(db, {
+      actor: c.req.header("x-user-id") ?? null,
+      role: c.req.header("x-user-role") ?? null,
+      action: "package_pricing.updated",
+      entityType: "package_pricing",
+      entityId: pricingId,
+      detail: `updated fields: ${Object.keys(patch).join(", ")}`,
+    });
+
+    return c.json({ success: true, pricing: updated });
+  },
+);
+
+// DELETE /pricing/:pricingId — remove a pricing tier.
+packagesRouter.delete(
+  "/pricing/:pricingId",
+  requireRole("super_admin", "management", "sales"),
+  async (c) => {
+    const db = c.get("db");
+    const pricingId = c.req.param("pricingId");
+
+    const existing = await db
+      .select({ id: schema.packagePricing.id })
+      .from(schema.packagePricing)
+      .where(eq(schema.packagePricing.id, pricingId))
+      .get();
+    if (!existing) {
+      return c.json({ success: false, error: "Pricing tier not found" }, 404);
+    }
+
+    await db
+      .delete(schema.packagePricing)
+      .where(eq(schema.packagePricing.id, pricingId))
+      .run();
+
+    await logAudit(db, {
+      actor: c.req.header("x-user-id") ?? null,
+      role: c.req.header("x-user-role") ?? null,
+      action: "package_pricing.deleted",
+      entityType: "package_pricing",
+      entityId: pricingId,
+    });
+
+    return c.json({ success: true });
+  },
+);
+
+// ---- Package inclusions / exclusions ----
+
+// PUT /packages/:id/inclusions — replace the inclusions list.
+packagesRouter.put(
+  "/packages/:id/inclusions",
+  requireRole("super_admin", "management", "sales"),
+  async (c) => {
+    const db = c.get("db");
+    const id = c.req.param("id");
+
+    const pkg = await db
+      .select({ id: schema.packages.id })
+      .from(schema.packages)
+      .where(eq(schema.packages.id, id))
+      .get();
+    if (!pkg) {
+      return c.json({ success: false, error: "Package not found" }, 404);
+    }
+
+    let body: Record<string, unknown>;
+    try {
+      body = await c.req.json();
+    } catch {
+      return c.json({ success: false, error: "Invalid JSON body" }, 400);
+    }
+
+    if (!Array.isArray(body.inclusions)) {
+      return c.json(
+        { success: false, error: "inclusions must be an array of strings" },
+        400,
+      );
+    }
+
+    await db
+      .update(schema.packages)
+      .set({
+        inclusions: (body.inclusions as string[]).map((s) => String(s)),
+        updatedAt: new Date().toISOString(),
+      })
+      .where(eq(schema.packages.id, id))
+      .run();
+
+    await logAudit(db, {
+      actor: c.req.header("x-user-id") ?? null,
+      role: c.req.header("x-user-role") ?? null,
+      action: "package.inclusions_updated",
+      entityType: "package",
+      entityId: id,
+      detail: `${(body.inclusions as string[]).length} inclusion(s)`,
+    });
+
+    return c.json({ success: true, inclusions: body.inclusions });
+  },
+);
+
+// PUT /packages/:id/exclusions — replace the exclusions list.
+packagesRouter.put(
+  "/packages/:id/exclusions",
+  requireRole("super_admin", "management", "sales"),
+  async (c) => {
+    const db = c.get("db");
+    const id = c.req.param("id");
+
+    const pkg = await db
+      .select({ id: schema.packages.id })
+      .from(schema.packages)
+      .where(eq(schema.packages.id, id))
+      .get();
+    if (!pkg) {
+      return c.json({ success: false, error: "Package not found" }, 404);
+    }
+
+    let body: Record<string, unknown>;
+    try {
+      body = await c.req.json();
+    } catch {
+      return c.json({ success: false, error: "Invalid JSON body" }, 400);
+    }
+
+    if (!Array.isArray(body.exclusions)) {
+      return c.json(
+        { success: false, error: "exclusions must be an array of strings" },
+        400,
+      );
+    }
+
+    await db
+      .update(schema.packages)
+      .set({
+        exclusions: (body.exclusions as string[]).map((s) => String(s)),
+        updatedAt: new Date().toISOString(),
+      })
+      .where(eq(schema.packages.id, id))
+      .run();
+
+    await logAudit(db, {
+      actor: c.req.header("x-user-id") ?? null,
+      role: c.req.header("x-user-role") ?? null,
+      action: "package.exclusions_updated",
+      entityType: "package",
+      entityId: id,
+      detail: `${(body.exclusions as string[]).length} exclusion(s)`,
+    });
+
+    return c.json({ success: true, exclusions: body.exclusions });
+  },
+);
+
 export default packagesRouter;
