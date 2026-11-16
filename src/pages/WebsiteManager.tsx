@@ -14,6 +14,7 @@ import {
   MessageCircle,
   ArrowRight,
   Search,
+  Megaphone,
 } from "lucide-react";
 import { mockPackages } from "@/lib/mock-data";
 import { cn, waLink } from "@/lib/utils";
@@ -138,6 +139,41 @@ interface SeoSettings {
   keywords: string;
 }
 
+interface Banner {
+  id: string;
+  title: string;
+  subtitle: string;
+  ctaLabel: string;
+  ctaHref: string;
+  /** ISO dates — banner only shows on the public site between these dates. */
+  startAt: string;
+  endAt: string;
+  active: boolean;
+}
+
+const INITIAL_BANNERS: Banner[] = [
+  {
+    id: "ban-1",
+    title: "Sakura Season 2027 — Early Bird 15%",
+    subtitle: "Booking sebelum Desember untuk keberangkatan Maret–April.",
+    ctaLabel: "Lihat Paket Jepang",
+    ctaHref: "/site/packages",
+    startAt: "2026-11-01",
+    endAt: "2026-12-31",
+    active: true,
+  },
+  {
+    id: "ban-2",
+    title: "Weekend Getaway Bali & Lombok",
+    subtitle: "Open trip tiap Jumat malam — cocok untuk pekerja kantoran.",
+    ctaLabel: "Cek Jadwal",
+    ctaHref: "/site/packages",
+    startAt: "2026-11-10",
+    endAt: "2027-01-15",
+    active: true,
+  },
+];
+
 const INITIAL_SEO: Record<string, SeoSettings> = {
   home: {
     metaTitle: "TravelOS — Paket Wisata Domestik & Internasional",
@@ -168,6 +204,9 @@ export default function WebsiteManager() {
   const [seo, setSeo] = useState<Record<string, SeoSettings>>(INITIAL_SEO);
   const [seoPage, setSeoPage] = useState<string>("home");
   const [seoSaved, setSeoSaved] = useState(false);
+  const [banners, setBanners] = useState<Banner[]>(INITIAL_BANNERS);
+  const [bannerEditing, setBannerEditing] = useState<Banner | null>(null);
+  const [bannerIsNew, setBannerIsNew] = useState(false);
 
   const seoFor = seo[seoPage] ?? {
     metaTitle: "",
@@ -306,6 +345,276 @@ export default function WebsiteManager() {
           </CardContent>
         </Card>
       </div>
+
+      {/* Banner manager */}
+      <Card>
+        <CardHeader className="flex-row items-center justify-between space-y-0 pb-3">
+          <div className="flex items-center gap-2">
+            <Megaphone className="h-4 w-4 text-red-600" />
+            <CardTitle className="text-base">Banner Promosi</CardTitle>
+          </div>
+          <Button
+            size="sm"
+            variant="outline"
+            onClick={() => {
+              setBannerEditing({
+                id: `ban-${crypto.randomUUID().slice(0, 6)}`,
+                title: "",
+                subtitle: "",
+                ctaLabel: "Lihat Detail",
+                ctaHref: "/site/packages",
+                startAt: new Date().toISOString().slice(0, 10),
+                endAt: new Date(Date.now() + 30 * 864e5)
+                  .toISOString()
+                  .slice(0, 10),
+                active: true,
+              });
+              setBannerIsNew(true);
+            }}
+          >
+            <Plus className="mr-1.5 h-3.5 w-3.5" />
+            Banner Baru
+          </Button>
+        </CardHeader>
+        <CardContent className="space-y-2">
+          {banners.map((banner) => {
+            const today = new Date().toISOString().slice(0, 10);
+            const inWindow =
+              banner.active &&
+              banner.startAt <= today &&
+              banner.endAt >= today;
+            return (
+              <div
+                key={banner.id}
+                className="flex flex-wrap items-center gap-3 rounded-lg border p-3"
+              >
+                <div className="min-w-0 flex-1">
+                  <div className="flex flex-wrap items-center gap-2">
+                    <p className="truncate text-sm font-medium">
+                      {banner.title || "(tanpa judul)"}
+                    </p>
+                    <Badge
+                      variant="outline"
+                      className={cn(
+                        inWindow
+                          ? "border-emerald-200 bg-emerald-50 text-emerald-700"
+                          : banner.active
+                            ? "border-amber-200 bg-amber-50 text-amber-700"
+                            : "border-stone-200 bg-stone-50 text-stone-600",
+                      )}
+                    >
+                      {inWindow
+                        ? "Tayang"
+                        : banner.active
+                          ? "Terjadwal"
+                          : "Nonaktif"}
+                    </Badge>
+                  </div>
+                  <p className="mt-0.5 text-xs text-muted-foreground">
+                    {banner.startAt} → {banner.endAt} • CTA: {banner.ctaLabel}
+                  </p>
+                </div>
+                <div className="flex items-center gap-1">
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={() => {
+                      setBannerEditing(banner);
+                      setBannerIsNew(false);
+                    }}
+                    title="Edit"
+                  >
+                    <Pencil className="h-3.5 w-3.5" />
+                  </Button>
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={() =>
+                      setBanners((prev) =>
+                        prev.map((b) =>
+                          b.id === banner.id
+                            ? { ...b, active: !b.active }
+                            : b,
+                        ),
+                      )
+                    }
+                    title={banner.active ? "Nonaktifkan" : "Aktifkan"}
+                  >
+                    {banner.active ? (
+                      <EyeOff className="h-3.5 w-3.5" />
+                    ) : (
+                      <Eye className="h-3.5 w-3.5" />
+                    )}
+                  </Button>
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    className="text-red-600 hover:text-red-700"
+                    onClick={() =>
+                      setBanners((prev) =>
+                        prev.filter((b) => b.id !== banner.id),
+                      )
+                    }
+                    title="Hapus"
+                  >
+                    <Trash2 className="h-3.5 w-3.5" />
+                  </Button>
+                </div>
+              </div>
+            );
+          })}
+          {banners.length === 0 && (
+            <p className="py-6 text-center text-sm text-muted-foreground">
+              Belum ada banner.
+            </p>
+          )}
+        </CardContent>
+      </Card>
+
+      {/* Banner editor overlay */}
+      {bannerEditing && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4">
+          <Card className="w-full max-w-lg">
+            <CardHeader className="flex-row items-center justify-between space-y-0 pb-3">
+              <CardTitle className="text-base">
+                {bannerIsNew ? "Banner Baru" : "Edit Banner"}
+              </CardTitle>
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={() => setBannerEditing(null)}
+              >
+                <X className="h-4 w-4" />
+              </Button>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <div className="space-y-1.5">
+                <label className="text-xs font-medium">Judul</label>
+                <Input
+                  value={bannerEditing.title}
+                  onChange={(e) =>
+                    setBannerEditing({
+                      ...bannerEditing,
+                      title: e.target.value,
+                    })
+                  }
+                  placeholder="cth: Promo Akhir Tahun — Diskon 20%"
+                />
+              </div>
+              <div className="space-y-1.5">
+                <label className="text-xs font-medium">Subjudul</label>
+                <Textarea
+                  value={bannerEditing.subtitle}
+                  onChange={(e) =>
+                    setBannerEditing({
+                      ...bannerEditing,
+                      subtitle: e.target.value,
+                    })
+                  }
+                  rows={2}
+                  placeholder="Kalimat pendukung singkat"
+                />
+              </div>
+              <div className="grid gap-4 sm:grid-cols-2">
+                <div className="space-y-1.5">
+                  <label className="text-xs font-medium">Label CTA</label>
+                  <Input
+                    value={bannerEditing.ctaLabel}
+                    onChange={(e) =>
+                      setBannerEditing({
+                        ...bannerEditing,
+                        ctaLabel: e.target.value,
+                      })
+                    }
+                  />
+                </div>
+                <div className="space-y-1.5">
+                  <label className="text-xs font-medium">Link CTA</label>
+                  <Input
+                    value={bannerEditing.ctaHref}
+                    onChange={(e) =>
+                      setBannerEditing({
+                        ...bannerEditing,
+                        ctaHref: e.target.value,
+                      })
+                    }
+                    placeholder="/site/packages"
+                  />
+                </div>
+              </div>
+              <div className="grid gap-4 sm:grid-cols-2">
+                <div className="space-y-1.5">
+                  <label className="text-xs font-medium">Tayang dari</label>
+                  <Input
+                    type="date"
+                    value={bannerEditing.startAt}
+                    onChange={(e) =>
+                      setBannerEditing({
+                        ...bannerEditing,
+                        startAt: e.target.value,
+                      })
+                    }
+                  />
+                </div>
+                <div className="space-y-1.5">
+                  <label className="text-xs font-medium">Sampai</label>
+                  <Input
+                    type="date"
+                    value={bannerEditing.endAt}
+                    onChange={(e) =>
+                      setBannerEditing({
+                        ...bannerEditing,
+                        endAt: e.target.value,
+                      })
+                    }
+                  />
+                </div>
+              </div>
+              <div className="flex items-center justify-between">
+                <label className="flex items-center gap-2 text-xs font-medium">
+                  <input
+                    type="checkbox"
+                    checked={bannerEditing.active}
+                    onChange={(e) =>
+                      setBannerEditing({
+                        ...bannerEditing,
+                        active: e.target.checked,
+                      })
+                    }
+                    className="h-4 w-4 rounded"
+                  />
+                  Aktif
+                </label>
+                <div className="flex gap-2">
+                  <Button
+                    variant="outline"
+                    onClick={() => setBannerEditing(null)}
+                  >
+                    Batal
+                  </Button>
+                  <Button
+                    onClick={() => {
+                      if (!bannerEditing.title.trim()) return;
+                      setBanners((prev) =>
+                        bannerIsNew
+                          ? [...prev, bannerEditing]
+                          : prev.map((b) =>
+                              b.id === bannerEditing.id ? bannerEditing : b,
+                            ),
+                      );
+                      setBannerEditing(null);
+                      setBannerIsNew(false);
+                    }}
+                  >
+                    <Save className="mr-1.5 h-3.5 w-3.5" />
+                    Simpan
+                  </Button>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+        </div>
+      )}
 
       {/* SEO settings */}
       <Card>
