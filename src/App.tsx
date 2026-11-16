@@ -11,6 +11,7 @@ import DashboardOverview from "@/pages/DashboardOverview";
 import ReportsPage from "@/pages/ReportsPage";
 import PublicSiteShell from "@/components/PublicSiteShell";
 import PublicHome from "@/pages/PublicHome";
+import PublicPromos from "@/pages/PublicPromos";
 
 export default function App() {
   return (
@@ -34,6 +35,7 @@ export default function App() {
       {/* Public website */}
       <Route path="/site" element={<PublicSiteShell />}>
         <Route index element={<PublicHome />} />
+        <Route path="promos" element={<PublicPromos />} />
       </Route>
     </Routes>
   );

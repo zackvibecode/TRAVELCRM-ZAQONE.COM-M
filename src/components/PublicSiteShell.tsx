@@ -6,6 +6,7 @@ import { Button } from "@/components/ui/button";
 const NAV_ITEMS = [
   { to: "/site", label: "Home", end: true },
   { to: "/site/packages", label: "Paket Wisata" },
+  { to: "/site/promos", label: "Promo" },
   { to: "/site/about", label: "Tentang Kami" },
   { to: "/site/contact", label: "Kontak" },
 ];
