@@ -156,3 +156,40 @@ export const departures = sqliteTable(
 
 export type DepartureRow = typeof departures.$inferSelect;
 export type NewDepartureRow = typeof departures.$inferInsert;
+
+// ---------------------------------------------------------------------------
+// Temporary seat holds. A hold reserves seats for a fixed window (expiresAt);
+// expired holds are released (either lazily on read or by a cron). Prevents
+// overbooking by letting callers check `seatsBooked + seatsHeld` before
+// committing a booking.
+// ---------------------------------------------------------------------------
+
+export const seatHolds = sqliteTable(
+  "seat_holds",
+  {
+    id: text("id").primaryKey(),
+    departureId: text("departure_id")
+      .notNull()
+      .references(() => departures.id, { onDelete: "cascade" }),
+    bookingId: text("booking_id"),
+    seatCount: integer("seat_count").notNull().default(1),
+    heldBy: text("held_by"),
+    status: text("status", { enum: ["active", "released", "converted"] })
+      .notNull()
+      .default("active"),
+    expiresAt: text("expires_at").notNull(),
+    createdAt: text("created_at")
+      .notNull()
+      .default(sql`(datetime('now'))`),
+    releasedAt: text("released_at"),
+  },
+  (table) => ({
+    departureIdx: index("seat_holds_departure_idx").on(table.departureId),
+    bookingIdx: index("seat_holds_booking_idx").on(table.bookingId),
+    statusIdx: index("seat_holds_status_idx").on(table.status),
+    expiresIdx: index("seat_holds_expires_idx").on(table.expiresAt),
+  }),
+);
+
+export type SeatHoldRow = typeof seatHolds.$inferSelect;
+export type NewSeatHoldRow = typeof seatHolds.$inferInsert;
