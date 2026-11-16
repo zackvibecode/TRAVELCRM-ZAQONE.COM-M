@@ -4,6 +4,7 @@ import * as schema from "./db/schema";
 import bookingsRouter from "./routes/bookings";
 import passengersRouter from "./routes/passengers";
 import departuresRouter from "./routes/departures";
+import { releaseExpiredHolds } from "./lib/seat-availability";
 
 export type Env = {
   DB: D1Database;
@@ -41,3 +42,14 @@ app.route("/", passengersRouter);
 app.route("/departures", departuresRouter);
 
 export default app;
+
+// Scheduled job: release expired seat holds (run by Cloudflare cron).
+export async function scheduled(
+  _event: ScheduledEvent,
+  env: Env,
+  _ctx: ExecutionContext,
+): Promise<void> {
+  const db = drizzle(env.DB, { schema });
+  const released = await releaseExpiredHolds(db);
+  console.log(`[seat-holds] released ${released} expired hold(s)`);
+}

@@ -11,5 +11,8 @@
       "database_id": "PLACEHOLDER_DATABASE_ID",
       "migrations_dir": "src/server/db/migrations"
     }
-  ]
+  ],
+  "triggers": {
+    "crons": ["*/5 * * * *"]
+  }
 }

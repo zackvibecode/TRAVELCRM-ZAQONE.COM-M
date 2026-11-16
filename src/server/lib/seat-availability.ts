@@ -1,4 +1,4 @@
-import { and, eq, sql } from "drizzle-orm";
+import { and, eq, lt, sql } from "drizzle-orm";
 import type { DrizzleD1Database } from "drizzle-orm/d1";
 import * as schema from "../db/schema";
 
@@ -179,4 +179,35 @@ export async function releaseHold(
   ]);
 
   return { ok: true };
+}
+
+/**
+ * Releases all active holds whose `expires_at` is in the past. Returns the
+ * number of holds released. This is the idempotent job run by the Worker's
+ * `scheduled` handler on a cron.
+ */
+export async function releaseExpiredHolds(
+  db: DrizzleD1Database<typeof schema>,
+  now: Date = new Date(),
+): Promise<number> {
+  const nowIso = now.toISOString();
+
+  const expired = await db
+    .select()
+    .from(schema.seatHolds)
+    .where(
+      and(
+        eq(schema.seatHolds.status, "active"),
+        lt(schema.seatHolds.expiresAt, nowIso),
+      ),
+    )
+    .all();
+
+  let released = 0;
+  for (const hold of expired) {
+    const result = await releaseHold(db, hold.id);
+    if (result.ok) released++;
+  }
+
+  return released;
 }

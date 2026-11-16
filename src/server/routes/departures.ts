@@ -6,6 +6,7 @@ import {
   convertHold,
   getAvailability,
   holdSeats,
+  releaseExpiredHolds,
   releaseHold,
 } from "../lib/seat-availability";
 
@@ -135,6 +136,13 @@ departuresRouter.post("/seat-holds/:id/release", async (c) => {
   }
 
   return c.json({ success: true });
+});
+
+// POST /departures/release-expired — manually release all expired holds.
+departuresRouter.post("/release-expired", async (c) => {
+  const db = c.get("db");
+  const released = await releaseExpiredHolds(db);
+  return c.json({ success: true, released });
 });
 
 export default departuresRouter;
