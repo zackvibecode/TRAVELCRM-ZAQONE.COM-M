@@ -8,7 +8,7 @@ import {
   Sparkles,
 } from "lucide-react";
 import { mockPackages, mockDepartures } from "@/lib/mock-data";
-import { cn } from "@/lib/utils";
+import { cn , formatRinggit } from "@/lib/utils";
 import { applySeo } from "@/lib/site-config";
 import { useLang } from "@/lib/i18n";
 import { Button } from "@/components/ui/button";
@@ -19,11 +19,7 @@ import {
 } from "@/components/ui/card";
 
 function formatRupiah(value: number): string {
-  return new Intl.NumberFormat("id-ID", {
-    style: "currency",
-    currency: "IDR",
-    maximumFractionDigits: 0,
-  }).format(value);
+  return formatRinggit(value);
 }
 
 /** Illustrative promotions derived from published packages — replaced by the

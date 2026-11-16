@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+﻿import { useMemo, useState } from "react";
 import {
   Wallet,
   Banknote,
@@ -35,7 +35,7 @@ import type {
   Refund,
   RefundStatus,
 } from "@/lib/types";
-import { cn, waLink } from "@/lib/utils";
+import { cn, waLink , formatRinggit } from "@/lib/utils";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -55,11 +55,7 @@ import {
 } from "@/components/ui/table";
 
 function formatRupiah(value: number): string {
-  return new Intl.NumberFormat("id-ID", {
-    style: "currency",
-    currency: "IDR",
-    maximumFractionDigits: 0,
-  }).format(value);
+  return formatRinggit(value);
 }
 
 const INVOICE_STATUS_CLASS: Record<InvoiceStatus, string> = {

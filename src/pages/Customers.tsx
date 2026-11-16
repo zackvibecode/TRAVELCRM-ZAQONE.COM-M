@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+﻿import { useMemo, useState } from "react";
 import {
   Users,
   Search,
@@ -13,7 +13,7 @@ import {
 } from "lucide-react";
 import { mockBookings, mockCustomers } from "@/lib/mock-data";
 import type { Booking, Customer } from "@/lib/types";
-import { cn, waLink } from "@/lib/utils";
+import { cn, waLink , formatRinggit } from "@/lib/utils";
 import {
   Card,
   CardContent,
@@ -33,11 +33,7 @@ import {
 } from "@/components/ui/table";
 
 function formatRupiah(value: number): string {
-  return new Intl.NumberFormat("id-ID", {
-    style: "currency",
-    currency: "IDR",
-    maximumFractionDigits: 0,
-  }).format(value);
+  return formatRinggit(value);
 }
 
 function formatDate(iso: string): string {

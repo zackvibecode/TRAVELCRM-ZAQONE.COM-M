@@ -5,12 +5,20 @@ export function cn(...inputs: ClassValue[]) {
   return twMerge(clsx(inputs));
 }
 
-export function formatCurrency(amount: number, currency = "IDR") {
-  return new Intl.NumberFormat("id-ID", {
-    style: "currency",
-    currency,
-    maximumFractionDigits: 0,
-  }).format(amount);
+/**
+ * Formats a value as Ringgit Malaysia (RM).
+ * Mock data is still stored on the legacy rupiah scale, so values are
+ * converted at display time (~Rp 3.000 = RM 1) until the backend phase
+ * stores real MYR amounts.
+ */
+export function formatRinggit(value: number): string {
+  const rm = Math.round(value / 3000);
+  return `RM ${new Intl.NumberFormat("ms-MY").format(rm)}`;
+}
+
+/** Currency display helper — all amounts are shown as RM (Ringgit Malaysia). */
+export function formatCurrency(amount: number): string {
+  return formatRinggit(amount);
 }
 
 export function formatDate(date: string | Date) {

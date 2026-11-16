@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+﻿import { useMemo, useState } from "react";
 import {
   Bell,
   CheckCircle2,
@@ -7,7 +7,7 @@ import {
   Send,
 } from "lucide-react";
 import type { Invoice, PaymentReminder, ReminderChannel } from "@/lib/types";
-import { cn } from "@/lib/utils";
+import { cn , formatRinggit } from "@/lib/utils";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
@@ -19,11 +19,7 @@ import {
 } from "@/components/ui/card";
 
 function formatRupiah(value: number): string {
-  return new Intl.NumberFormat("id-ID", {
-    style: "currency",
-    currency: "IDR",
-    maximumFractionDigits: 0,
-  }).format(value);
+  return formatRinggit(value);
 }
 
 function daysUntil(dateStr: string): number {

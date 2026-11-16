@@ -1,4 +1,4 @@
-import { useMemo } from "react";
+﻿import { useMemo } from "react";
 import {
   Users,
   UserPlus,
@@ -17,7 +17,7 @@ import {
   mockLeads,
 } from "@/lib/mock-data";
 import type { Booking } from "@/lib/types";
-import { cn } from "@/lib/utils";
+import { cn , formatRinggit } from "@/lib/utils";
 import { useLang } from "@/lib/i18n";
 import { Badge } from "@/components/ui/badge";
 import {
@@ -30,18 +30,15 @@ import SalesPerformanceTable from "@/components/SalesPerformanceTable";
 import AlertsPanel from "@/components/AlertsPanel";
 
 function formatRupiah(value: number): string {
-  return new Intl.NumberFormat("id-ID", {
-    style: "currency",
-    currency: "IDR",
-    maximumFractionDigits: 0,
-  }).format(value);
+  return formatRinggit(value);
 }
 
 function formatCompact(value: number): string {
-  return new Intl.NumberFormat("id-ID", {
+  const rm = Math.round(value / 3000);
+  return `RM ${new Intl.NumberFormat("ms-MY", {
     notation: "compact",
     maximumFractionDigits: 1,
-  }).format(value);
+  }).format(rm)}`;
 }
 
 const MONTH_LABELS = [

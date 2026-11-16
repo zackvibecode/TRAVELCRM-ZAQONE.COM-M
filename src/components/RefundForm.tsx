@@ -1,6 +1,7 @@
-import { useState } from "react";
+﻿import { useState } from "react";
 import { Save } from "lucide-react";
 import type { Invoice } from "@/lib/types";
+import { formatRinggit } from "@/lib/utils";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -13,11 +14,7 @@ import {
 } from "@/components/ui/card";
 
 function formatRupiah(value: number): string {
-  return new Intl.NumberFormat("id-ID", {
-    style: "currency",
-    currency: "IDR",
-    maximumFractionDigits: 0,
-  }).format(value);
+  return formatRinggit(value);
 }
 
 interface RefundFormProps {
@@ -53,7 +50,7 @@ export default function RefundForm({
         <div className="grid grid-cols-2 gap-3">
           <div className="space-y-1.5">
             <label className="text-xs font-medium text-muted-foreground">
-              Jumlah Refund (Rp) *
+              Jumlah Bayaran Balik (RM) *
             </label>
             <Input
               type="number"

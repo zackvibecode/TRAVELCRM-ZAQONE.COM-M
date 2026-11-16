@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+﻿import { useEffect, useState } from "react";
 import * as DialogPrimitive from "@radix-ui/react-dialog";
 import {
   MessageCircle,
@@ -16,7 +16,7 @@ import {
   type LeadActivity,
   type LeadStage,
 } from "@/lib/types";
-import { waLink } from "@/lib/utils";
+import { waLink , formatRinggit } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 
 const ACTIVITY_ICONS: Record<LeadActivity["type"], string> = {
@@ -35,11 +35,7 @@ const ACTIVITY_TYPE_OPTIONS: LeadActivity["type"][] = [
 ];
 
 function formatRupiah(value: number): string {
-  return new Intl.NumberFormat("id-ID", {
-    style: "currency",
-    currency: "IDR",
-    maximumFractionDigits: 0,
-  }).format(value);
+  return formatRinggit(value);
 }
 
 function formatDateTime(iso: string): string {

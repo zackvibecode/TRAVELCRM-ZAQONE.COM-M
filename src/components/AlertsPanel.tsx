@@ -1,4 +1,4 @@
-import { useMemo } from "react";
+﻿import { useMemo } from "react";
 import {
   AlertCircle,
   Clock,
@@ -11,7 +11,7 @@ import {
   mockLeads,
   mockPayments,
 } from "@/lib/mock-data";
-import { cn } from "@/lib/utils";
+import { cn , formatRinggit } from "@/lib/utils";
 import { useLang } from "@/lib/i18n";
 import {
   Card,
@@ -21,11 +21,7 @@ import {
 } from "@/components/ui/card";
 
 function formatRupiah(value: number): string {
-  return new Intl.NumberFormat("id-ID", {
-    style: "currency",
-    currency: "IDR",
-    maximumFractionDigits: 0,
-  }).format(value);
+  return formatRinggit(value);
 }
 
 interface AlertItem {

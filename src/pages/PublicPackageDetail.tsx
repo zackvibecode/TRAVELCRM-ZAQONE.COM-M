@@ -1,4 +1,4 @@
-import { useMemo } from "react";
+﻿import { useMemo } from "react";
 import { Link, useParams } from "react-router-dom";
 import {
   MapPin,
@@ -12,6 +12,7 @@ import {
 } from "lucide-react";
 import { mockDepartures, mockPackages } from "@/lib/mock-data";
 import { useLang } from "@/lib/i18n";
+import { formatRinggit } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import {
@@ -22,11 +23,7 @@ import {
 } from "@/components/ui/card";
 
 function formatRupiah(value: number): string {
-  return new Intl.NumberFormat("id-ID", {
-    style: "currency",
-    currency: "IDR",
-    maximumFractionDigits: 0,
-  }).format(value);
+  return formatRinggit(value);
 }
 
 export default function PublicPackageDetail() {

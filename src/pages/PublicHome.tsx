@@ -1,8 +1,8 @@
-import { Link } from "react-router-dom";
+﻿import { Link } from "react-router-dom";
 import { useEffect, useMemo } from "react";
 import { MapPin, CalendarDays, Users, ShieldCheck, Headset, Sparkles, ArrowRight, Megaphone } from "lucide-react";
 import { mockPackages } from "@/lib/mock-data";
-import { cn } from "@/lib/utils";
+import { cn , formatRinggit } from "@/lib/utils";
 import { activeBanners, applySeo } from "@/lib/site-config";
 import { useLang } from "@/lib/i18n";
 import { Button } from "@/components/ui/button";
@@ -13,11 +13,7 @@ import {
 } from "@/components/ui/card";
 
 function formatRupiah(value: number): string {
-  return new Intl.NumberFormat("id-ID", {
-    style: "currency",
-    currency: "IDR",
-    maximumFractionDigits: 0,
-  }).format(value);
+  return formatRinggit(value);
 }
 
 const HERO_STATS = [

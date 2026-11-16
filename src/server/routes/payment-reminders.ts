@@ -76,7 +76,7 @@ paymentRemindersRouter.get(
           .replaceAll("{invoice}", invoice.number)
           .replaceAll(
             "{balance}",
-            `Rp ${new Intl.NumberFormat("id-ID").format(invoice.balanceDue)}`,
+            `RM ${new Intl.NumberFormat("ms-MY").format(Math.round(invoice.balanceDue / 3000))}`,
           )
           .replaceAll("{due}", invoice.dueDate ?? "—"),
       };

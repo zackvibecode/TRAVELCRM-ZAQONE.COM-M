@@ -1,7 +1,7 @@
-import { useMemo } from "react";
+﻿import { useMemo } from "react";
 import { Trophy, Target, TrendingUp } from "lucide-react";
 import { mockBookings, mockLeads } from "@/lib/mock-data";
-import { cn } from "@/lib/utils";
+import { cn , formatRinggit } from "@/lib/utils";
 import { useLang } from "@/lib/i18n";
 import {
   Card,
@@ -19,11 +19,7 @@ import {
 } from "@/components/ui/table";
 
 function formatRupiah(value: number): string {
-  return new Intl.NumberFormat("id-ID", {
-    style: "currency",
-    currency: "IDR",
-    maximumFractionDigits: 0,
-  }).format(value);
+  return formatRinggit(value);
 }
 
 /** Monthly sales target per agent (Rp) — illustrative until the targets

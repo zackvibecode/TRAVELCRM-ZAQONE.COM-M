@@ -557,12 +557,10 @@ invoicesRouter.get(
       .orderBy(asc(schema.invoiceItems.sortOrder))
       .all();
 
-    const idr = (n: number) =>
-      new Intl.NumberFormat("id-ID", {
-        style: "currency",
-        currency: "IDR",
-        maximumFractionDigits: 0,
-      }).format(n);
+    const idr = (n: number) => {
+      const rm = Math.round(n / 3000);
+      return `RM ${new Intl.NumberFormat("ms-MY").format(rm)}`;
+    };
 
     const html = `<!doctype html>
 <html lang="id">

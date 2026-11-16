@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+﻿import { useMemo, useState } from "react";
 import {
   FileText,
   Download,
@@ -9,7 +9,7 @@ import {
   BedDouble,
 } from "lucide-react";
 import { mockBookings, mockInvoices, mockLeads } from "@/lib/mock-data";
-import { cn } from "@/lib/utils";
+import { cn , formatRinggit } from "@/lib/utils";
 import { useLang } from "@/lib/i18n";
 import { Button } from "@/components/ui/button";
 import {
@@ -28,11 +28,7 @@ import {
 } from "@/components/ui/table";
 
 function formatRupiah(value: number): string {
-  return new Intl.NumberFormat("id-ID", {
-    style: "currency",
-    currency: "IDR",
-    maximumFractionDigits: 0,
-  }).format(value);
+  return formatRinggit(value);
 }
 
 type ReportKind = "sales" | "finance" | "occupancy" | "staff";

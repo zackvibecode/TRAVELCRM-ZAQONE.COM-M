@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+﻿import { useMemo, useState } from "react";
 import {
   Users,
   Search,
@@ -17,7 +17,7 @@ import {
   type LeadStage,
   type LeadSource,
 } from "@/lib/types";
-import { cn, waLink } from "@/lib/utils";
+import { cn, waLink , formatRinggit } from "@/lib/utils";
 import LeadDetailDrawer from "@/components/LeadDetailDrawer";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -47,11 +47,7 @@ const SOURCE_LABELS: Record<LeadSource, string> = {
 };
 
 function formatRupiah(value: number): string {
-  return new Intl.NumberFormat("id-ID", {
-    style: "currency",
-    currency: "IDR",
-    maximumFractionDigits: 0,
-  }).format(value);
+  return formatRinggit(value);
 }
 
 function stageBadgeClass(stage: LeadStage): string {
