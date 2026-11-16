@@ -10,10 +10,15 @@ import {
   Clock,
   FileText,
   Undo2,
+  ClipboardList,
+  Send,
+  ThumbsUp,
+  ThumbsDown,
+  XCircle,
 } from "lucide-react";
-import { mockInvoices, mockPayments, mockRefunds } from "@/lib/mock-data";
-import type { Invoice, InvoiceStatus } from "@/lib/types";
-import { cn } from "@/lib/utils";
+import { mockInvoices, mockPayments, mockRefunds, mockQuotations } from "@/lib/mock-data";
+import type { Invoice, InvoiceStatus, Quotation, QuotationStatus } from "@/lib/types";
+import { cn, waLink } from "@/lib/utils";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -64,13 +69,25 @@ const REFUND_STATUS_CLASS: Record<string, string> = {
   rejected: "bg-red-50 text-red-700 border-red-200",
 };
 
-type Tab = "invoices" | "payments" | "refunds";
+const QUOTATION_STATUS_CLASS: Record<QuotationStatus, string> = {
+  draft: "bg-slate-50 text-slate-700 border-slate-200",
+  sent: "bg-blue-50 text-blue-700 border-blue-200",
+  accepted: "bg-green-50 text-green-700 border-green-200",
+  rejected: "bg-red-50 text-red-700 border-red-200",
+  expired: "bg-zinc-100 text-zinc-500 border-zinc-200",
+};
+
+type Tab = "invoices" | "quotations" | "payments" | "refunds";
 
 export default function BillingWorkspace() {
   const [invoices, setInvoices] = useState<Invoice[]>(mockInvoices);
+  const [quotations, setQuotations] = useState<Quotation[]>(mockQuotations);
   const [tab, setTab] = useState<Tab>("invoices");
   const [search, setSearch] = useState("");
   const [statusFilter, setStatusFilter] = useState<"all" | InvoiceStatus>("all");
+  const [quotationStatusFilter, setQuotationStatusFilter] = useState<
+    "all" | QuotationStatus
+  >("all");
   const [selectedInvoice, setSelectedInvoice] = useState<Invoice | null>(null);
 
   const filteredInvoices = useMemo(() => {
@@ -89,6 +106,24 @@ export default function BillingWorkspace() {
       return true;
     });
   }, [invoices, search, statusFilter]);
+
+  const filteredQuotations = useMemo(() => {
+    const q = search.toLowerCase();
+    return quotations.filter((qt) => {
+      if (q) {
+        if (
+          !qt.number.toLowerCase().includes(q) &&
+          !qt.customerName.toLowerCase().includes(q) &&
+          !qt.packageName.toLowerCase().includes(q)
+        ) {
+          return false;
+        }
+      }
+      if (quotationStatusFilter !== "all" && qt.status !== quotationStatusFilter)
+        return false;
+      return true;
+    });
+  }, [quotations, search, quotationStatusFilter]);
 
   const filteredPayments = useMemo(() => {
     const q = search.toLowerCase();
@@ -142,6 +177,15 @@ export default function BillingWorkspace() {
       }),
     );
     setSelectedInvoice(null);
+  }
+
+  function updateQuotationStatus(
+    quotationId: string,
+    status: QuotationStatus,
+  ) {
+    setQuotations((prev) =>
+      prev.map((qt) => (qt.id === quotationId ? { ...qt, status } : qt)),
+    );
   }
 
   return (
@@ -220,6 +264,7 @@ export default function BillingWorkspace() {
           {(
             [
               ["invoices", "Invoices", Receipt],
+              ["quotations", "Quotations", ClipboardList],
               ["payments", "Payments", Banknote],
               ["refunds", "Refunds", Undo2],
             ] as const
@@ -258,6 +303,24 @@ export default function BillingWorkspace() {
               <option value="paid">Paid</option>
               <option value="overdue">Overdue</option>
               <option value="void">Void</option>
+            </select>
+          )}
+          {tab === "quotations" && (
+            <select
+              value={quotationStatusFilter}
+              onChange={(e) =>
+                setQuotationStatusFilter(
+                  e.target.value as "all" | QuotationStatus,
+                )
+              }
+              className="h-9 rounded-md border border-input bg-background px-3 text-sm"
+            >
+              <option value="all">Semua Status</option>
+              <option value="draft">Draft</option>
+              <option value="sent">Sent</option>
+              <option value="accepted">Accepted</option>
+              <option value="rejected">Rejected</option>
+              <option value="expired">Expired</option>
             </select>
           )}
           <div className="relative sm:w-72">
@@ -542,6 +605,146 @@ export default function BillingWorkspace() {
             </Card>
           )}
         </div>
+      )}
+
+      {/* Quotations tab */}
+      {tab === "quotations" && (
+        <Card>
+          <CardContent className="p-0">
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>Nomor</TableHead>
+                  <TableHead>Customer</TableHead>
+                  <TableHead>Paket</TableHead>
+                  <TableHead>Pax</TableHead>
+                  <TableHead>Berangkat</TableHead>
+                  <TableHead>Total</TableHead>
+                  <TableHead>Berlaku s.d.</TableHead>
+                  <TableHead>Status</TableHead>
+                  <TableHead className="text-right">Aksi</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {filteredQuotations.map((qt) => (
+                  <TableRow key={qt.id}>
+                    <TableCell className="font-medium">{qt.number}</TableCell>
+                    <TableCell>
+                      <p className="text-sm">{qt.customerName}</p>
+                      <a
+                        href={waLink(qt.customerPhone)}
+                        target="_blank"
+                        rel="noreferrer"
+                        className="text-xs text-green-600 hover:underline"
+                      >
+                        WhatsApp
+                      </a>
+                    </TableCell>
+                    <TableCell className="max-w-40 truncate text-xs text-muted-foreground">
+                      {qt.packageName}
+                    </TableCell>
+                    <TableCell className="text-xs">
+                      {qt.paxAdult + qt.paxChild + qt.paxInfant} pax
+                    </TableCell>
+                    <TableCell className="text-xs">{qt.departureDate}</TableCell>
+                    <TableCell className="text-sm font-medium">
+                      {formatRupiah(qt.total)}
+                    </TableCell>
+                    <TableCell className="text-xs">{qt.validUntil}</TableCell>
+                    <TableCell>
+                      <Badge
+                        variant="outline"
+                        className={QUOTATION_STATUS_CLASS[qt.status]}
+                      >
+                        {qt.status}
+                      </Badge>
+                    </TableCell>
+                    <TableCell className="text-right">
+                      <div className="flex items-center justify-end gap-1">
+                        {qt.status === "draft" && (
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            className="h-8 gap-1"
+                            onClick={() =>
+                              updateQuotationStatus(qt.id, "sent")
+                            }
+                          >
+                            <Send className="h-3.5 w-3.5" />
+                            Kirim
+                          </Button>
+                        )}
+                        {qt.status === "sent" && (
+                          <>
+                            <Button
+                              size="sm"
+                              variant="outline"
+                              className="h-8 gap-1 border-green-200 text-green-700 hover:bg-green-50"
+                              onClick={() =>
+                                updateQuotationStatus(qt.id, "accepted")
+                              }
+                            >
+                              <ThumbsUp className="h-3.5 w-3.5" />
+                              Terima
+                            </Button>
+                            <Button
+                              size="sm"
+                              variant="outline"
+                              className="h-8 gap-1 border-red-200 text-red-700 hover:bg-red-50"
+                              onClick={() =>
+                                updateQuotationStatus(qt.id, "rejected")
+                              }
+                            >
+                              <ThumbsDown className="h-3.5 w-3.5" />
+                              Tolak
+                            </Button>
+                          </>
+                        )}
+                        {qt.status === "accepted" && (
+                          <Button
+                            size="sm"
+                            className="h-8 gap-1"
+                            onClick={() =>
+                              updateQuotationStatus(qt.id, "accepted")
+                            }
+                            title="Convert ke booking & invoice (backend phase)"
+                          >
+                            <FileText className="h-3.5 w-3.5" />
+                            Convert
+                          </Button>
+                        )}
+                        {(qt.status === "rejected" ||
+                          qt.status === "expired") && (
+                          <Button
+                            size="sm"
+                            variant="ghost"
+                            className="h-8 gap-1 text-muted-foreground"
+                            onClick={() =>
+                              updateQuotationStatus(qt.id, "draft")
+                            }
+                          >
+                            <XCircle className="h-3.5 w-3.5" />
+                            Reopen
+                          </Button>
+                        )}
+                      </div>
+                    </TableCell>
+                  </TableRow>
+                ))}
+                {filteredQuotations.length === 0 && (
+                  <TableRow>
+                    <TableCell
+                      colSpan={9}
+                      className="h-24 text-center text-muted-foreground"
+                    >
+                      Tidak ada quotation yang cocok.
+                    </TableCell>
+                  </TableRow>
+                )}
+              </TableBody>
+            </Table>
+          </CardContent>
+        </Card>
       )}
 
       {/* Payments tab */}

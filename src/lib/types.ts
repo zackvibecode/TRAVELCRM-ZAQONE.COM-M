@@ -273,6 +273,33 @@ export interface Refund {
   processedAt?: string;
 }
 
+// ---------------------------------------------------------------------------
+// Quotations — pre-booking price proposals that can convert to bookings.
+// ---------------------------------------------------------------------------
+
+export type QuotationStatus = "draft" | "sent" | "accepted" | "rejected" | "expired";
+
+export interface Quotation {
+  id: string;
+  number: string; // e.g. QTN-2026-0001
+  customerName: string;
+  customerPhone: string;
+  packageName: string;
+  destination: string;
+  paxAdult: number;
+  paxChild: number;
+  paxInfant: number;
+  departureDate: string;
+  status: QuotationStatus;
+  validUntil: string;
+  subtotal: number;
+  discount: number;
+  total: number;
+  createdBy: string;
+  createdAt: string;
+  notes?: string;
+}
+
 export interface LeadActivity {
   id: string;
   at: string;
