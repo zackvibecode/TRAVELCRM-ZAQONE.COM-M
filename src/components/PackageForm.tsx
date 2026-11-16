@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
-import type { TravelPackage } from "@/lib/types";
+import type { ItineraryDay, TravelPackage } from "@/lib/types";
 import InclusionsExclusionsEditor from "@/components/InclusionsExclusionsEditor";
+import HighlightsItineraryBuilder from "@/components/HighlightsItineraryBuilder";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -30,6 +31,8 @@ interface FormValues {
   infantPrice: number;
   inclusions: string[];
   exclusions: string[];
+  highlights: string[];
+  itinerary: ItineraryDay[];
 }
 
 const EMPTY: FormValues = {
@@ -41,6 +44,8 @@ const EMPTY: FormValues = {
   infantPrice: 0,
   inclusions: [],
   exclusions: [],
+  highlights: [],
+  itinerary: [],
 };
 
 export default function PackageForm({
@@ -64,6 +69,8 @@ export default function PackageForm({
               infantPrice: existing.infantPrice,
               inclusions: existing.inclusions,
               exclusions: existing.exclusions ?? [],
+              highlights: existing.highlights ?? [],
+              itinerary: existing.itinerary ?? [],
             }
           : EMPTY,
       );
@@ -87,6 +94,8 @@ export default function PackageForm({
       infantPrice: Math.max(0, values.infantPrice),
       inclusions: values.inclusions,
       exclusions: values.exclusions,
+      highlights: values.highlights,
+      itinerary: values.itinerary,
     });
     onOpenChange(false);
   }
@@ -175,6 +184,14 @@ export default function PackageForm({
             exclusions={values.exclusions}
             onChange={(inclusions, exclusions) =>
               setValues((prev) => ({ ...prev, inclusions, exclusions }))
+            }
+          />
+
+          <HighlightsItineraryBuilder
+            highlights={values.highlights}
+            itinerary={values.itinerary}
+            onChange={(highlights, itinerary) =>
+              setValues((prev) => ({ ...prev, highlights, itinerary }))
             }
           />
         </div>

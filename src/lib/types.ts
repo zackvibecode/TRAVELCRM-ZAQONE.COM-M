@@ -17,6 +17,12 @@ export interface Customer {
   email: string;
 }
 
+export interface ItineraryDay {
+  day: number;
+  title: string;
+  description: string;
+}
+
 export interface TravelPackage {
   id: string;
   name: string;
@@ -27,6 +33,8 @@ export interface TravelPackage {
   infantPrice: number;
   inclusions: string[];
   exclusions?: string[];
+  highlights?: string[];
+  itinerary?: ItineraryDay[];
   status?: "active" | "archived";
 }
 

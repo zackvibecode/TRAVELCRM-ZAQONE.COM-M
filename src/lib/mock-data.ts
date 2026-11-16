@@ -30,6 +30,12 @@ export const mockPackages: TravelPackage[] = [
     infantPrice: 3000000,
     inclusions: ["Return flight", "4-star hotel", "Daily breakfast", "Tour guide", "Travel insurance"],
     exclusions: ["Visa fee", "Personal expenses", "Optional tours"],
+    highlights: ["Sakura viewing", "Mount Fuji day trip", "Osaka food tour"],
+    itinerary: [
+      { day: 1, title: "Arrival in Tokyo", description: "Airport pickup and hotel check-in." },
+      { day: 2, title: "Tokyo city tour", description: "Asakusa, Shibuya and Meiji Shrine." },
+      { day: 3, title: "Mount Fuji", description: "Day trip to Mount Fuji and Lake Kawaguchi." },
+    ],
   },
   {
     id: "pk2",
@@ -41,6 +47,11 @@ export const mockPackages: TravelPackage[] = [
     infantPrice: 1500000,
     inclusions: ["Return flight", "Villa accommodation", "Daily breakfast", "Airport transfer"],
     exclusions: ["Lunch & dinner", "Personal expenses"],
+    highlights: ["Ubud rice terraces", "Nusa Penida day trip"],
+    itinerary: [
+      { day: 1, title: "Arrival in Bali", description: "Airport transfer to villa." },
+      { day: 2, title: "Ubud tour", description: "Rice terraces and monkey forest." },
+    ],
   },
   {
     id: "pk3",
