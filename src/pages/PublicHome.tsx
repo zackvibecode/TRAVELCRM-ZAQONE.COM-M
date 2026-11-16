@@ -49,12 +49,14 @@ const VALUE_PROPS = [
 ];
 
 export default function PublicHome() {
-  const featured = mockPackages.filter((p) => p.published).slice(0, 3);
+  const featured = mockPackages
+    .filter((p) => p.status !== "archived" && p.published !== false)
+    .slice(0, 3);
 
   const destinations = useMemo(() => {
     const byDest = new Map<string, number>();
     for (const p of mockPackages) {
-      if (p.published === false) continue;
+      if (p.status === "archived" || p.published === false) continue;
       byDest.set(p.destination, (byDest.get(p.destination) ?? 0) + 1);
     }
     const list = [...byDest.entries()]

@@ -12,6 +12,7 @@ import ReportsPage from "@/pages/ReportsPage";
 import PublicSiteShell from "@/components/PublicSiteShell";
 import PublicHome from "@/pages/PublicHome";
 import PublicPromos from "@/pages/PublicPromos";
+import PublicPackages from "@/pages/PublicPackages";
 import WebsiteManager from "@/pages/WebsiteManager";
 
 export default function App() {
@@ -34,6 +35,7 @@ export default function App() {
       <Route path="/site" element={<PublicSiteShell />}>
         <Route index element={<PublicHome />} />
         <Route path="promos" element={<PublicPromos />} />
+        <Route path="packages" element={<PublicPackages />} />
       </Route>
     </Routes>
   );

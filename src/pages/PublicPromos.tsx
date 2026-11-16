@@ -56,7 +56,9 @@ const PROMO_TYPES = [
 ];
 
 export default function PublicPromos() {
-  const published = mockPackages.filter((p) => p.published);
+  const published = mockPackages.filter(
+    (p) => p.status !== "archived" && p.published !== false,
+  );
   const today = new Date().toISOString().slice(0, 10);
   const upcomingDepartures = mockDepartures
     .filter((d) => d.departureDate >= today)

@@ -91,7 +91,10 @@ export default function WebsiteManager() {
   const publishedCount = pages.filter((p) => p.status === "published").length;
 
   const publishedPackages = useMemo(
-    () => mockPackages.filter((p) => p.published),
+    () =>
+      mockPackages.filter(
+        (p) => p.status !== "archived" && p.published !== false,
+      ),
     [],
   );
 
