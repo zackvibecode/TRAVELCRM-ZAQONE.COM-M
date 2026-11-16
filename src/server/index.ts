@@ -13,6 +13,7 @@ import customersRouter from "./routes/customers";
 import leadSourcesRouter from "./routes/lead-sources";
 import quotationsRouter from "./routes/quotations";
 import invoicesRouter from "./routes/invoices";
+import paymentsRouter from "./routes/payments";
 import { releaseExpiredHolds } from "./lib/seat-availability";
 
 export type Env = {
@@ -59,6 +60,7 @@ app.route("/customers", customersRouter);
 app.route("/lead-sources", leadSourcesRouter);
 app.route("/quotations", quotationsRouter);
 app.route("/invoices", invoicesRouter);
+app.route("/payments", paymentsRouter);
 
 export default app;
 
