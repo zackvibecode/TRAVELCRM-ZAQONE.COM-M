@@ -12,6 +12,7 @@ import ReportsPage from "@/pages/ReportsPage";
 import PublicSiteShell from "@/components/PublicSiteShell";
 import PublicHome from "@/pages/PublicHome";
 import PublicPromos from "@/pages/PublicPromos";
+import WebsiteManager from "@/pages/WebsiteManager";
 
 export default function App() {
   return (
@@ -25,10 +26,7 @@ export default function App() {
         <Route path="/customers" element={<Customers />} />
         <Route path="/billing" element={<BillingWorkspace />} />
         <Route path="/reports" element={<ReportsPage />} />
-        <Route
-          path="/website"
-          element={<Placeholder title="Website Manager" />}
-        />
+        <Route path="/website" element={<WebsiteManager />} />
         <Route path="/settings" element={<Placeholder title="Settings" />} />
       </Route>
 
