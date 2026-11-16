@@ -1533,4 +1533,115 @@ packagesRouter.post(
   },
 );
 
+// GET /public/packages — public catalogue for the website.
+// Only ever returns published (non-archived) packages; supports q (name or
+// destination search), destination, sort (name|price), and pagination.
+// No authentication required — this is the public storefront listing.
+packagesRouter.get("/public/packages", async (c) => {
+  const db = c.get("db");
+  const q = c.req.query("q");
+  const destination = c.req.query("destination");
+  const sort = c.req.query("sort") ?? "name";
+  const order = c.req.query("order") === "desc" ? "desc" : "asc";
+  const limit = Math.min(Math.max(Number(c.req.query("limit") ?? 50), 1), 100);
+  const offset = Math.max(Number(c.req.query("offset") ?? 0), 0);
+
+  const conditions = [eq(schema.packages.publishStatus, "published")];
+  if (q) {
+    const pattern = `%${q}%`;
+    conditions.push(
+      or(
+        like(schema.packages.name, pattern),
+        like(schema.packages.destination, pattern),
+      )!,
+    );
+  }
+  if (destination) {
+    conditions.push(eq(schema.packages.destination, destination));
+  }
+
+  const orderBy =
+    sort === "price"
+      ? schema.packages.adultPrice
+      : schema.packages.name;
+
+  // Public payload: only fields the website needs — no internal audit data.
+  const rows = await db
+    .select({
+      id: schema.packages.id,
+      name: schema.packages.name,
+      destination: schema.packages.destination,
+      durationDays: schema.packages.durationDays,
+      description: schema.packages.description,
+      highlights: schema.packages.highlights,
+      inclusions: schema.packages.inclusions,
+      exclusions: schema.packages.exclusions,
+      adultPrice: schema.packages.adultPrice,
+      childPrice: schema.packages.childPrice,
+      infantPrice: schema.packages.infantPrice,
+      coverImageUrl: schema.packages.coverImageUrl,
+      images: schema.packages.images,
+      pdfUrl: schema.packages.pdfUrl,
+      createdAt: schema.packages.createdAt,
+      updatedAt: schema.packages.updatedAt,
+    })
+    .from(schema.packages)
+    .where(and(...conditions))
+    .orderBy(order === "asc" ? asc(orderBy) : desc(orderBy))
+    .limit(limit)
+    .offset(offset)
+    .all();
+
+  return c.json({ success: true, packages: rows });
+});
+
+// GET /public/packages/:id — public package detail, published only.
+packagesRouter.get("/public/packages/:id", async (c) => {
+  const db = c.get("db");
+  const id = c.req.param("id");
+
+  const pkg = await db
+    .select()
+    .from(schema.packages)
+    .where(eq(schema.packages.id, id))
+    .get();
+  if (!pkg || pkg.publishStatus !== "published") {
+    return c.json({ success: false, error: "Package not found" }, 404);
+  }
+
+  const [itinerary, media, departureDates] = await Promise.all([
+    db
+      .select()
+      .from(schema.packageItineraryItems)
+      .where(eq(schema.packageItineraryItems.packageId, id))
+      .orderBy(asc(schema.packageItineraryItems.dayNumber))
+      .all(),
+    db
+      .select()
+      .from(schema.packageMedia)
+      .where(eq(schema.packageMedia.packageId, id))
+      .orderBy(asc(schema.packageMedia.sortOrder))
+      .all(),
+    db
+      .select()
+      .from(schema.packageDepartureDates)
+      .where(
+        and(
+          eq(schema.packageDepartureDates.packageId, id),
+          eq(schema.packageDepartureDates.published, true),
+        ),
+      )
+      .orderBy(asc(schema.packageDepartureDates.departureDate))
+      .all(),
+  ]);
+
+  return c.json({
+    success: true,
+    package: pkg,
+    itinerary,
+    media,
+    departureDates,
+  });
+});
+
 export default packagesRouter;
