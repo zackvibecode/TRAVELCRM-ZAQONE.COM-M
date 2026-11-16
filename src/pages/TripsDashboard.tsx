@@ -2,8 +2,6 @@ import { useMemo, useState } from "react";
 import {
   CalendarDays,
   Plane,
-  Users,
-  Armchair,
   Search,
   List,
 } from "lucide-react";
@@ -15,6 +13,7 @@ import {
 import { cn, formatCurrency, formatDate } from "@/lib/utils";
 import DepartureCalendar from "@/components/DepartureCalendar";
 import DepartureDetail from "@/components/DepartureDetail";
+import SeatAvailabilitySummary from "@/components/SeatAvailabilitySummary";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
@@ -29,8 +28,6 @@ import {
 import {
   Card,
   CardContent,
-  CardHeader,
-  CardTitle,
 } from "@/components/ui/card";
 
 function departureBadgeVariant(
@@ -106,19 +103,6 @@ export default function TripsDashboard() {
     });
   }, [search]);
 
-  const totals = useMemo(() => {
-    const capacity = mockDepartures.reduce(
-      (s, d) => s + d.seatCapacity,
-      0,
-    );
-    const booked = mockDepartures.reduce((s, d) => s + d.seatsBooked, 0);
-    const held = mockDepartures.reduce((s, d) => s + d.seatsHeld, 0);
-    const active = mockDepartures.filter(
-      (d) => d.status !== "closed" && d.status !== "full",
-    ).length;
-    return { capacity, booked, held, available: capacity - booked - held, active };
-  }, []);
-
   return (
     <div className="space-y-6">
       <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
@@ -136,60 +120,8 @@ export default function TripsDashboard() {
         </Button>
       </div>
 
-      {/* KPI cards */}
-      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
-        <Card>
-          <CardHeader className="pb-2">
-            <CardTitle className="flex items-center gap-2 text-sm font-medium text-muted-foreground">
-              <CalendarDays className="h-4 w-4" />
-              Active Departures
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="text-3xl font-bold">{totals.active}</div>
-          </CardContent>
-        </Card>
-        <Card>
-          <CardHeader className="pb-2">
-            <CardTitle className="flex items-center gap-2 text-sm font-medium text-muted-foreground">
-              <Armchair className="h-4 w-4" />
-              Total Seats
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="text-3xl font-bold">{totals.capacity}</div>
-          </CardContent>
-        </Card>
-        <Card>
-          <CardHeader className="pb-2">
-            <CardTitle className="flex items-center gap-2 text-sm font-medium text-muted-foreground">
-              <Users className="h-4 w-4" />
-              Booked + Held
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="text-3xl font-bold">
-              {totals.booked + totals.held}
-            </div>
-            <div className="text-xs text-muted-foreground">
-              {totals.booked} booked · {totals.held} held
-            </div>
-          </CardContent>
-        </Card>
-        <Card>
-          <CardHeader className="pb-2">
-            <CardTitle className="flex items-center gap-2 text-sm font-medium text-muted-foreground">
-              <Plane className="h-4 w-4" />
-              Available Seats
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="text-3xl font-bold text-emerald-600">
-              {totals.available}
-            </div>
-          </CardContent>
-        </Card>
-      </div>
+      {/* Seat availability summary cards */}
+      <SeatAvailabilitySummary />
 
       {/* Search + view toggle */}
       <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
