@@ -9,6 +9,8 @@ import BillingWorkspace from "@/pages/BillingWorkspace";
 import Placeholder from "@/pages/Placeholder";
 import DashboardOverview from "@/pages/DashboardOverview";
 import ReportsPage from "@/pages/ReportsPage";
+import PublicSiteShell from "@/components/PublicSiteShell";
+import PublicHome from "@/pages/PublicHome";
 
 export default function App() {
   return (
@@ -27,6 +29,11 @@ export default function App() {
           element={<Placeholder title="Website Manager" />}
         />
         <Route path="/settings" element={<Placeholder title="Settings" />} />
+      </Route>
+
+      {/* Public website */}
+      <Route path="/site" element={<PublicSiteShell />}>
+        <Route index element={<PublicHome />} />
       </Route>
     </Routes>
   );
