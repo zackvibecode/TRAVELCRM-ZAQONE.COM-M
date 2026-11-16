@@ -207,6 +207,39 @@ export default function LeadsPipeline() {
     [leads],
   );
 
+  // Per-source summary: lead count + open pipeline value per source.
+  const sourceSummary = useMemo(() => {
+    const map = new Map<
+      LeadSource,
+      { count: number; openCount: number; pipelineValue: number; won: number }
+    >();
+    for (const lead of leads) {
+      const entry = map.get(lead.source) ?? {
+        count: 0,
+        openCount: 0,
+        pipelineValue: 0,
+        won: 0,
+      };
+      entry.count += 1;
+      if (lead.stage !== "won" && lead.stage !== "lost") {
+        entry.openCount += 1;
+        entry.pipelineValue += lead.budget;
+      }
+      if (lead.stage === "won") entry.won += 1;
+      map.set(lead.source, entry);
+    }
+    return Object.entries(SOURCE_LABELS).map(([key, label]) => ({
+      source: key as LeadSource,
+      label,
+      ...(map.get(key as LeadSource) ?? {
+        count: 0,
+        openCount: 0,
+        pipelineValue: 0,
+        won: 0,
+      }),
+    }));
+  }, [leads]);
+
   const filtered = useMemo(() => {
     const q = search.toLowerCase();
     return leads.filter((lead) => {
@@ -327,6 +360,47 @@ export default function LeadsPipeline() {
             <p className="text-xs text-muted-foreground">2 hari ke depan</p>
           </CardContent>
         </Card>
+      </div>
+
+      {/* Lead source summary / quick filter bar */}
+      <div className="flex flex-wrap gap-2">
+        {sourceSummary.map((s) => (
+          <button
+            key={s.source}
+            onClick={() =>
+              setSourceFilter(sourceFilter === s.source ? "all" : s.source)
+            }
+            className={cn(
+              "flex items-center gap-2 rounded-full border px-3 py-1.5 text-xs transition-colors",
+              sourceFilter === s.source
+                ? "border-primary bg-primary text-white"
+                : "border-border bg-background text-muted-foreground hover:border-primary/40 hover:text-foreground",
+            )}
+            title={`${s.openCount} aktif • pipeline ${formatRupiah(s.pipelineValue)}`}
+          >
+            <span className="font-medium">{s.label}</span>
+            <span
+              className={cn(
+                "rounded-full px-1.5 py-0.5 text-[10px] font-semibold",
+                sourceFilter === s.source
+                  ? "bg-white/20 text-white"
+                  : "bg-muted text-foreground",
+              )}
+            >
+              {s.count}
+            </span>
+            <span
+              className={cn(
+                "text-[10px]",
+                sourceFilter === s.source
+                  ? "text-white/80"
+                  : "text-muted-foreground",
+              )}
+            >
+              {s.won > 0 ? `${s.won} won` : formatRupiah(s.pipelineValue)}
+            </span>
+          </button>
+        ))}
       </div>
 
       {/* Follow-up reminders */}
