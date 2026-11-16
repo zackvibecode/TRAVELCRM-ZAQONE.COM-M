@@ -2,6 +2,7 @@ import { useMemo, useState } from "react";
 import { Plus, Search, Eye, MoreHorizontal } from "lucide-react";
 import { mockBookings } from "@/lib/mock-data";
 import CreateBookingForm from "@/components/CreateBookingForm";
+import BookingDetail from "@/components/BookingDetail";
 import {
   type Booking,
   type BookingStatus,
@@ -72,6 +73,7 @@ function totalPax(b: Booking) {
 export default function BookingWorkspace() {
   const [search, setSearch] = useState("");
   const [createOpen, setCreateOpen] = useState(false);
+  const [detailBooking, setDetailBooking] = useState<Booking | null>(null);
   const [statusFilter, setStatusFilter] =
     useState<(typeof statusFilters)[number]>("all");
 
@@ -272,7 +274,12 @@ export default function BookingWorkspace() {
                     </TableCell>
                     <TableCell className="text-right">
                       <div className="flex justify-end gap-1">
-                        <Button variant="ghost" size="icon" title="View">
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          title="View"
+                          onClick={() => setDetailBooking(b)}
+                        >
                           <Eye className="h-4 w-4" />
                         </Button>
                         <Button variant="ghost" size="icon" title="More">
@@ -291,6 +298,14 @@ export default function BookingWorkspace() {
       <CreateBookingForm
         open={createOpen}
         onOpenChange={setCreateOpen}
+      />
+
+      <BookingDetail
+        booking={detailBooking}
+        open={detailBooking !== null}
+        onOpenChange={(open) => {
+          if (!open) setDetailBooking(null);
+        }}
       />
     </div>
   );

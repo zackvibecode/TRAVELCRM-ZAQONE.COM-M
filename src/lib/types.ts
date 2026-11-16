@@ -45,8 +45,16 @@ export interface Passenger {
   id: string;
   fullName: string;
   type: "adult" | "child" | "infant";
+  dateOfBirth?: string;
+  gender?: "male" | "female";
   nationality?: string;
   passportNumber?: string;
+  passportExpiry?: string;
+  phone?: string;
+  roomType?: string;
+  roomingNote?: string;
+  dietaryNote?: string;
+  flightInfo?: string;
 }
 
 export interface Booking {
