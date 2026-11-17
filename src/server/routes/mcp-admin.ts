@@ -114,6 +114,46 @@ mcpAdminRouter.get("/tokens", async (c) => {
 });
 
 /**
+ * GET /mcp-admin/audit — query MCP call history with filters.
+ * Query: ?outcome=denied&tool=list_leads&tokenId=...&from=...&to=...&limit=...
+ */
+mcpAdminRouter.get("/audit", async (c) => {
+  const db = c.get("db");
+  const outcome = c.req.query("outcome");
+  const tool = c.req.query("tool");
+  const tokenId = c.req.query("tokenId");
+  const from = c.req.query("from");
+  const to = c.req.query("to");
+  const limit = Math.min(Number(c.req.query("limit")) || 100, 500);
+
+  const rows = await db.all<schema.McpAuditLogRow>(sql`
+    SELECT id, token_id AS tokenId, tool, arguments, outcome,
+           denied_reason AS deniedReason, duration_ms AS durationMs,
+           created_at AS createdAt
+    FROM mcp_audit_logs
+    WHERE 1 = 1
+      ${outcome ? sql`AND outcome = ${outcome}` : sql``}
+      ${tool ? sql`AND tool = ${tool}` : sql``}
+      ${tokenId ? sql`AND token_id = ${tokenId}` : sql``}
+      ${from ? sql`AND created_at >= ${from}` : sql``}
+      ${to ? sql`AND created_at <= ${to}` : sql``}
+    ORDER BY created_at DESC
+    LIMIT ${limit}
+  `);
+
+  return c.json({
+    entries: rows.map((r) => ({
+      ...r,
+      arguments: r.arguments
+        ? typeof r.arguments === "string"
+          ? JSON.parse(r.arguments)
+          : r.arguments
+        : null,
+    })),
+  });
+});
+
+/**
  * POST /mcp-admin/tokens/:id/revoke — revoke a token immediately.
  */
 mcpAdminRouter.post("/tokens/:id/revoke", async (c) => {
