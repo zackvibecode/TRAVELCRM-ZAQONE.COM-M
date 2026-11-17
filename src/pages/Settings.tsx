@@ -37,7 +37,6 @@ const TIMEZONES = [
 export default function Settings() {
   const { t, lang, setLang } = useLang();
   const [tab, setTab] = useState<SettingsTab>("general");
-  const [saved, setSaved] = useState(false);
 
   // General
   const [defaultLang, setDefaultLang] = useState<"ms" | "en">("ms");
@@ -59,10 +58,29 @@ export default function Settings() {
   const [notifyNewLead, setNotifyNewLead] = useState(false);
 
   const handleSave = () => {
-    // Mock save — backend settings API menyusul.
-    setSaved(true);
-    window.setTimeout(() => setSaved(false), 2000);
+    // Validasi borang aktif sebelum simpan (mock backend).
+    const errs: Record<string, string> = {};
+    if (tab === "company") {
+      if (!companyName.trim()) errs.companyName = t("Nama syarikat wajib diisi.", "Company name is required.");
+      if (email && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) errs.email = t("Format emel tidak sah.", "Invalid email format.");
+      if (phone && !/^[+\d][\d\s\-()]{6,}$/.test(phone)) errs.phone = t("Format telefon tidak sah.", "Invalid phone format.");
+    }
+    if (tab === "general") {
+      const n = Number(seatsThreshold);
+      if (!Number.isFinite(n) || n < 1 || n > 100) errs.seatsThreshold = t("Ambang mesti antara 1–100.", "Threshold must be 1–100.");
+    }
+    setErrors(errs);
+    if (Object.keys(errs).length > 0) return;
+
+    setSaveState("saving");
+    window.setTimeout(() => {
+      setSaveState("saved");
+      window.setTimeout(() => setSaveState("idle"), 2000);
+    }, 500);
   };
+
+  const [errors, setErrors] = useState<Record<string, string>>({});
+  const [saveState, setSaveState] = useState<"idle" | "saving" | "saved">("idle");
 
   const fieldCls =
     "h-9 w-full rounded-md border border-input bg-transparent px-3 text-sm shadow-sm placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring";
@@ -84,15 +102,18 @@ export default function Settings() {
         </div>
         <button
           onClick={handleSave}
+          disabled={saveState === "saving"}
           className={cn(
-            "inline-flex items-center gap-1.5 rounded-md bg-primary px-3 py-2 text-sm font-semibold text-white hover:bg-primary/90",
-            saved && "bg-emerald-600 hover:bg-emerald-600",
+            "inline-flex items-center gap-1.5 rounded-md bg-primary px-3 py-2 text-sm font-semibold text-white hover:bg-primary/90 disabled:opacity-60",
+            saveState === "saved" && "bg-emerald-600 hover:bg-emerald-600",
           )}
         >
-          {saved ? <Check className="h-4 w-4" /> : <Save className="h-4 w-4" />}
-          {saved
-            ? t("Disimpan!", "Saved!")
-            : t("Simpan Tetapan", "Save Settings")}
+          {saveState === "saved" ? <Check className="h-4 w-4" /> : <Save className="h-4 w-4" />}
+          {saveState === "saving"
+            ? t("Sedang simpan…", "Saving…")
+            : saveState === "saved"
+              ? t("Disimpan!", "Saved!")
+              : t("Simpan Tetapan", "Save Settings")}
         </button>
       </div>
 
@@ -169,8 +190,11 @@ export default function Settings() {
               max={100}
               value={seatsThreshold}
               onChange={(e) => setSeatsThreshold(e.target.value)}
-              className={fieldCls}
+              className={cn(fieldCls, errors.seatsThreshold && "border-red-400 focus-visible:ring-red-400")}
             />
+            {errors.seatsThreshold && (
+              <p className="text-xs text-red-600">{errors.seatsThreshold}</p>
+            )}
           </div>
           <p className="flex items-center gap-1.5 text-xs text-muted-foreground md:col-span-2">
             <Languages className="h-3.5 w-3.5" />
@@ -189,7 +213,14 @@ export default function Settings() {
             <label className="text-sm font-medium">
               {t("Nama Syarikat", "Company Name")}
             </label>
-            <input value={companyName} onChange={(e) => setCompanyName(e.target.value)} className={fieldCls} />
+            <input
+              value={companyName}
+              onChange={(e) => setCompanyName(e.target.value)}
+              className={cn(fieldCls, errors.companyName && "border-red-400 focus-visible:ring-red-400")}
+            />
+            {errors.companyName && (
+              <p className="text-xs text-red-600">{errors.companyName}</p>
+            )}
           </div>
           <div className="space-y-1.5">
             <label className="text-sm font-medium">
@@ -199,7 +230,12 @@ export default function Settings() {
           </div>
           <div className="space-y-1.5">
             <label className="text-sm font-medium">{t("Telefon", "Phone")}</label>
-            <input value={phone} onChange={(e) => setPhone(e.target.value)} className={fieldCls} />
+            <input
+              value={phone}
+              onChange={(e) => setPhone(e.target.value)}
+              className={cn(fieldCls, errors.phone && "border-red-400 focus-visible:ring-red-400")}
+            />
+            {errors.phone && <p className="text-xs text-red-600">{errors.phone}</p>}
           </div>
           <div className="space-y-1.5 md:col-span-2">
             <label className="text-sm font-medium">{t("Alamat", "Address")}</label>
@@ -207,7 +243,13 @@ export default function Settings() {
           </div>
           <div className="space-y-1.5 md:col-span-2">
             <label className="text-sm font-medium">{t("Emel", "Email")}</label>
-            <input type="email" value={email} onChange={(e) => setEmail(e.target.value)} className={fieldCls} />
+            <input
+              type="email"
+              value={email}
+              onChange={(e) => setEmail(e.target.value)}
+              className={cn(fieldCls, errors.email && "border-red-400 focus-visible:ring-red-400")}
+            />
+            {errors.email && <p className="text-xs text-red-600">{errors.email}</p>}
           </div>
         </div>
       )}

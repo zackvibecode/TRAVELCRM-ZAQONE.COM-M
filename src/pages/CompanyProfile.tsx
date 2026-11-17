@@ -31,11 +31,21 @@ export default function CompanyProfile() {
   const [form, setForm] = useState(INITIAL);
   const [saved, setSaved] = useState(false);
   const [logoName, setLogoName] = useState("zaqone-logo.png");
+  const [errors, setErrors] = useState<Record<string, string>>({});
 
-  const set = (key: FormKey, value: string) =>
+  const set = (key: FormKey, value: string) => {
     setForm((prev) => ({ ...prev, [key]: value }));
+    setErrors((prev) => ({ ...prev, [key]: "" }));
+  };
 
   const handleSave = () => {
+    const errs: Record<string, string> = {};
+    if (!form.name.trim()) errs.name = t("Nama syarikat wajib diisi.", "Company name is required.");
+    if (form.email && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(form.email)) errs.email = t("Format emel tidak sah.", "Invalid email format.");
+    if (form.website && !/^https?:\/\/.+\..+/.test(form.website)) errs.website = t("Format URL tidak sah (https://…).", "Invalid URL (https://…).");
+    if (form.licenseExpiry && new Date(form.licenseExpiry) < new Date("2020-01-01")) errs.licenseExpiry = t("Tarikh lesen tidak sah.", "Invalid licence date.");
+    setErrors(errs);
+    if (Object.keys(errs).length > 0) return;
     setSaved(true);
     window.setTimeout(() => setSaved(false), 2000);
   };
@@ -55,8 +65,9 @@ export default function CompanyProfile() {
         type={opts?.type ?? "text"}
         value={form[key]}
         onChange={(e) => set(key, e.target.value)}
-        className={fieldCls}
+        className={cn(fieldCls, errors[key] && "border-red-400 focus-visible:ring-red-400")}
       />
+      {errors[key] && <p className="text-xs text-red-600">{errors[key]}</p>}
     </div>
   );
 
