@@ -163,6 +163,57 @@ websiteRouter.get("/packages", async (c) => {
 });
 
 /**
+ * GET /website/packages/:id/availability — seat availability snapshot for the
+ * package's next open departures. Used by the public detail page availability
+ * badge and the booking "choose departure" step.
+ */
+websiteRouter.get("/packages/:id/availability", async (c) => {
+  const db = c.get("db");
+  const id = c.req.param("id");
+
+  const rows = await db.all<{
+    id: string;
+    departureDate: string;
+    seatCapacity: number;
+    seatsBooked: number;
+    seatsHeld: number;
+    status: string;
+  }>(sql`
+    SELECT id, departure_date AS departureDate,
+           seat_capacity AS seatCapacity,
+           seats_booked AS seatsBooked,
+           seats_held AS seatsHeld, status
+    FROM departures
+    WHERE package_id = ${id}
+      AND status IN ('open', 'almost_full', 'full')
+      AND departure_date >= date('now')
+    ORDER BY departure_date ASC
+    LIMIT 12
+  `);
+
+  return c.json({
+    packageId: id,
+    departures: rows.map((d) => {
+      const capacity = Number(d.seatCapacity);
+      const confirmed = Number(d.seatsBooked);
+      const held = Number(d.seatsHeld);
+      const available = Math.max(0, capacity - confirmed - held);
+      return {
+        id: d.id,
+        departureDate: d.departureDate,
+        capacity,
+        confirmed,
+        held,
+        available,
+        isAlmostFull: capacity > 0 && available / capacity <= 0.2,
+        isFull: available === 0,
+        status: d.status,
+      };
+    }),
+  });
+});
+
+/**
  * GET /website/packages/:id — full published detail + departure dates.
  */
 websiteRouter.get("/packages/:id", async (c) => {
