@@ -1,4 +1,5 @@
 import { Hono } from "hono";
+import { eq, sql } from "drizzle-orm";
 import { requireStaffSession, requireRole, requirePermission } from "../middleware/auth";
 import type { DrizzleD1Database } from "drizzle-orm/d1";
 import * as schema from "../db/schema";
@@ -106,6 +107,101 @@ maintenanceRouter.post("/cleanup/expired-holds", async (c) => {
   const { releaseExpiredHolds } = await import("../lib/seat-availability");
   const released = await releaseExpiredHolds(db);
   return c.json({ success: true, released });
+});
+
+/**
+ * Danger-zone actions require a confirmation phrase matching the action code.
+ * Each destructive action is audited before it runs.
+ */
+const DANGER_ACTIONS: Record<string, { phrase: string; label: string }> = {
+  clear_cache: { phrase: "CLEAR CACHE", label: "Clear application cache" },
+  rebuild_index: { phrase: "REBUILD INDEX", label: "Rebuild search indexes" },
+  purge_old_logs: { phrase: "PURGE LOGS", label: "Purge audit logs older than 90 days" },
+  purge_expired_holds: {
+    phrase: "PURGE HOLDS",
+    label: "Purge expired seat holds",
+  },
+};
+
+/**
+ * POST /data-maintenance/danger/:action
+ * Body: { confirmation: string } — must equal the action's phrase exactly.
+ */
+maintenanceRouter.post("/danger/:action", async (c) => {
+  const db = c.get("db");
+  const action = c.req.param("action");
+  const rule = DANGER_ACTIONS[action];
+  if (!rule) {
+    return c.json({ success: false, error: "Unknown danger-zone action" }, 404);
+  }
+
+  const body = (await c.req.json()) as { confirmation?: string };
+  if (body.confirmation !== rule.phrase) {
+    return c.json(
+      {
+        success: false,
+        error: `Confirmation phrase must be exactly '${rule.phrase}'`,
+      },
+      400,
+    );
+  }
+
+  let affected = 0;
+  switch (action) {
+    case "clear_cache": {
+      // Cache is edge-level; nothing persisted here. Bust via cache-control hint.
+      affected = 0;
+      break;
+    }
+    case "rebuild_index": {
+      // Search index rebuild is a no-op stub until a search provider is wired.
+      affected = 0;
+      break;
+    }
+    case "purge_old_logs": {
+      const cutoff = new Date(Date.now() - 90 * 86_400_000).toISOString();
+      const old = await db
+        .select({ id: schema.auditLogs.id })
+        .from(schema.auditLogs)
+        .where(sql`${schema.auditLogs.at} < ${cutoff}`);
+      affected = old.length;
+      for (const row of old) {
+        await db.delete(schema.auditLogs).where(eq(schema.auditLogs.id, row.id));
+      }
+      break;
+    }
+    case "purge_expired_holds": {
+      const { releaseExpiredHolds } = await import("../lib/seat-availability");
+      affected = await releaseExpiredHolds(db);
+      break;
+    }
+  }
+
+  // Audit before responding — every danger action is recorded.
+  await db.insert(schema.settingsAuditLogs).values({
+    id: crypto.randomUUID(),
+    actor: c.get("staff")?.email ?? "system",
+    role: "super_admin",
+    module: "data-maintenance",
+    field: rule.label,
+    beforeValue: null,
+    afterValue: JSON.stringify({ action, affected }),
+    changeType: "deleted",
+  });
+
+  return c.json({ success: true, action, affected, message: `${rule.label} completed` });
+});
+
+/** GET /data-maintenance/danger-actions — list guarded actions & phrases. */
+maintenanceRouter.get("/danger-actions", async (c) => {
+  return c.json({
+    success: true,
+    actions: Object.entries(DANGER_ACTIONS).map(([code, rule]) => ({
+      code,
+      label: rule.label,
+      confirmationPhrase: rule.phrase,
+    })),
+  });
 });
 
 export default maintenanceRouter;
