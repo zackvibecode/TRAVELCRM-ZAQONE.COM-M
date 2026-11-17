@@ -16,6 +16,8 @@ import PublicPackages from "@/pages/PublicPackages";
 import PublicPackageDetail from "@/pages/PublicPackageDetail";
 import PublicContact from "@/pages/PublicContact";
 import WebsiteManager from "@/pages/WebsiteManager";
+import AiTokens from "@/pages/AiTokens";
+import McpAuditLog from "@/pages/McpAuditLog";
 
 export default function App() {
   return (
@@ -30,6 +32,8 @@ export default function App() {
         <Route path="/billing" element={<BillingWorkspace />} />
         <Route path="/reports" element={<ReportsPage />} />
         <Route path="/website" element={<WebsiteManager />} />
+        <Route path="/ai-tokens" element={<AiTokens />} />
+        <Route path="/mcp-audit" element={<McpAuditLog />} />
         <Route path="/settings" element={<Placeholder title="Settings" />} />
       </Route>
 

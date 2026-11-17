@@ -15,6 +15,8 @@ import {
   TrendingUp,
   FileBarChart,
   Languages,
+  Bot,
+  ScrollText,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useLang, type Lang } from "@/lib/i18n";
@@ -47,6 +49,8 @@ export default function AppShell() {
       title: t("Sistem", "System"),
       items: [
         { to: "/website", label: t("Pengurus Laman", "Website Manager"), icon: Globe },
+        { to: "/ai-tokens", label: t("Token Akses AI", "AI Access Tokens"), icon: Bot },
+        { to: "/mcp-audit", label: t("Log Audit MCP", "MCP Audit Log"), icon: ScrollText },
         { to: "/settings", label: t("Tetapan", "Settings"), icon: Settings },
       ],
     },
