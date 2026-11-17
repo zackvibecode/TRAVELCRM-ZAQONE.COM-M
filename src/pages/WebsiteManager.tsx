@@ -18,6 +18,7 @@ import {
 } from "lucide-react";
 import { mockPackages } from "@/lib/mock-data";
 import { cn, waLink } from "@/lib/utils";
+import { useLang } from "@/lib/i18n";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
@@ -196,6 +197,7 @@ const INITIAL_SEO: Record<string, SeoSettings> = {
 };
 
 export default function WebsiteManager() {
+  const { t } = useLang();
   const [pages, setPages] = useState<SitePage[]>(INITIAL_PAGES);
   const [editing, setEditing] = useState<SitePage | null>(null);
   const [isNew, setIsNew] = useState(false);
@@ -283,22 +285,29 @@ export default function WebsiteManager() {
     <div className="space-y-6">
       <div className="flex flex-wrap items-start justify-between gap-3">
         <div>
-          <h1 className="text-2xl font-bold tracking-tight">Website Manager</h1>
+          <h1 className="text-2xl font-bold tracking-tight">
+            {t("Pengurus Laman Web", "Website Manager")}
+          </h1>
           <p className="text-sm text-muted-foreground">
-            Kelola halaman website publik — {publishedCount} dari {pages.length}{" "}
-            halaman tayang.
+            {t(
+              "Urus laman web awam",
+              "Manage the public website",
+            )}
+            {" — "}
+            {publishedCount} / {pages.length}{" "}
+            {t("halaman tayang.", "pages are live.")}
           </p>
         </div>
         <div className="flex gap-2">
           <Button variant="outline" size="sm" asChild>
             <a href="/site" target="_blank" rel="noreferrer">
               <ExternalLink className="mr-1.5 h-3.5 w-3.5" />
-              Lihat Situs
+              {t("Lihat Laman", "View Site")}
             </a>
           </Button>
           <Button size="sm" onClick={startNew}>
             <Plus className="mr-1.5 h-3.5 w-3.5" />
-            Halaman Baru
+            {t("Halaman Baharu", "New Page")}
           </Button>
         </div>
       </div>
@@ -314,7 +323,9 @@ export default function WebsiteManager() {
               <p className="text-lg font-bold leading-tight">
                 {publishedCount}
               </p>
-              <p className="text-xs text-muted-foreground">Halaman tayang</p>
+              <p className="text-xs text-muted-foreground">
+                {t("Halaman tayang", "Live pages")}
+              </p>
             </div>
           </CardContent>
         </Card>
@@ -327,7 +338,9 @@ export default function WebsiteManager() {
               <p className="text-lg font-bold leading-tight">
                 {publishedPackages.length}
               </p>
-              <p className="text-xs text-muted-foreground">Paket tayang</p>
+              <p className="text-xs text-muted-foreground">
+                {t("Pakej tayang", "Live packages")}
+              </p>
             </div>
           </CardContent>
         </Card>
@@ -340,7 +353,9 @@ export default function WebsiteManager() {
               <p className="text-lg font-bold leading-tight">
                 {pages.length - publishedCount}
               </p>
-              <p className="text-xs text-muted-foreground">Draft tersembunyi</p>
+              <p className="text-xs text-muted-foreground">
+                {t("Draf tersembunyi", "Hidden drafts")}
+              </p>
             </div>
           </CardContent>
         </Card>
@@ -351,7 +366,9 @@ export default function WebsiteManager() {
         <CardHeader className="flex-row items-center justify-between space-y-0 pb-3">
           <div className="flex items-center gap-2">
             <Megaphone className="h-4 w-4 text-red-600" />
-            <CardTitle className="text-base">Banner Promosi</CardTitle>
+            <CardTitle className="text-base">
+              {t("Bendera Promosi", "Promo Banners")}
+            </CardTitle>
           </div>
           <Button
             size="sm"
@@ -373,7 +390,7 @@ export default function WebsiteManager() {
             }}
           >
             <Plus className="mr-1.5 h-3.5 w-3.5" />
-            Banner Baru
+            {t("Bendera Baharu", "New Banner")}
           </Button>
         </CardHeader>
         <CardContent className="space-y-2">
@@ -404,10 +421,10 @@ export default function WebsiteManager() {
                       )}
                     >
                       {inWindow
-                        ? "Tayang"
+                        ? t("Tayang", "Live")
                         : banner.active
-                          ? "Terjadwal"
-                          : "Nonaktif"}
+                          ? t("Dijadualkan", "Scheduled")
+                          : t("Nyahaktif", "Inactive")}
                     </Badge>
                   </div>
                   <p className="mt-0.5 text-xs text-muted-foreground">
@@ -422,7 +439,7 @@ export default function WebsiteManager() {
                       setBannerEditing(banner);
                       setBannerIsNew(false);
                     }}
-                    title="Edit"
+                    title={t("Sunting", "Edit")}
                   >
                     <Pencil className="h-3.5 w-3.5" />
                   </Button>
@@ -438,7 +455,7 @@ export default function WebsiteManager() {
                         ),
                       )
                     }
-                    title={banner.active ? "Nonaktifkan" : "Aktifkan"}
+                    title={banner.active ? t("Nyahaktifkan", "Deactivate") : t("Aktifkan", "Activate")}
                   >
                     {banner.active ? (
                       <EyeOff className="h-3.5 w-3.5" />
@@ -455,7 +472,7 @@ export default function WebsiteManager() {
                         prev.filter((b) => b.id !== banner.id),
                       )
                     }
-                    title="Hapus"
+                    title={t("Padam", "Delete")}
                   >
                     <Trash2 className="h-3.5 w-3.5" />
                   </Button>
@@ -465,7 +482,7 @@ export default function WebsiteManager() {
           })}
           {banners.length === 0 && (
             <p className="py-6 text-center text-sm text-muted-foreground">
-              Belum ada banner.
+              {t("Belum ada bendera.", "No banners yet.")}
             </p>
           )}
         </CardContent>
@@ -477,7 +494,7 @@ export default function WebsiteManager() {
           <Card className="w-full max-w-lg">
             <CardHeader className="flex-row items-center justify-between space-y-0 pb-3">
               <CardTitle className="text-base">
-                {bannerIsNew ? "Banner Baru" : "Edit Banner"}
+                {bannerIsNew ? t("Bendera Baharu", "New Banner") : t("Sunting Bendera", "Edit Banner")}
               </CardTitle>
               <Button
                 variant="ghost"
@@ -489,7 +506,7 @@ export default function WebsiteManager() {
             </CardHeader>
             <CardContent className="space-y-4">
               <div className="space-y-1.5">
-                <label className="text-xs font-medium">Judul</label>
+                <label className="text-xs font-medium">{t("Tajuk", "Title")}</label>
                 <Input
                   value={bannerEditing.title}
                   onChange={(e) =>
@@ -498,11 +515,11 @@ export default function WebsiteManager() {
                       title: e.target.value,
                     })
                   }
-                  placeholder="cth: Promo Akhir Tahun — Diskon 20%"
+                  placeholder={t("cth: Promosi Hujung Tahun — Diskaun 20%", "e.g. Year-End Promo — 20% Off")}
                 />
               </div>
               <div className="space-y-1.5">
-                <label className="text-xs font-medium">Subjudul</label>
+                <label className="text-xs font-medium">{t("Subtajuk", "Subtitle")}</label>
                 <Textarea
                   value={bannerEditing.subtitle}
                   onChange={(e) =>
@@ -512,12 +529,12 @@ export default function WebsiteManager() {
                     })
                   }
                   rows={2}
-                  placeholder="Kalimat pendukung singkat"
+                  placeholder={t("Ayat sokongan ringkas", "Short supporting sentence")}
                 />
               </div>
               <div className="grid gap-4 sm:grid-cols-2">
                 <div className="space-y-1.5">
-                  <label className="text-xs font-medium">Label CTA</label>
+                  <label className="text-xs font-medium">{t("Label CTA", "CTA Label")}</label>
                   <Input
                     value={bannerEditing.ctaLabel}
                     onChange={(e) =>
@@ -529,7 +546,7 @@ export default function WebsiteManager() {
                   />
                 </div>
                 <div className="space-y-1.5">
-                  <label className="text-xs font-medium">Link CTA</label>
+                  <label className="text-xs font-medium">{t("Pautan CTA", "CTA Link")}</label>
                   <Input
                     value={bannerEditing.ctaHref}
                     onChange={(e) =>
@@ -544,7 +561,7 @@ export default function WebsiteManager() {
               </div>
               <div className="grid gap-4 sm:grid-cols-2">
                 <div className="space-y-1.5">
-                  <label className="text-xs font-medium">Tayang dari</label>
+                  <label className="text-xs font-medium">{t("Tayang dari", "Live from")}</label>
                   <Input
                     type="date"
                     value={bannerEditing.startAt}
@@ -557,7 +574,7 @@ export default function WebsiteManager() {
                   />
                 </div>
                 <div className="space-y-1.5">
-                  <label className="text-xs font-medium">Sampai</label>
+                  <label className="text-xs font-medium">{t("Hingga", "Until")}</label>
                   <Input
                     type="date"
                     value={bannerEditing.endAt}
@@ -583,14 +600,14 @@ export default function WebsiteManager() {
                     }
                     className="h-4 w-4 rounded"
                   />
-                  Aktif
+                  {t("Aktif", "Active")}
                 </label>
                 <div className="flex gap-2">
                   <Button
                     variant="outline"
                     onClick={() => setBannerEditing(null)}
                   >
-                    Batal
+                    {t("Batal", "Cancel")}
                   </Button>
                   <Button
                     onClick={() => {
@@ -607,7 +624,7 @@ export default function WebsiteManager() {
                     }}
                   >
                     <Save className="mr-1.5 h-3.5 w-3.5" />
-                    Simpan
+                    {t("Simpan", "Save")}
                   </Button>
                 </div>
               </div>
@@ -621,7 +638,9 @@ export default function WebsiteManager() {
         <CardHeader className="flex-row items-center justify-between space-y-0 pb-3">
           <div className="flex items-center gap-2">
             <Search className="h-4 w-4 text-red-600" />
-            <CardTitle className="text-base">Pengaturan SEO</CardTitle>
+            <CardTitle className="text-base">
+              {t("Tetapan SEO", "SEO Settings")}
+            </CardTitle>
           </div>
           <div className="flex items-center gap-2">
             <select
@@ -632,9 +651,9 @@ export default function WebsiteManager() {
               }}
               className="h-8 rounded-md border border-input bg-transparent px-2 text-xs shadow-sm"
             >
-              <option value="home">Home (/)</option>
-              <option value="packages">Paket (/packages)</option>
-              <option value="promos">Promo (/promos)</option>
+              <option value="home">{t("Utama", "Home")} (/)</option>
+              <option value="packages">{t("Pakej", "Packages")} (/packages)</option>
+              <option value="promos">{t("Promosi", "Promos")} (/promos)</option>
             </select>
             <Button
               size="sm"
@@ -644,7 +663,7 @@ export default function WebsiteManager() {
               }}
             >
               <Save className="mr-1.5 h-3.5 w-3.5" />
-              {seoSaved ? "Tersimpan!" : "Simpan SEO"}
+              {seoSaved ? t("Tersimpan!", "Saved!") : t("Simpan SEO", "Save SEO")}
             </Button>
           </div>
         </CardHeader>
@@ -670,7 +689,7 @@ export default function WebsiteManager() {
               <Input
                 value={seoFor.metaTitle}
                 onChange={(e) => setSeoField("metaTitle", e.target.value)}
-                placeholder="Judul di hasil pencarian"
+                placeholder={t("Tajuk dalam hasil carian", "Title in search results")}
               />
             </div>
             <div className="space-y-1.5">
@@ -693,17 +712,17 @@ export default function WebsiteManager() {
                 value={seoFor.metaDescription}
                 onChange={(e) => setSeoField("metaDescription", e.target.value)}
                 rows={3}
-                placeholder="Deskripsi singkat yang tampil di Google"
+                placeholder={t("Penerangan ringkas yang muncul di Google", "Short description shown on Google")}
               />
             </div>
             <div className="space-y-1.5">
               <label className="text-xs font-medium">
-                Keywords (pisahkan koma)
+                {t("Kata kunci (asingkan dengan koma)", "Keywords (comma separated)")}
               </label>
               <Input
                 value={seoFor.keywords}
                 onChange={(e) => setSeoField("keywords", e.target.value)}
-                placeholder="paket wisata, open trip, …"
+                placeholder={t("pakej pelancongan, open trip, …", "tour packages, open trip, …")}
               />
             </div>
           </div>
@@ -711,7 +730,7 @@ export default function WebsiteManager() {
           {/* SERP preview */}
           <div className="space-y-2">
             <p className="text-xs font-medium text-muted-foreground">
-              Pratinjau Hasil Pencarian Google
+              {t("Pratonton Hasil Carian Google", "Google Search Preview")}
             </p>
             <div className="rounded-xl border bg-white p-4">
               <div className="flex items-center gap-2">
@@ -728,16 +747,21 @@ export default function WebsiteManager() {
                 </div>
               </div>
               <p className="mt-2 text-lg leading-snug text-[#1a0dab]">
-                {seoFor.metaTitle || "Judul halaman akan tampil di sini"}
+                {seoFor.metaTitle || t("Tajuk halaman akan muncul di sini", "Page title will appear here")}
               </p>
               <p className="mt-1 text-sm leading-snug text-stone-600">
                 {seoFor.metaDescription ||
-                  "Deskripsi meta halaman akan tampil di sini. Tulis 120–160 karakter yang menjelaskan isi halaman."}
+                  t(
+                    "Penerangan meta halaman akan muncul di sini. Tulis 120–160 aksara yang menerangkan kandungan halaman.",
+                    "The page meta description will appear here. Write 120–160 characters describing the page.",
+                  )}
               </p>
             </div>
             <p className="text-[11px] leading-relaxed text-muted-foreground">
-              Tips: meta title ideal 50–60 karakter, meta description 120–160
-              karakter. Judul melebihi batas akan terpotong di hasil pencarian.
+              {t(
+                "Tips: meta title ideal 50–60 aksara, meta description 120–160 aksara. Tajuk melebihi had akan terpotong dalam hasil carian.",
+                "Tips: ideal meta title is 50–60 characters, meta description 120–160. Longer titles get truncated in search results.",
+              )}
             </p>
           </div>
         </CardContent>
@@ -749,13 +773,13 @@ export default function WebsiteManager() {
           <div className="flex items-center gap-2">
             <Inbox className="h-4 w-4 text-red-600" />
             <CardTitle className="text-base">
-              Lead dari Website
+              {t("Lead dari Laman Web", "Website Leads")}
             </CardTitle>
             <Badge
               variant="outline"
               className="border-red-200 bg-red-50 text-red-700"
             >
-              {enquiries.filter((e) => e.status === "new").length} baru
+              {enquiries.filter((e) => e.status === "new").length} {t("baharu", "new")}
             </Badge>
           </div>
         </CardHeader>
@@ -776,11 +800,13 @@ export default function WebsiteManager() {
                         : "border-stone-200 bg-stone-50 text-stone-600",
                     )}
                   >
-                    {enq.status === "new" ? "Baru" : "Dihubungi"}
+                    {enq.status === "new"
+                      ? t("Baharu", "New")
+                      : t("Dihubungi", "Contacted")}
                   </Badge>
                 </div>
                 <p className="mt-0.5 text-xs text-muted-foreground">
-                  {enq.packageName} • {enq.pax} pax • masuk {enq.receivedAt}
+                  {enq.packageName} • {enq.pax} pax • {t("masuk", "received")} {enq.receivedAt}
                 </p>
                 {enq.message && (
                   <p className="mt-1 line-clamp-2 rounded-md bg-muted/40 px-2 py-1 text-xs italic text-muted-foreground">
@@ -812,7 +838,7 @@ export default function WebsiteManager() {
                         ),
                       )
                     }
-                    title="Tandai sudah dihubungi"
+                    title={t("Tandai sudah dihubungi", "Mark as contacted")}
                   >
                     <ArrowRight className="h-3.5 w-3.5" />
                   </Button>
@@ -822,12 +848,17 @@ export default function WebsiteManager() {
           ))}
           {enquiries.length === 0 && (
             <p className="py-6 text-center text-sm text-muted-foreground">
-              Belum ada enquiry masuk dari website.
+              {t(
+                "Belum ada pertanyaan masuk dari laman web.",
+                "No website enquiries yet.",
+              )}
             </p>
           )}
           <p className="pt-1 text-xs text-muted-foreground">
-            Enquiry dari form publik otomatis tersinkron ke pipeline Leads
-            saat backend aktif.
+            {t(
+              "Pertanyaan daripada borang awam disegerakkan secara automatik ke saluran Leads apabila backend aktif.",
+              "Enquiries from the public form sync automatically to the Leads pipeline once the backend is live.",
+            )}
           </p>
         </CardContent>
       </Card>
@@ -835,7 +866,7 @@ export default function WebsiteManager() {
       {/* Pages table */}
       <Card>
         <CardHeader className="pb-3">
-          <CardTitle className="text-base">Halaman</CardTitle>
+          <CardTitle className="text-base">{t("Halaman", "Pages")}</CardTitle>
         </CardHeader>
         <CardContent className="space-y-2">
           {pages.map((page) => (
@@ -858,18 +889,18 @@ export default function WebsiteManager() {
                     )}
                   >
                     {page.status === "published"
-                      ? "Tayang"
+                      ? t("Tayang", "Live")
                       : page.scheduledAt &&
                           page.scheduledAt > new Date().toISOString()
-                        ? "Terjadwal"
-                        : "Draft"}
+                        ? t("Dijadualkan", "Scheduled")
+                        : t("Draf", "Draft")}
                   </Badge>
                 </div>
                 <p className="text-xs text-muted-foreground">
-                  /site/{page.slug === "home" ? "" : page.slug} • diubah{" "}
+                  /site/{page.slug === "home" ? "" : page.slug} • {t("diubah", "updated")}{" "}
                   {page.updatedAt}
                   {page.scheduledAt &&
-                    ` • terjadwal ${page.scheduledAt.replace("T", " ")}`}
+                    ` • ${t("dijadualkan", "scheduled")} ${page.scheduledAt.replace("T", " ")}`}
                 </p>
               </div>
 
@@ -878,7 +909,7 @@ export default function WebsiteManager() {
                   variant="ghost"
                   size="sm"
                   onClick={() => setPreviewSlug(page.slug)}
-                  title="Pratinjau"
+                  title={t("Pratonton", "Preview")}
                 >
                   <Eye className="h-3.5 w-3.5" />
                 </Button>
@@ -889,7 +920,7 @@ export default function WebsiteManager() {
                     setEditing(page);
                     setIsNew(false);
                   }}
-                  title="Edit"
+                  title={t("Sunting", "Edit")}
                 >
                   <Pencil className="h-3.5 w-3.5" />
                 </Button>
@@ -897,7 +928,7 @@ export default function WebsiteManager() {
                   variant="ghost"
                   size="sm"
                   onClick={() => togglePublish(page.id)}
-                  title={page.status === "published" ? "Tarik" : "Terbitkan"}
+                  title={page.status === "published" ? t("Tarik", "Unpublish") : t("Terbitkan", "Publish")}
                 >
                   {page.status === "published" ? (
                     <EyeOff className="h-3.5 w-3.5" />
@@ -909,7 +940,7 @@ export default function WebsiteManager() {
                   variant="ghost"
                   size="sm"
                   onClick={() => handleDelete(page.id)}
-                  title="Hapus"
+                  title={t("Padam", "Delete")}
                   className="text-red-600 hover:text-red-700"
                 >
                   <Trash2 className="h-3.5 w-3.5" />
@@ -919,7 +950,7 @@ export default function WebsiteManager() {
           ))}
           {pages.length === 0 && (
             <p className="py-6 text-center text-sm text-muted-foreground">
-              Belum ada halaman.
+              {t("Belum ada halaman.", "No pages yet.")}
             </p>
           )}
         </CardContent>
@@ -931,7 +962,9 @@ export default function WebsiteManager() {
           <Card className="w-full max-w-lg">
             <CardHeader className="flex-row items-center justify-between space-y-0 pb-3">
               <CardTitle className="text-base">
-                {isNew ? "Halaman Baru" : `Edit: ${editing.title}`}
+                {isNew
+                  ? t("Halaman Baharu", "New Page")
+                  : `${t("Sunting", "Edit")}: ${editing.title}`}
               </CardTitle>
               <Button
                 variant="ghost"
@@ -944,7 +977,7 @@ export default function WebsiteManager() {
             <CardContent className="space-y-4">
               <div className="grid gap-4 sm:grid-cols-2">
                 <div className="space-y-1.5">
-                  <label className="text-xs font-medium">Judul</label>
+                  <label className="text-xs font-medium">{t("Tajuk", "Title")}</label>
                   <Input
                     value={editing.title}
                     onChange={(e) =>
@@ -956,11 +989,11 @@ export default function WebsiteManager() {
                           : editing.slug,
                       })
                     }
-                    placeholder="cth: Syarat & Ketentuan"
+                    placeholder={t("cth: Syarat & Ketentuan", "e.g. Terms & Conditions")}
                   />
                 </div>
                 <div className="space-y-1.5">
-                  <label className="text-xs font-medium">Slug URL</label>
+                  <label className="text-xs font-medium">{t("Slug URL", "URL Slug")}</label>
                   <Input
                     value={editing.slug}
                     onChange={(e) =>
@@ -969,19 +1002,19 @@ export default function WebsiteManager() {
                         slug: slugify(e.target.value),
                       })
                     }
-                    placeholder="syarat-ketentuan"
+                    placeholder={t("syarat-ketentuan", "terms-and-conditions")}
                   />
                 </div>
               </div>
               <div className="space-y-1.5">
-                <label className="text-xs font-medium">Konten</label>
+                <label className="text-xs font-medium">{t("Kandungan", "Content")}</label>
                 <Textarea
                   value={editing.content}
                   onChange={(e) =>
                     setEditing({ ...editing, content: e.target.value })
                   }
                   rows={6}
-                  placeholder="Isi halaman…"
+                  placeholder={t("Isi halaman…", "Page content…")}
                 />
               </div>
               <div className="flex items-center justify-between">
@@ -1001,7 +1034,7 @@ export default function WebsiteManager() {
                       }
                       className="h-4 w-4 rounded"
                     />
-                    Terbitkan segera
+                    {t("Terbitkan segera", "Publish immediately")}
                   </label>
                   {editing.status !== "published" && (
                     <label className="flex items-center gap-2 text-xs font-medium text-stone-600">
@@ -1022,7 +1055,7 @@ export default function WebsiteManager() {
                         }
                         className="h-4 w-4 rounded"
                       />
-                      Jadwalkan terbit
+                      {t("Jadualkan terbit", "Schedule publish")}
                     </label>
                   )}
                   {editing.status !== "published" && editing.scheduledAt && (
@@ -1041,11 +1074,11 @@ export default function WebsiteManager() {
                 </div>
                 <div className="flex gap-2">
                   <Button variant="outline" onClick={() => setEditing(null)}>
-                    Batal
+                    {t("Batal", "Cancel")}
                   </Button>
                   <Button onClick={handleSave}>
                     <Save className="mr-1.5 h-3.5 w-3.5" />
-                    Simpan
+                    {t("Simpan", "Save")}
                   </Button>
                 </div>
               </div>
@@ -1066,7 +1099,7 @@ export default function WebsiteManager() {
           >
             <CardHeader className="flex-row items-center justify-between space-y-0 pb-3">
               <CardTitle className="text-base">
-                Pratinjau: /site/{previewSlug}
+                {t("Pratonton", "Preview")}: /site/{previewSlug}
               </CardTitle>
               <Button
                 variant="ghost"
@@ -1086,7 +1119,10 @@ export default function WebsiteManager() {
                 </p>
               </div>
               <p className="mt-3 text-center text-xs text-muted-foreground">
-                Pratinjau statis — klik di mana saja untuk menutup.
+                {t(
+                  "Pratonton statik — klik di mana-mana untuk menutup.",
+                  "Static preview — click anywhere to close.",
+                )}
               </p>
             </CardContent>
           </Card>

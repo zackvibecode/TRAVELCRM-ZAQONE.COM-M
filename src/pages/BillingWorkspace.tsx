@@ -36,6 +36,7 @@ import type {
   RefundStatus,
 } from "@/lib/types";
 import { cn, waLink , formatRinggit } from "@/lib/utils";
+import { useLang } from "@/lib/i18n";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -98,6 +99,7 @@ type Tab =
   | "reminders";
 
 export default function BillingWorkspace() {
+  const { t } = useLang();
   const [invoices, setInvoices] = useState<Invoice[]>(mockInvoices);
   const [quotations, setQuotations] = useState<Quotation[]>(mockQuotations);
   const [payments, setPayments] = useState<Payment[]>(mockPayments);
@@ -400,10 +402,13 @@ export default function BillingWorkspace() {
       <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
         <div>
           <h1 className="font-display text-2xl font-bold tracking-tight">
-            Billing &amp; Payments
+            {t("Billing & Pembayaran", "Billing & Payments")}
           </h1>
           <p className="text-sm text-muted-foreground">
-            Invoice, pembayaran, deposit, dan refund.
+            {t(
+              "Invois, pembayaran, deposit, dan bayaran balik.",
+              "Invoices, payments, deposits, and refunds.",
+            )}
           </p>
         </div>
         <div className="flex gap-2">
@@ -413,11 +418,11 @@ export default function BillingWorkspace() {
             onClick={() => setShowInvoiceBuilder(true)}
           >
             <Plus className="h-4 w-4" />
-            Buat Invoice
+            {t("Buat Invois", "Create Invoice")}
           </Button>
           <Button className="gap-2" onClick={() => setShowBuilder(true)}>
             <Plus className="h-4 w-4" />
-            Buat Quotation
+            {t("Buat Sebut Harga", "Create Quotation")}
           </Button>
         </div>
       </div>
@@ -427,13 +432,13 @@ export default function BillingWorkspace() {
         <div className="space-y-4">
           <div className="flex items-center justify-between">
             <h2 className="font-display text-lg font-bold">
-              Buat Invoice Baru
+              {t("Buat Invois Baharu", "Create New Invoice")}
             </h2>
             <Button
               variant="outline"
               onClick={() => setShowInvoiceBuilder(false)}
             >
-              Tutup
+              {t("Tutup", "Close")}
             </Button>
           </div>
           <InvoiceBuilder onCreated={handleInvoiceCreated} />
@@ -445,10 +450,10 @@ export default function BillingWorkspace() {
         <div className="space-y-4">
           <div className="flex items-center justify-between">
             <h2 className="font-display text-lg font-bold">
-              Buat Quotation Baru
+              {t("Buat Sebut Harga Baharu", "Create New Quotation")}
             </h2>
             <Button variant="outline" onClick={() => setShowBuilder(false)}>
-              Tutup
+              {t("Tutup", "Close")}
             </Button>
           </div>
           <QuotationBuilder onCreated={handleQuotationCreated} />
@@ -462,7 +467,7 @@ export default function BillingWorkspace() {
         <Card>
           <CardHeader className="pb-2">
             <CardTitle className="flex items-center gap-2 text-xs font-medium text-muted-foreground">
-              <FileText className="h-4 w-4" /> Total Ditagih
+              <FileText className="h-4 w-4" /> {t("Jumlah Ditagih", "Total Billed")}
             </CardTitle>
           </CardHeader>
           <CardContent>
@@ -474,7 +479,7 @@ export default function BillingWorkspace() {
         <Card>
           <CardHeader className="pb-2">
             <CardTitle className="flex items-center gap-2 text-xs font-medium text-muted-foreground">
-              <Wallet className="h-4 w-4" /> Terkumpul
+              <Wallet className="h-4 w-4" /> {t("Terkumpul", "Collected")}
             </CardTitle>
           </CardHeader>
           <CardContent>
@@ -486,7 +491,7 @@ export default function BillingWorkspace() {
         <Card>
           <CardHeader className="pb-2">
             <CardTitle className="flex items-center gap-2 text-xs font-medium text-muted-foreground">
-              <Banknote className="h-4 w-4" /> Outstanding
+              <Banknote className="h-4 w-4" /> {t("Baki Tertunggak", "Outstanding")}
             </CardTitle>
           </CardHeader>
           <CardContent>
@@ -498,7 +503,7 @@ export default function BillingWorkspace() {
         <Card>
           <CardHeader className="pb-2">
             <CardTitle className="flex items-center gap-2 text-xs font-medium text-muted-foreground">
-              <AlertTriangle className="h-4 w-4" /> Overdue
+              <AlertTriangle className="h-4 w-4" /> {t("Tertunggak", "Overdue")}
             </CardTitle>
           </CardHeader>
           <CardContent>
@@ -514,11 +519,11 @@ export default function BillingWorkspace() {
         <div className="flex items-center rounded-md border p-1">
           {(
             [
-              ["invoices", "Invoices", Receipt],
-              ["quotations", "Quotations", ClipboardList],
-              ["payments", "Payments", Banknote],
-              ["refunds", "Refunds", Undo2],
-              ["reminders", "Reminders", Bell],
+              ["invoices", t("Invois", "Invoices"), Receipt],
+              ["quotations", t("Sebut Harga", "Quotations"), ClipboardList],
+              ["payments", t("Pembayaran", "Payments"), Banknote],
+              ["refunds", t("Bayaran Balik", "Refunds"), Undo2],
+              ["reminders", t("Peringatan", "Reminders"), Bell],
             ] as const
           ).map(([value, label, Icon]) => (
             <button
@@ -548,12 +553,12 @@ export default function BillingWorkspace() {
               }
               className="h-9 rounded-md border border-input bg-background px-3 text-sm"
             >
-              <option value="all">Semua Status</option>
+              <option value="all">{t("Semua Status", "All Statuses")}</option>
               <option value="draft">Draft</option>
-              <option value="issued">Issued</option>
-              <option value="partially_paid">Partial</option>
-              <option value="paid">Paid</option>
-              <option value="overdue">Overdue</option>
+              <option value="issued">{t("Diterbitkan", "Issued")}</option>
+              <option value="partially_paid">{t("Sebahagian", "Partial")}</option>
+              <option value="paid">{t("Dibayar", "Paid")}</option>
+              <option value="overdue">{t("Tertunggak", "Overdue")}</option>
               <option value="void">Void</option>
             </select>
           )}
@@ -567,12 +572,12 @@ export default function BillingWorkspace() {
               }
               className="h-9 rounded-md border border-input bg-background px-3 text-sm"
             >
-              <option value="all">Semua Status</option>
+              <option value="all">{t("Semua Status", "All Statuses")}</option>
               <option value="draft">Draft</option>
-              <option value="sent">Sent</option>
-              <option value="accepted">Accepted</option>
-              <option value="rejected">Rejected</option>
-              <option value="expired">Expired</option>
+              <option value="sent">{t("Dihantar", "Sent")}</option>
+              <option value="accepted">{t("Diterima", "Accepted")}</option>
+              <option value="rejected">{t("Ditolak", "Rejected")}</option>
+              <option value="expired">{t("Tamat", "Expired")}</option>
             </select>
           )}
           <div className="relative sm:w-72">
@@ -580,8 +585,8 @@ export default function BillingWorkspace() {
             <Input
               placeholder={
                 tab === "invoices"
-                  ? "Cari no. invoice, customer, booking..."
-                  : "Cari referensi atau customer..."
+                  ? t("Cari no. invois, pelanggan, tempahan...", "Search invoice no., customer, booking...")
+                  : t("Cari rujukan atau pelanggan...", "Search reference or customer...")
               }
               value={search}
               onChange={(e) => setSearch(e.target.value)}
@@ -599,15 +604,15 @@ export default function BillingWorkspace() {
               <Table>
                 <TableHeader>
                   <TableRow>
-                    <TableHead>Nomor</TableHead>
-                    <TableHead>Customer</TableHead>
-                    <TableHead>Paket</TableHead>
-                    <TableHead>Jatuh Tempo</TableHead>
-                    <TableHead>Total</TableHead>
-                    <TableHead>Dibayar</TableHead>
-                  <TableHead>Sisa</TableHead>
-                  <TableHead>Status</TableHead>
-                  <TableHead className="text-right">Aksi</TableHead>
+                    <TableHead>{t("Nombor", "Number")}</TableHead>
+                    <TableHead>{t("Pelanggan", "Customer")}</TableHead>
+                    <TableHead>{t("Pakej", "Package")}</TableHead>
+                    <TableHead>{t("Jatuh Tempo", "Due Date")}</TableHead>
+                    <TableHead>{t("Jumlah", "Total")}</TableHead>
+                    <TableHead>{t("Dibayar", "Paid")}</TableHead>
+                  <TableHead>{t("Baki", "Balance")}</TableHead>
+                  <TableHead>{t("Status", "Status")}</TableHead>
+                  <TableHead className="text-right">{t("Tindakan", "Actions")}</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
@@ -720,13 +725,13 @@ export default function BillingWorkspace() {
               <CardContent className="space-y-5">
                 <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
                   <div className="rounded-lg border p-3">
-                    <p className="text-[11px] text-muted-foreground">Customer</p>
+                    <p className="text-[11px] text-muted-foreground">{t("Pelanggan", "Customer")}</p>
                     <p className="text-xs font-medium">
                       {selectedInvoice.customerName}
                     </p>
                   </div>
                   <div className="rounded-lg border p-3">
-                    <p className="text-[11px] text-muted-foreground">Booking</p>
+                    <p className="text-[11px] text-muted-foreground">{t("Tempahan", "Booking")}</p>
                     <p className="text-xs font-medium">
                       {selectedInvoice.bookingReference}
                     </p>
@@ -752,16 +757,16 @@ export default function BillingWorkspace() {
                 {/* Items */}
                 <div className="space-y-2">
                   <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
-                    Rincian Item
+                    {t("Butiran Item", "Item Details")}
                   </p>
                   <div className="overflow-hidden rounded-lg border">
                     <Table>
                       <TableHeader>
                         <TableRow>
-                          <TableHead>Deskripsi</TableHead>
+                          <TableHead>{t("Penerangan", "Description")}</TableHead>
                           <TableHead className="text-center">Qty</TableHead>
-                          <TableHead className="text-right">Harga Satuan</TableHead>
-                          <TableHead className="text-right">Jumlah</TableHead>
+                          <TableHead className="text-right">{t("Harga Seunit", "Unit Price")}</TableHead>
+                          <TableHead className="text-right">{t("Jumlah", "Amount")}</TableHead>
                         </TableRow>
                       </TableHeader>
                       <TableBody>
@@ -790,27 +795,27 @@ export default function BillingWorkspace() {
                       <span>{formatRupiah(selectedInvoice.subtotal)}</span>
                     </div>
                     <div className="flex justify-between">
-                      <span className="text-muted-foreground">Diskon</span>
+                      <span className="text-muted-foreground">{t("Diskaun", "Discount")}</span>
                       <span className="text-green-600">
                         -{formatRupiah(selectedInvoice.discount)}
                       </span>
                     </div>
                     <div className="flex justify-between border-t pt-1.5 font-semibold">
-                      <span>Total</span>
+                      <span>{t("Jumlah", "Total")}</span>
                       <span>{formatRupiah(selectedInvoice.total)}</span>
                     </div>
                     <div className="flex justify-between">
-                      <span className="text-muted-foreground">Deposit</span>
+                      <span className="text-muted-foreground">{t("Deposit", "Deposit")}</span>
                       <span>{formatRupiah(selectedInvoice.depositAmount)}</span>
                     </div>
                     <div className="flex justify-between">
-                      <span className="text-muted-foreground">Dibayar</span>
+                      <span className="text-muted-foreground">{t("Dibayar", "Paid")}</span>
                       <span className="text-green-600">
                         {formatRupiah(selectedInvoice.paidAmount)}
                       </span>
                     </div>
                     <div className="flex justify-between font-semibold text-primary">
-                      <span>Sisa Tagihan</span>
+                      <span>{t("Baki Tertunggak", "Balance Due")}</span>
                       <span>{formatRupiah(selectedInvoice.balanceDue)}</span>
                     </div>
                   </div>
@@ -958,15 +963,15 @@ export default function BillingWorkspace() {
             <Table>
               <TableHeader>
                 <TableRow>
-                  <TableHead>Nomor</TableHead>
-                  <TableHead>Customer</TableHead>
-                  <TableHead>Paket</TableHead>
+                  <TableHead>{t("Nombor", "Number")}</TableHead>
+                  <TableHead>{t("Pelanggan", "Customer")}</TableHead>
+                  <TableHead>{t("Pakej", "Package")}</TableHead>
                   <TableHead>Pax</TableHead>
-                  <TableHead>Berangkat</TableHead>
-                  <TableHead>Total</TableHead>
-                  <TableHead>Berlaku s.d.</TableHead>
-                  <TableHead>Status</TableHead>
-                  <TableHead className="text-right">Aksi</TableHead>
+                  <TableHead>{t("Keberangkatan", "Departure")}</TableHead>
+                  <TableHead>{t("Jumlah", "Total")}</TableHead>
+                  <TableHead>{t("Sah sehingga", "Valid until")}</TableHead>
+                  <TableHead>{t("Status", "Status")}</TableHead>
+                  <TableHead className="text-right">{t("Tindakan", "Actions")}</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
@@ -1014,9 +1019,9 @@ export default function BillingWorkspace() {
                               updateQuotationStatus(qt.id, "sent")
                             }
                           >
-                            <Send className="h-3.5 w-3.5" />
-                            Kirim
-                          </Button>
+                              <Send className="h-3.5 w-3.5" />
+                              {t("Hantar", "Send")}
+                            </Button>
                         )}
                         {qt.status === "sent" && (
                           <>
@@ -1029,7 +1034,7 @@ export default function BillingWorkspace() {
                               }
                             >
                               <ThumbsUp className="h-3.5 w-3.5" />
-                              Terima
+                              {t("Terima", "Accept")}
                             </Button>
                             <Button
                               size="sm"
@@ -1040,7 +1045,7 @@ export default function BillingWorkspace() {
                               }
                             >
                               <ThumbsDown className="h-3.5 w-3.5" />
-                              Tolak
+                              {t("Tolak", "Reject")}
                             </Button>
                           </>
                         )}
@@ -1054,7 +1059,7 @@ export default function BillingWorkspace() {
                             title="Convert ke booking & invoice (backend phase)"
                           >
                             <FileText className="h-3.5 w-3.5" />
-                            Convert
+                            {t("Tukar", "Convert")}
                           </Button>
                         )}
                         {(qt.status === "rejected" ||
@@ -1068,7 +1073,7 @@ export default function BillingWorkspace() {
                             }
                           >
                             <XCircle className="h-3.5 w-3.5" />
-                            Reopen
+                            {t("Buka Semula", "Reopen")}
                           </Button>
                         )}
                       </div>
@@ -1081,7 +1086,7 @@ export default function BillingWorkspace() {
                       colSpan={9}
                       className="h-24 text-center text-muted-foreground"
                     >
-                      Tidak ada quotation yang cocok.
+                      {t("Tiada quotation sepadan.", "No matching quotations.")}
                     </TableCell>
                   </TableRow>
                 )}
@@ -1098,14 +1103,14 @@ export default function BillingWorkspace() {
             <Table>
               <TableHeader>
                 <TableRow>
-                  <TableHead>Invoice</TableHead>
-                  <TableHead>Customer</TableHead>
-                  <TableHead>Metode</TableHead>
-                  <TableHead>Jumlah</TableHead>
-                  <TableHead>Tanggal</TableHead>
-                  <TableHead>Bukti</TableHead>
-                  <TableHead>Status</TableHead>
-                  <TableHead className="text-right">Aksi</TableHead>
+                  <TableHead>{t("Invois", "Invoice")}</TableHead>
+                  <TableHead>{t("Pelanggan", "Customer")}</TableHead>
+                  <TableHead>{t("Kaedah", "Method")}</TableHead>
+                  <TableHead>{t("Jumlah", "Amount")}</TableHead>
+                  <TableHead>{t("Tarikh", "Date")}</TableHead>
+                  <TableHead>{t("Bukti", "Proof")}</TableHead>
+                  <TableHead>{t("Status", "Status")}</TableHead>
+                  <TableHead className="text-right">{t("Tindakan", "Actions")}</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
@@ -1124,9 +1129,9 @@ export default function BillingWorkspace() {
                     <TableCell className="text-xs">{p.paidAt}</TableCell>
                     <TableCell>
                       {p.proofUploaded ? (
-                        <Badge variant="secondary">Ada</Badge>
+                        <Badge variant="secondary">{t("Ada", "Yes")}</Badge>
                       ) : (
-                        <Badge variant="outline">Tidak</Badge>
+                        <Badge variant="outline">{t("Tiada", "No")}</Badge>
                       )}
                     </TableCell>
                     <TableCell>
@@ -1141,10 +1146,10 @@ export default function BillingWorkspace() {
                         )}
                       >
                         {p.status === "verified"
-                          ? "Terverifikasi"
+                          ? t("Disahkan", "Verified")
                           : p.status === "pending_verification"
-                            ? "Menunggu Verifikasi"
-                            : "Ditolak"}
+                            ? t("Menunggu Pengesahan", "Pending Verification")
+                            : t("Ditolak", "Rejected")}
                       </Badge>
                     </TableCell>
                     <TableCell className="text-right">
@@ -1157,7 +1162,7 @@ export default function BillingWorkspace() {
                             onClick={() => verifyPayment(p.id, true)}
                           >
                             <CheckCircle2 className="h-3.5 w-3.5" />
-                            Verifikasi
+                            {t("Sahkan", "Verify")}
                           </Button>
                           <Button
                             size="sm"
@@ -1166,7 +1171,7 @@ export default function BillingWorkspace() {
                             onClick={() => verifyPayment(p.id, false)}
                           >
                             <XCircle className="h-3.5 w-3.5" />
-                            Tolak
+                            {t("Tolak", "Reject")}
                           </Button>
                         </div>
                       )}
@@ -1186,14 +1191,14 @@ export default function BillingWorkspace() {
             <Table>
               <TableHeader>
                 <TableRow>
-                  <TableHead>Nomor</TableHead>
-                  <TableHead>Invoice</TableHead>
-                  <TableHead>Customer</TableHead>
-                  <TableHead>Jumlah</TableHead>
-                  <TableHead>Alasan</TableHead>
-                  <TableHead>Diminta</TableHead>
-                  <TableHead>Status</TableHead>
-                  <TableHead className="text-right">Aksi</TableHead>
+                  <TableHead>{t("Nombor", "Number")}</TableHead>
+                  <TableHead>{t("Invois", "Invoice")}</TableHead>
+                  <TableHead>{t("Pelanggan", "Customer")}</TableHead>
+                  <TableHead>{t("Jumlah", "Amount")}</TableHead>
+                  <TableHead>{t("Sebab", "Reason")}</TableHead>
+                  <TableHead>{t("Diminta", "Requested")}</TableHead>
+                  <TableHead>{t("Status", "Status")}</TableHead>
+                  <TableHead className="text-right">{t("Tindakan", "Actions")}</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
@@ -1232,7 +1237,7 @@ export default function BillingWorkspace() {
                               }
                             >
                               <Clock className="h-3.5 w-3.5" />
-                              Proses
+                              {t("Proses", "Process")}
                             </Button>
                             <Button
                               size="sm"
@@ -1243,7 +1248,7 @@ export default function BillingWorkspace() {
                               }
                             >
                               <XCircle className="h-3.5 w-3.5" />
-                              Tolak
+                              {t("Tolak", "Reject")}
                             </Button>
                           </>
                         )}
@@ -1257,7 +1262,7 @@ export default function BillingWorkspace() {
                             }
                           >
                             <CheckCircle2 className="h-3.5 w-3.5" />
-                            Selesaikan
+                            {t("Selesaikan", "Complete")}
                           </Button>
                         )}
                       </div>
@@ -1270,7 +1275,7 @@ export default function BillingWorkspace() {
                       colSpan={8}
                       className="h-24 text-center text-muted-foreground"
                     >
-                      Belum ada refund / credit note.
+                      {t("Belum ada bayaran balik / credit note.", "No refunds / credit notes yet.")}
                     </TableCell>
                   </TableRow>
                 )}

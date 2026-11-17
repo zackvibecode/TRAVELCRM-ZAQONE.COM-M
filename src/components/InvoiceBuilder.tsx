@@ -2,6 +2,7 @@
 import { Eye, Plus, Save, Trash2 } from "lucide-react";
 import type { Invoice, InvoiceItem } from "@/lib/types";
 import { formatRinggit } from "@/lib/utils";
+import { useLang } from "@/lib/i18n";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -22,6 +23,7 @@ interface InvoiceBuilderProps {
 }
 
 export default function InvoiceBuilder({ onCreated }: InvoiceBuilderProps) {
+  const { t } = useLang();
   const [customerName, setCustomerName] = useState("");
   const [bookingReference, setBookingReference] = useState("");
   const [packageName, setPackageName] = useState("");
@@ -257,7 +259,7 @@ export default function InvoiceBuilder({ onCreated }: InvoiceBuilderProps) {
               <Textarea
                 value={notes}
                 onChange={(e) => setNotes(e.target.value)}
-                placeholder="Syarat pembayaran, info transfer..."
+                placeholder={t("Syarat pembayaran, maklumat transfer...", "Payment terms, transfer info...")}
                 className="min-h-20"
               />
             </div>
@@ -313,7 +315,7 @@ export default function InvoiceBuilder({ onCreated }: InvoiceBuilderProps) {
                   </p>
                 </div>
                 <div>
-                  <p className="text-[11px] text-muted-foreground">Paket</p>
+                  <p className="text-[11px] text-muted-foreground">{t("Pakej", "Package")}</p>
                   <p className="font-medium">{packageName || "—"}</p>
                 </div>
                 <div>
@@ -354,17 +356,17 @@ export default function InvoiceBuilder({ onCreated }: InvoiceBuilderProps) {
                   <span>{formatRupiah(subtotal)}</span>
                 </div>
                 <div className="flex justify-between">
-                  <span className="text-muted-foreground">Diskon</span>
+                  <span className="text-muted-foreground">{t("Diskaun", "Discount")}</span>
                   <span className="text-green-600">
                     -{formatRupiah(discount)}
                   </span>
                 </div>
                 <div className="flex justify-between text-base font-bold">
-                  <span>Total Tagihan</span>
+                  <span>{t("Jumlah Tagihan", "Total Due")}</span>
                   <span className="text-primary">{formatRupiah(total)}</span>
                 </div>
                 <div className="flex justify-between">
-                  <span className="text-muted-foreground">Deposit</span>
+                  <span className="text-muted-foreground">{t("Deposit", "Deposit")}</span>
                   <span>{formatRupiah(deposit)}</span>
                 </div>
               </div>

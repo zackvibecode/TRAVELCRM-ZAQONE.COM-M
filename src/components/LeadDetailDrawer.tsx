@@ -17,6 +17,7 @@ import {
   type LeadStage,
 } from "@/lib/types";
 import { waLink , formatRinggit } from "@/lib/utils";
+import { useLang } from "@/lib/i18n";
 import { Button } from "@/components/ui/button";
 
 const ACTIVITY_ICONS: Record<LeadActivity["type"], string> = {
@@ -74,6 +75,7 @@ export default function LeadDetailDrawer({
   onActivityAdd,
   assignees,
 }: LeadDetailDrawerProps) {
+  const { t } = useLang();
   const [stage, setStage] = useState<LeadStage | "">("");
   const [assignee, setAssignee] = useState("");
   const [followUp, setFollowUp] = useState("");
@@ -124,7 +126,7 @@ export default function LeadDetailDrawer({
               <div className="flex items-center gap-2 rounded-lg border p-3">
                 <UserIcon className="h-4 w-4 shrink-0 text-muted-foreground" />
                 <div className="min-w-0">
-                  <p className="text-[11px] text-muted-foreground">Telepon</p>
+                  <p className="text-[11px] text-muted-foreground">{t("Telefon", "Phone")}</p>
                   <p className="truncate text-xs font-medium">{lead.phone}</p>
                 </div>
               </div>
@@ -138,7 +140,7 @@ export default function LeadDetailDrawer({
               <div className="flex items-center gap-2 rounded-lg border p-3">
                 <MapPin className="h-4 w-4 shrink-0 text-muted-foreground" />
                 <div className="min-w-0">
-                  <p className="text-[11px] text-muted-foreground">Destinasi</p>
+                  <p className="text-[11px] text-muted-foreground">{t("Destinasi", "Destination")}</p>
                   <p className="truncate text-xs font-medium">
                     {lead.destination}
                   </p>
@@ -154,7 +156,7 @@ export default function LeadDetailDrawer({
               <div className="col-span-2 flex items-center gap-2 rounded-lg border p-3">
                 <Wallet className="h-4 w-4 shrink-0 text-muted-foreground" />
                 <div className="min-w-0">
-                  <p className="text-[11px] text-muted-foreground">Budget</p>
+                  <p className="text-[11px] text-muted-foreground">{t("Bajet", "Budget")}</p>
                   <p className="text-xs font-semibold text-primary">
                     {formatRupiah(lead.budget)}
                   </p>
@@ -249,7 +251,7 @@ export default function LeadDetailDrawer({
                 </select>
                 <input
                   type="text"
-                  placeholder="Ringkasan aktivitas..."
+                  placeholder={t("Ringkasan aktiviti...", "Activity summary...")}
                   value={activityText}
                   onChange={(e) => setActivityText(e.target.value)}
                   className="h-9 flex-1 rounded-md border border-input bg-background px-3 text-sm"

@@ -18,6 +18,7 @@ import {
   type LeadSource,
 } from "@/lib/types";
 import { cn, waLink , formatRinggit } from "@/lib/utils";
+import { useLang } from "@/lib/i18n";
 import LeadDetailDrawer from "@/components/LeadDetailDrawer";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -68,6 +69,7 @@ function stageBadgeClass(stage: LeadStage): string {
 }
 
 export default function LeadsPipeline() {
+  const { t } = useLang();
   const [leads, setLeads] = useState<Lead[]>(mockLeads);
   const [search, setSearch] = useState("");
   const [sourceFilter, setSourceFilter] = useState<LeadSource | "all">("all");
@@ -294,15 +296,18 @@ export default function LeadsPipeline() {
       <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
         <div>
           <h1 className="font-display text-2xl font-bold tracking-tight">
-            Leads Pipeline
+            {t("Saluran Leads", "Leads Pipeline")}
           </h1>
           <p className="text-sm text-muted-foreground">
-            Track prospek dari enquiry hingga closing.
+            {t(
+              "Jejaki prospek daripada pertanyaan sehingga closing.",
+              "Track prospects from enquiry through to closing.",
+            )}
           </p>
         </div>
         <Button className="gap-2">
           <Plus className="h-4 w-4" />
-          Tambah Lead
+          {t("Tambah Lead", "Add Lead")}
         </Button>
       </div>
 
@@ -311,33 +316,35 @@ export default function LeadsPipeline() {
         <Card>
           <CardHeader className="pb-2">
             <CardTitle className="flex items-center gap-2 text-xs font-medium text-muted-foreground">
-              <Users className="h-4 w-4" /> Total Leads
+              <Users className="h-4 w-4" /> {t("Jumlah Leads", "Total Leads")}
             </CardTitle>
           </CardHeader>
           <CardContent>
             <p className="font-display text-2xl font-bold">{kpi.totalLeads}</p>
             <p className="text-xs text-muted-foreground">
-              {kpi.openLeads} aktif
+              {kpi.openLeads} {t("aktif", "active")}
             </p>
           </CardContent>
         </Card>
         <Card>
           <CardHeader className="pb-2">
             <CardTitle className="flex items-center gap-2 text-xs font-medium text-muted-foreground">
-              <TrendingUp className="h-4 w-4" /> Pipeline Value
+              <TrendingUp className="h-4 w-4" /> {t("Nilai Paip", "Pipeline Value")}
             </CardTitle>
           </CardHeader>
           <CardContent>
             <p className="font-display text-2xl font-bold">
               {formatRupiah(kpi.pipelineValue)}
             </p>
-            <p className="text-xs text-muted-foreground">estimasi budget aktif</p>
+            <p className="text-xs text-muted-foreground">
+              {t("anggaran bajet aktif", "estimated active budget")}
+            </p>
           </CardContent>
         </Card>
         <Card>
           <CardHeader className="pb-2">
             <CardTitle className="flex items-center gap-2 text-xs font-medium text-muted-foreground">
-              <TrendingUp className="h-4 w-4" /> Win Rate
+              <TrendingUp className="h-4 w-4" /> {t("Kadar Menang", "Win Rate")}
             </CardTitle>
           </CardHeader>
           <CardContent>
@@ -348,12 +355,14 @@ export default function LeadsPipeline() {
         <Card>
           <CardHeader className="pb-2">
             <CardTitle className="flex items-center gap-2 text-xs font-medium text-muted-foreground">
-              <CalendarClock className="h-4 w-4" /> Follow-up Dekat
+              <CalendarClock className="h-4 w-4" /> {t("Susulan Hampir", "Follow-ups Soon")}
             </CardTitle>
           </CardHeader>
           <CardContent>
             <p className="font-display text-2xl font-bold">{kpi.followUps}</p>
-            <p className="text-xs text-muted-foreground">2 hari ke depan</p>
+            <p className="text-xs text-muted-foreground">
+              {t("2 hari akan datang", "next 2 days")}
+            </p>
           </CardContent>
         </Card>
       </div>
@@ -432,8 +441,8 @@ export default function LeadsPipeline() {
                       )}
                     >
                       {overdue
-                        ? `Terlambat ${lead.nextFollowUp}`
-                        : `Hari ini`}
+                        ? t("Tertunggak", "Overdue") + ` ${lead.nextFollowUp}`
+                        : t("Hari ini", "Today")}
                     </Badge>
                   </button>
                 );
@@ -448,7 +457,7 @@ export default function LeadsPipeline() {
         <div className="relative flex-1">
           <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
           <Input
-            placeholder="Cari nama, destinasi, atau no. telepon..."
+            placeholder={t("Cari nama, destinasi, atau no. telefon...", "Search name, destination, or phone...")}
             value={search}
             onChange={(e) => setSearch(e.target.value)}
             className="pl-9"
@@ -465,7 +474,7 @@ export default function LeadsPipeline() {
             }
             className="h-9 rounded-md border border-input bg-background px-3 text-sm"
           >
-            <option value="all">Semua Source</option>
+            <option value="all">{t("Semua Sumber", "All Sources")}</option>
             {Object.entries(SOURCE_LABELS).map(([value, label]) => (
               <option key={value} value={value}>
                 {label}
@@ -477,7 +486,7 @@ export default function LeadsPipeline() {
             onChange={(e) => setAssigneeFilter(e.target.value)}
             className="h-9 rounded-md border border-input bg-background px-3 text-sm"
           >
-            <option value="all">Semua Agent</option>
+            <option value="all">{t("Semua Ejen", "All Agents")}</option>
             {assignees.map((a) => (
               <option key={a} value={a}>
                 {a}
@@ -591,15 +600,15 @@ export default function LeadsPipeline() {
             <Table>
               <TableHeader>
                 <TableRow>
-                  <TableHead>Nama</TableHead>
-                  <TableHead>Kontak</TableHead>
-                  <TableHead>Destinasi</TableHead>
+                  <TableHead>{t("Nama", "Name")}</TableHead>
+                  <TableHead>{t("Kontak", "Contact")}</TableHead>
+                  <TableHead>{t("Destinasi", "Destination")}</TableHead>
                   <TableHead>Pax</TableHead>
-                  <TableHead>Budget</TableHead>
-                  <TableHead>Source</TableHead>
-                  <TableHead>Stage</TableHead>
-                  <TableHead>Agent</TableHead>
-                  <TableHead>Follow-up</TableHead>
+                  <TableHead>{t("Bajet", "Budget")}</TableHead>
+                  <TableHead>{t("Sumber", "Source")}</TableHead>
+                  <TableHead>{t("Peringkat", "Stage")}</TableHead>
+                  <TableHead>{t("Ejen", "Agent")}</TableHead>
+                  <TableHead>{t("Susulan", "Follow-up")}</TableHead>
                   <TableHead className="text-right">WhatsApp</TableHead>
                 </TableRow>
               </TableHeader>

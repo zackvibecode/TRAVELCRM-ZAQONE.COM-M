@@ -9,6 +9,7 @@ import {
 } from "@/components/StatusBadges";
 import { type Booking, type BookingStatus, bookingStatusLabels } from "@/lib/types";
 import { cn, formatCurrency, formatDate } from "@/lib/utils";
+import { useLang } from "@/lib/i18n";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import {
@@ -41,6 +42,7 @@ function totalPax(b: Booking) {
 }
 
 export default function BookingWorkspace() {
+  const { t } = useLang();
   const [search, setSearch] = useState("");
   const [createOpen, setCreateOpen] = useState(false);
   const [detailBooking, setDetailBooking] = useState<Booking | null>(null);
@@ -81,15 +83,18 @@ export default function BookingWorkspace() {
       <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
         <div>
           <h1 className="font-display text-2xl font-bold tracking-tight">
-            Booking Workspace
+            {t("Ruang Kerja Tempahan", "Booking Workspace")}
           </h1>
           <p className="text-sm text-muted-foreground">
-            Manage customer bookings, passengers, pricing, and status.
+            {t(
+              "Urus tempahan pelanggan, penumpang, harga, dan status.",
+              "Manage customer bookings, passengers, pricing, and status.",
+            )}
           </p>
         </div>
         <Button onClick={() => setCreateOpen(true)}>
           <Plus className="h-4 w-4" />
-          New Booking
+          {t("Tempahan Baharu", "New Booking")}
         </Button>
       </div>
 
@@ -98,7 +103,7 @@ export default function BookingWorkspace() {
         <Card>
           <CardHeader className="pb-2">
             <CardTitle className="text-sm font-medium text-muted-foreground">
-              Total Bookings
+              {t("Jumlah Tempahan", "Total Bookings")}
             </CardTitle>
           </CardHeader>
           <CardContent>
@@ -108,7 +113,7 @@ export default function BookingWorkspace() {
         <Card>
           <CardHeader className="pb-2">
             <CardTitle className="text-sm font-medium text-muted-foreground">
-              Confirmed
+              {t("Disahkan", "Confirmed")}
             </CardTitle>
           </CardHeader>
           <CardContent>
@@ -120,7 +125,7 @@ export default function BookingWorkspace() {
         <Card>
           <CardHeader className="pb-2">
             <CardTitle className="text-sm font-medium text-muted-foreground">
-              Awaiting Deposit
+              {t("Menunggu Deposit", "Awaiting Deposit")}
             </CardTitle>
           </CardHeader>
           <CardContent>
@@ -132,7 +137,7 @@ export default function BookingWorkspace() {
         <Card>
           <CardHeader className="pb-2">
             <CardTitle className="text-sm font-medium text-muted-foreground">
-              Outstanding Balance
+              {t("Baki Tertunggak", "Outstanding Balance")}
             </CardTitle>
           </CardHeader>
           <CardContent>
@@ -148,7 +153,7 @@ export default function BookingWorkspace() {
         <div className="relative w-full sm:max-w-xs">
           <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
           <Input
-            placeholder="Search reference, customer, package..."
+            placeholder={t("Cari rujukan, pelanggan, pakej...", "Search reference, customer, package...")}
             value={search}
             onChange={(e) => setSearch(e.target.value)}
             className="pl-8"
@@ -166,7 +171,7 @@ export default function BookingWorkspace() {
                   : "bg-muted text-muted-foreground hover:bg-muted/70",
               )}
             >
-              {f === "all" ? "All" : bookingStatusLabels[f]}
+              {f === "all" ? t("Semua", "All") : bookingStatusLabels[f]}
             </button>
           ))}
         </div>
@@ -178,16 +183,16 @@ export default function BookingWorkspace() {
           <Table>
             <TableHeader>
               <TableRow>
-                <TableHead>Reference</TableHead>
-                <TableHead>Customer</TableHead>
-                <TableHead>Package</TableHead>
-                <TableHead>Departure</TableHead>
+                <TableHead>{t("Rujukan", "Reference")}</TableHead>
+                <TableHead>{t("Pelanggan", "Customer")}</TableHead>
+                <TableHead>{t("Pakej", "Package")}</TableHead>
+                <TableHead>{t("Keberangkatan", "Departure")}</TableHead>
                 <TableHead className="text-center">Pax</TableHead>
-                <TableHead>Total</TableHead>
-                <TableHead>Balance</TableHead>
-                <TableHead>Status</TableHead>
-                <TableHead>Payment</TableHead>
-                <TableHead className="text-right">Actions</TableHead>
+                <TableHead>{t("Jumlah", "Total")}</TableHead>
+                <TableHead>{t("Baki", "Balance")}</TableHead>
+                <TableHead>{t("Status", "Status")}</TableHead>
+                <TableHead>{t("Pembayaran", "Payment")}</TableHead>
+                <TableHead className="text-right">{t("Tindakan", "Actions")}</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
@@ -197,7 +202,10 @@ export default function BookingWorkspace() {
                     colSpan={10}
                     className="h-24 text-center text-muted-foreground"
                   >
-                    No bookings match your filters.
+                    {t(
+                      "Tiada tempahan sepadan dengan penapis anda.",
+                      "No bookings match your filters.",
+                    )}
                   </TableCell>
                 </TableRow>
               ) : (

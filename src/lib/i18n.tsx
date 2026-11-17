@@ -15,13 +15,13 @@ interface LangContextValue {
 }
 
 const LangContext = createContext<LangContextValue>({
-  lang: "ms",
+  lang: "en",
   setLang: () => {},
-  t: (ms) => ms,
+  t: (_ms, en) => en,
 });
 
 export function LanguageProvider({ children }: { children: ReactNode }) {
-  const [lang, setLang] = useState<Lang>("ms");
+  const [lang, setLang] = useState<Lang>("en");
 
   const t = (ms: string, en: string) => (lang === "ms" ? ms : en);
 

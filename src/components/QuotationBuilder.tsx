@@ -2,6 +2,7 @@
 import { Eye, Plus, Save, Trash2 } from "lucide-react";
 import type { InvoiceItem, Quotation } from "@/lib/types";
 import { formatRinggit } from "@/lib/utils";
+import { useLang } from "@/lib/i18n";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -24,6 +25,7 @@ interface QuotationBuilderProps {
 export default function QuotationBuilder({
   onCreated,
 }: QuotationBuilderProps) {
+  const { t } = useLang();
   const [customerName, setCustomerName] = useState("");
   const [customerPhone, setCustomerPhone] = useState("");
   const [packageName, setPackageName] = useState("");
@@ -301,7 +303,7 @@ export default function QuotationBuilder({
               <Textarea
                 value={notes}
                 onChange={(e) => setNotes(e.target.value)}
-                placeholder="Termasuk tiket, hotel bintang 4, breakfast..."
+                placeholder={t("Termasuk tiket, hotel bintang 4, breakfast...", "Includes tickets, 4-star hotel, breakfast...")}
                 className="min-h-20"
               />
             </div>
@@ -335,11 +337,11 @@ export default function QuotationBuilder({
             <CardContent className="space-y-4 pt-4">
               <div className="grid grid-cols-2 gap-3 text-sm">
                 <div>
-                  <p className="text-[11px] text-muted-foreground">Ditujukan kepada</p>
+                  <p className="text-[11px] text-muted-foreground">{t("Ditujukan kepada", "Prepared for")}</p>
                   <p className="font-medium">{customerName || "—"}</p>
                 </div>
                 <div>
-                  <p className="text-[11px] text-muted-foreground">Paket</p>
+                  <p className="text-[11px] text-muted-foreground">{t("Pakej", "Package")}</p>
                   <p className="font-medium">{packageName || "—"}</p>
                 </div>
                 <div>
@@ -398,13 +400,13 @@ export default function QuotationBuilder({
                   <span>{formatRupiah(subtotal)}</span>
                 </div>
                 <div className="flex justify-between">
-                  <span className="text-muted-foreground">Diskon</span>
+                  <span className="text-muted-foreground">{t("Diskaun", "Discount")}</span>
                   <span className="text-green-600">
                     -{formatRupiah(discount)}
                   </span>
                 </div>
                 <div className="flex justify-between text-base font-bold">
-                  <span>Total</span>
+                  <span>{t("Jumlah", "Total")}</span>
                   <span className="text-primary">{formatRupiah(total)}</span>
                 </div>
               </div>

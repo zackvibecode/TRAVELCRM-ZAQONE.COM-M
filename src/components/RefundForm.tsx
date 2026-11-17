@@ -2,6 +2,7 @@
 import { Save } from "lucide-react";
 import type { Invoice } from "@/lib/types";
 import { formatRinggit } from "@/lib/utils";
+import { useLang } from "@/lib/i18n";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -28,6 +29,7 @@ export default function RefundForm({
   onCreated,
   onCancel,
 }: RefundFormProps) {
+  const { t } = useLang();
   const maxRefund = invoice.paidAmount;
   const [amount, setAmount] = useState(maxRefund);
   const [reason, setReason] = useState("");
@@ -39,10 +41,10 @@ export default function RefundForm({
       <CardHeader className="pb-3">
         <div className="flex items-center justify-between">
           <CardTitle className="font-display text-base font-bold">
-            Buat Refund / Credit Note — {invoice.number}
+            {t("Buat Bayaran Balik / Credit Note", "Create Refund / Credit Note")} — {invoice.number}
           </CardTitle>
           <Badge variant="secondary">
-            Dibayar: {formatRupiah(invoice.paidAmount)}
+            {t("Dibayar", "Paid")}: {formatRupiah(invoice.paidAmount)}
           </Badge>
         </div>
       </CardHeader>
@@ -63,29 +65,35 @@ export default function RefundForm({
             />
             {amount > maxRefund && (
               <p className="text-xs text-red-500">
-                Melebihi total yang sudah dibayar.
+                {t("Melebihi jumlah yang sudah dibayar.", "Exceeds the amount already paid.")}
               </p>
             )}
           </div>
           <div className="rounded-lg bg-muted/50 p-3 text-xs text-muted-foreground">
-            Refund hanya bisa dilakukan untuk dana yang sudah dibayar customer
-            (maks {formatRupiah(maxRefund)}).
+            {t(
+              "Bayaran balik hanya boleh dilakukan untuk dana yang sudah dibayar oleh pelanggan (maks",
+              "Refunds can only be issued for funds already paid by the customer (max",
+            )}{" "}
+            {formatRupiah(maxRefund)}).
           </div>
         </div>
         <div className="space-y-1.5">
           <label className="text-xs font-medium text-muted-foreground">
-            Alasan *
+            {t("Sebab", "Reason")} *
           </label>
           <Textarea
             value={reason}
             onChange={(e) => setReason(e.target.value)}
-            placeholder="cth. Pembatalan trip, pembayaran ganda, kompensasi..."
+            placeholder={t(
+              "cth. Pembatalan trip, pembayaran berganda, pampasan...",
+              "e.g. Trip cancellation, double payment, compensation...",
+            )}
             className="min-h-20"
           />
         </div>
         <div className="flex justify-end gap-2">
           <Button variant="outline" onClick={onCancel}>
-            Batal
+            {t("Batal", "Cancel")}
           </Button>
           <Button
             disabled={!valid}
@@ -93,7 +101,7 @@ export default function RefundForm({
             className="gap-2"
           >
             <Save className="h-4 w-4" />
-            Ajukan Refund
+            {t("Ajukan Bayaran Balik", "Submit Refund")}
           </Button>
         </div>
       </CardContent>

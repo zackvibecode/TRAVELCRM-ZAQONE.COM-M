@@ -11,6 +11,7 @@ import {
 import { mockPackages } from "@/lib/mock-data";
 import type { TravelPackage } from "@/lib/types";
 import { cn } from "@/lib/utils";
+import { useLang } from "@/lib/i18n";
 import PackageForm from "@/components/PackageForm";
 import PricingTiers from "@/components/PricingTiers";
 import { Button } from "@/components/ui/button";
@@ -28,6 +29,7 @@ const DESTINATIONS = Array.from(
 ).sort();
 
 export default function PackageCatalog() {
+  const { t } = useLang();
   const [allPackages, setAllPackages] = useState<TravelPackage[]>(
     () => mockPackages.map((p) => ({ ...p, status: "active", published: true })),
   );
@@ -92,10 +94,13 @@ export default function PackageCatalog() {
       <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
         <div>
           <h1 className="font-display text-2xl font-bold tracking-tight">
-            Package Catalog
+            {t("Katalog Pakej", "Package Catalog")}
           </h1>
           <p className="text-sm text-muted-foreground">
-            Manage travel packages, pricing, and itineraries.
+            {t(
+              "Urus pakej pelancongan, harga, dan itinerary.",
+              "Manage travel packages, pricing, and itineraries.",
+            )}
           </p>
         </div>
         <Button
@@ -105,7 +110,7 @@ export default function PackageCatalog() {
           }}
         >
           <Package className="h-4 w-4" />
-          New Package
+          {t("Pakej Baharu", "New Package")}
         </Button>
       </div>
 
@@ -114,7 +119,7 @@ export default function PackageCatalog() {
         <div className="relative w-full sm:max-w-xs">
           <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
           <Input
-            placeholder="Search name or destination..."
+            placeholder={t("Cari nama atau destinasi...", "Search name or destination...")}
             value={search}
             onChange={(e) => setSearch(e.target.value)}
             className="pl-8"
@@ -126,7 +131,7 @@ export default function PackageCatalog() {
             size="sm"
             onClick={() => setDestination("all")}
           >
-            All
+            {t("Semua", "All")}
           </Button>
           {DESTINATIONS.map((d) => (
             <Button
@@ -143,12 +148,12 @@ export default function PackageCatalog() {
 
       {/* Duration filter */}
       <div className="flex flex-wrap items-center gap-2 text-sm">
-        <span className="text-muted-foreground">Max duration:</span>
+        <span className="text-muted-foreground">{t("Tempoh maksimum:", "Max duration:")}</span>
         {[
-          { label: "Any", value: 0 },
-          { label: "≤ 5 days", value: 5 },
-          { label: "≤ 7 days", value: 7 },
-          { label: "≤ 14 days", value: 14 },
+          { label: t("Semua", "Any"), value: 0 },
+          { label: t("≤ 5 hari", "≤ 5 days"), value: 5 },
+          { label: t("≤ 7 hari", "≤ 7 days"), value: 7 },
+          { label: t("≤ 14 hari", "≤ 14 days"), value: 14 },
         ].map((opt) => (
           <button
             key={opt.value}
@@ -169,7 +174,7 @@ export default function PackageCatalog() {
       {packages.length === 0 ? (
         <Card>
           <CardContent className="flex h-40 items-center justify-center text-muted-foreground">
-            <p className="text-sm">No packages match your filters.</p>
+            <p className="text-sm">{t("Tiada pakej sepadan dengan penapis anda.", "No packages match your filters.")}</p>
           </CardContent>
         </Card>
       ) : (
@@ -189,10 +194,10 @@ export default function PackageCatalog() {
                   </CardTitle>
                   <div className="flex shrink-0 gap-1">
                     {p.published && (
-                      <Badge variant="default">Published</Badge>
+                      <Badge variant="default">{t("Diterbitkan", "Published")}</Badge>
                     )}
                     {p.status === "archived" && (
-                      <Badge variant="outline">Archived</Badge>
+                      <Badge variant="outline">{t("Diarkibkan", "Archived")}</Badge>
                     )}
                   </div>
                 </div>
@@ -204,10 +209,10 @@ export default function PackageCatalog() {
               <CardContent className="flex flex-1 flex-col gap-3">
                 <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
                   <Clock className="h-3.5 w-3.5" />
-                  {p.durationDays} days
+                  {p.durationDays} {t("hari", "days")}
                 </div>
                 <div className="text-sm">
-                  <div className="mb-1 text-muted-foreground">Pricing</div>
+                  <div className="mb-1 text-muted-foreground">{t("Harga", "Pricing")}</div>
                   <PricingTiers pkg={p} />
                 </div>
                 <div className="flex flex-wrap gap-1">
@@ -231,7 +236,7 @@ export default function PackageCatalog() {
                     ))}
                     {p.exclusions.length > 2 && (
                       <Badge variant="outline">
-                        +{p.exclusions.length - 2} excl.
+                        +{p.exclusions.length - 2} {t("ekskl.", "excl.")}
                       </Badge>
                     )}
                   </div>
@@ -248,7 +253,7 @@ export default function PackageCatalog() {
                       setFormOpen(true);
                     }}
                   >
-                    Edit
+                    {t("Sunting", "Edit")}
                   </Button>
                   <Button
                     variant="outline"
@@ -257,21 +262,21 @@ export default function PackageCatalog() {
                     onClick={() => duplicate(p)}
                   >
                     <Copy className="h-3.5 w-3.5" />
-                    Duplicate
+                    {t("Duplikasi", "Duplicate")}
                   </Button>
                   <Button
                     variant={p.published ? "default" : "outline"}
                     size="sm"
                     onClick={() => togglePublish(p)}
-                    title={p.published ? "Unpublish" : "Publish"}
+                    title={p.published ? t("Tarik Terbit", "Unpublish") : t("Terbitkan", "Publish")}
                   >
-                    {p.published ? "Unpublish" : "Publish"}
+                    {p.published ? t("Tarik Terbit", "Unpublish") : t("Terbitkan", "Publish")}
                   </Button>
                   <Button
                     variant="outline"
                     size="sm"
                     onClick={() => toggleArchive(p)}
-                    title={p.status === "archived" ? "Restore" : "Archive"}
+                    title={p.status === "archived" ? t("Pulihkan", "Restore") : t("Arkibkan", "Archive")}
                   >
                     {p.status === "archived" ? (
                       <ArchiveRestore className="h-3.5 w-3.5" />

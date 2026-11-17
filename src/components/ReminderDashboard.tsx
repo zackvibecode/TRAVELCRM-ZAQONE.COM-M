@@ -8,6 +8,7 @@ import {
 } from "lucide-react";
 import type { Invoice, PaymentReminder, ReminderChannel } from "@/lib/types";
 import { cn , formatRinggit } from "@/lib/utils";
+import { useLang } from "@/lib/i18n";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
@@ -39,6 +40,7 @@ export default function ReminderDashboard({
   reminders,
   onSent,
 }: ReminderDashboardProps) {
+  const { t } = useLang();
   const [selected, setSelected] = useState<Invoice | null>(null);
   const [channel, setChannel] = useState<ReminderChannel>("whatsapp");
   const [message, setMessage] = useState("");
@@ -99,13 +101,16 @@ export default function ReminderDashboard({
       <div className="space-y-4 lg:col-span-3">
         <div className="flex items-center gap-2 text-sm font-semibold text-muted-foreground">
           <Bell className="h-4 w-4" />
-          Invoice Perlu Reminder ({needsReminder.length})
+          {t("Invois Perlu Peringatan", "Invoices Needing Reminders")} ({needsReminder.length})
         </div>
         {needsReminder.length === 0 ? (
           <Card>
             <CardContent className="flex h-32 items-center justify-center text-sm text-muted-foreground">
               <CheckCircle2 className="mr-2 h-4 w-4 text-green-500" />
-              Semua tagihan sehat — tidak ada yang perlu diingatkan.
+              {t(
+                "Semua tagihan baik — tiada yang perlu diingatkan.",
+                "All invoices are healthy — nothing needs a reminder.",
+              )}
             </CardContent>
           </Card>
         ) : (
@@ -127,7 +132,7 @@ export default function ReminderDashboard({
                       {inv.number}
                     </p>
                     <p className="text-xs text-muted-foreground">
-                      {inv.customerName} • sisa{" "}
+                      {inv.customerName} • {t("baki", "balance due")}{" "}
                       {formatRupiah(inv.balanceDue)}
                     </p>
                   </div>
@@ -135,7 +140,7 @@ export default function ReminderDashboard({
                     {sentCount > 0 && (
                       <Badge variant="secondary" className="gap-1">
                         <MessageCircle className="h-3 w-3" />
-                        {sentCount}x terkirim
+                        {sentCount}x {t("terkirim", "sent")}
                       </Badge>
                     )}
                     <Badge
@@ -150,10 +155,10 @@ export default function ReminderDashboard({
                     >
                       <Clock className="mr-1 h-3 w-3" />
                       {overdue
-                        ? `Lewat ${Math.abs(days)} hari`
+                        ? `${t("Lewat", "Late")} ${Math.abs(days)} ${t("hari", "days")}`
                         : days === 0
-                          ? "Jatuh tempo hari ini"
-                          : `${days} hari lagi`}
+                          ? t("Jatuh tempo hari ini", "Due today")
+                          : `${days} ${t("hari lagi", "days left")}`}
                     </Badge>
                   </div>
                 </CardContent>
@@ -169,7 +174,7 @@ export default function ReminderDashboard({
           <Card>
             <CardHeader className="pb-3">
               <CardTitle className="font-display text-base font-bold">
-                Kirim Reminder — {selected.number}
+                {t("Hantar Peringatan", "Send Reminder")} — {selected.number}
               </CardTitle>
             </CardHeader>
             <CardContent className="space-y-4">
@@ -196,7 +201,7 @@ export default function ReminderDashboard({
               </div>
               <div className="space-y-1.5">
                 <label className="text-xs font-medium text-muted-foreground">
-                  Pesan (bisa diedit)
+                  {t("Mesej (boleh disunting)", "Message (editable)")}
                 </label>
                 <Textarea
                   value={message}
@@ -212,7 +217,7 @@ export default function ReminderDashboard({
                     setMessage("");
                   }}
                 >
-                  Batal
+                  {t("Batal", "Cancel")}
                 </Button>
                 <Button
                   className="gap-2"
@@ -220,7 +225,7 @@ export default function ReminderDashboard({
                   onClick={handleSend}
                 >
                   <Send className="h-4 w-4" />
-                  Kirim &amp; Catat
+                  {t("Hantar & Rekod", "Send & Log")}
                 </Button>
               </div>
             </CardContent>
@@ -228,7 +233,10 @@ export default function ReminderDashboard({
         ) : (
           <Card className="border-dashed">
             <CardContent className="flex h-24 items-center justify-center text-sm text-muted-foreground">
-              Pilih invoice di kiri untuk mengirim reminder.
+              {t(
+                "Pilih invois di kiri untuk menghantar peringatan.",
+                "Select an invoice on the left to send a reminder.",
+              )}
             </CardContent>
           </Card>
         )}
@@ -237,13 +245,13 @@ export default function ReminderDashboard({
         <Card>
           <CardHeader className="pb-3">
             <CardTitle className="font-display text-base font-bold">
-              Riwayat Reminder ({reminders.length})
+              {t("Sejarah Peringatan", "Reminder History")} ({reminders.length})
             </CardTitle>
           </CardHeader>
           <CardContent className="space-y-2">
             {reminders.length === 0 ? (
               <p className="text-xs text-muted-foreground">
-                Belum ada reminder terkirim.
+                {t("Belum ada peringatan dihantar.", "No reminders sent yet.")}
               </p>
             ) : (
               reminders.slice(0, 8).map((r) => (
@@ -263,7 +271,7 @@ export default function ReminderDashboard({
                     {r.message}
                   </p>
                   <p className="mt-1 text-[11px] text-muted-foreground">
-                    {r.sentAt} • oleh {r.sentBy}
+                    {r.sentAt} • {t("oleh", "by")} {r.sentBy}
                   </p>
                 </div>
               ))

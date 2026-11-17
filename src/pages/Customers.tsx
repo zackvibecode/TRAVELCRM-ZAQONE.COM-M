@@ -14,6 +14,7 @@ import {
 import { mockBookings, mockCustomers } from "@/lib/mock-data";
 import type { Booking, Customer } from "@/lib/types";
 import { cn, waLink , formatRinggit } from "@/lib/utils";
+import { useLang } from "@/lib/i18n";
 import {
   Card,
   CardContent,
@@ -54,6 +55,7 @@ const BOOKING_STATUS_CLASS: Record<Booking["status"], string> = {
 };
 
 export default function Customers() {
+  const { t } = useLang();
   const [search, setSearch] = useState("");
   const [typeFilter, setTypeFilter] = useState<"all" | "individual" | "corporate">("all");
   const [selected, setSelected] = useState<Customer | null>(null);
@@ -111,15 +113,15 @@ export default function Customers() {
       <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
         <div>
           <h1 className="font-display text-2xl font-bold tracking-tight">
-            Customers
+            {t("Pelanggan", "Customers")}
           </h1>
           <p className="text-sm text-muted-foreground">
-            Profil pelanggan dan riwayat booking.
+            {t("Profil pelanggan dan riwayat tempahan.", "Customer profiles and booking history.")}
           </p>
         </div>
         <Button className="gap-2">
           <Plus className="h-4 w-4" />
-          Tambah Customer
+          {t("Tambah Pelanggan", "Add Customer")}
         </Button>
       </div>
 
@@ -128,7 +130,7 @@ export default function Customers() {
         <Card>
           <CardHeader className="pb-2">
             <CardTitle className="flex items-center gap-2 text-xs font-medium text-muted-foreground">
-              <Users className="h-4 w-4" /> Total Customer
+              <Users className="h-4 w-4" /> {t("Jumlah Pelanggan", "Total Customers")}
             </CardTitle>
           </CardHeader>
           <CardContent>
@@ -138,7 +140,7 @@ export default function Customers() {
         <Card>
           <CardHeader className="pb-2">
             <CardTitle className="flex items-center gap-2 text-xs font-medium text-muted-foreground">
-              <Building2 className="h-4 w-4" /> Korporat
+              <Building2 className="h-4 w-4" /> {t("Korporat", "Corporate")}
             </CardTitle>
           </CardHeader>
           <CardContent>
@@ -148,7 +150,7 @@ export default function Customers() {
         <Card>
           <CardHeader className="pb-2">
             <CardTitle className="flex items-center gap-2 text-xs font-medium text-muted-foreground">
-              <BookOpenCheck className="h-4 w-4" /> Punya Booking
+              <BookOpenCheck className="h-4 w-4" /> {t("Ada Tempahan", "With Bookings")}
             </CardTitle>
           </CardHeader>
           <CardContent>
@@ -162,7 +164,7 @@ export default function Customers() {
         <div className="relative flex-1">
           <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
           <Input
-            placeholder="Cari nama, email, atau telepon..."
+            placeholder={t("Cari nama, emel, atau telefon...", "Search name, email, or phone...")}
             value={search}
             onChange={(e) => setSearch(e.target.value)}
             className="pl-9"
@@ -175,9 +177,9 @@ export default function Customers() {
           }
           className="h-9 rounded-md border border-input bg-background px-3 text-sm"
         >
-          <option value="all">Semua Tipe</option>
-          <option value="individual">Individual</option>
-          <option value="corporate">Korporat</option>
+          <option value="all">{t("Semua Jenis", "All Types")}</option>
+          <option value="individual">{t("Individu", "Individual")}</option>
+          <option value="corporate">{t("Korporat", "Corporate")}</option>
         </select>
       </div>
 
@@ -187,14 +189,14 @@ export default function Customers() {
           <Table>
             <TableHeader>
               <TableRow>
-                <TableHead>Nama</TableHead>
-                <TableHead>Kontak</TableHead>
-                <TableHead>Tipe</TableHead>
-                <TableHead>Kota</TableHead>
-                <TableHead>Booking</TableHead>
-                <TableHead>Total Belanja</TableHead>
-                <TableHead>Sejak</TableHead>
-                <TableHead className="text-right">Aksi</TableHead>
+                <TableHead>{t("Nama", "Name")}</TableHead>
+                <TableHead>{t("Kontak", "Contact")}</TableHead>
+                <TableHead>{t("Jenis", "Type")}</TableHead>
+                <TableHead>{t("Bandar", "City")}</TableHead>
+                <TableHead>{t("Tempahan", "Bookings")}</TableHead>
+                <TableHead>{t("Jumlah Belanja", "Total Spend")}</TableHead>
+                <TableHead>{t("Sejak", "Since")}</TableHead>
+                <TableHead className="text-right">{t("Tindakan", "Actions")}</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
@@ -324,14 +326,16 @@ export default function Customers() {
               <div className="flex items-center gap-2 rounded-lg border p-3">
                 <MessageCircle className="h-4 w-4 shrink-0 text-muted-foreground" />
                 <div className="min-w-0">
-                  <p className="text-[11px] text-muted-foreground">Telepon</p>
+                  <p className="text-[11px] text-muted-foreground">{t("Telefon", "Phone")}</p>
                   <p className="truncate text-xs font-medium">{selected.phone}</p>
                 </div>
               </div>
               <div className="flex items-center gap-2 rounded-lg border p-3">
                 <MapPin className="h-4 w-4 shrink-0 text-muted-foreground" />
                 <div className="min-w-0">
-                  <p className="text-[11px] text-muted-foreground">Email / Kota</p>
+                  <p className="text-[11px] text-muted-foreground">
+                    {t("Emel / Bandar", "Email / City")}
+                  </p>
                   <p className="truncate text-xs font-medium">
                     {selected.city ?? selected.email}
                   </p>
@@ -340,7 +344,9 @@ export default function Customers() {
               <div className="flex items-center gap-2 rounded-lg border p-3">
                 <CalendarDays className="h-4 w-4 shrink-0 text-muted-foreground" />
                 <div className="min-w-0">
-                  <p className="text-[11px] text-muted-foreground">Customer Sejak</p>
+                  <p className="text-[11px] text-muted-foreground">
+                    {t("Pelanggan Sejak", "Customer Since")}
+                  </p>
                   <p className="truncate text-xs font-medium">
                     {formatDate(selected.joinedAt)}
                   </p>
@@ -349,7 +355,9 @@ export default function Customers() {
               <div className="flex items-center gap-2 rounded-lg border p-3">
                 <Wallet className="h-4 w-4 shrink-0 text-muted-foreground" />
                 <div className="min-w-0">
-                  <p className="text-[11px] text-muted-foreground">Total Belanja</p>
+                  <p className="text-[11px] text-muted-foreground">
+                    {t("Jumlah Belanja", "Total Spend")}
+                  </p>
                   <p className="truncate text-xs font-semibold text-primary">
                     {formatRupiah(statsFor(selected).totalSpend)}
                   </p>

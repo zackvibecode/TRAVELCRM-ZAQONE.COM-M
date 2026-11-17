@@ -11,6 +11,7 @@ import {
   type Departure,
 } from "@/lib/types";
 import { cn, formatCurrency, formatDate } from "@/lib/utils";
+import { useLang } from "@/lib/i18n";
 import DepartureCalendar from "@/components/DepartureCalendar";
 import DepartureDetail from "@/components/DepartureDetail";
 import SeatAvailabilitySummary from "@/components/SeatAvailabilitySummary";
@@ -86,6 +87,7 @@ function OccupancyBar({ departure }: { departure: Departure }) {
 }
 
 export default function TripsDashboard() {
+  const { t } = useLang();
   const [search, setSearch] = useState("");
   const [view, setView] = useState<"list" | "calendar">("list");
   const [selectedDeparture, setSelectedDeparture] =
@@ -108,15 +110,18 @@ export default function TripsDashboard() {
       <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
         <div>
           <h1 className="font-display text-2xl font-bold tracking-tight">
-            Trips & Seats
+            {t("Trip & Kerusi", "Trips & Seats")}
           </h1>
           <p className="text-sm text-muted-foreground">
-            Departure calendar, seat availability, and trip occupancy.
+            {t(
+              "Kalendar keberangkatan, ketersediaan kerusi, dan okupansi trip.",
+              "Departure calendar, seat availability, and trip occupancy.",
+            )}
           </p>
         </div>
         <Button>
           <Plane className="h-4 w-4" />
-          New Departure
+          {t("Keberangkatan Baharu", "New Departure")}
         </Button>
       </div>
 
@@ -128,7 +133,7 @@ export default function TripsDashboard() {
         <div className="relative w-full sm:max-w-xs">
           <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
           <Input
-            placeholder="Search package, leader, date..."
+            placeholder={t("Cari pakej, ketua tour, tarikh...", "Search package, leader, date...")}
             value={search}
             onChange={(e) => setSearch(e.target.value)}
             className="pl-8"
@@ -145,7 +150,7 @@ export default function TripsDashboard() {
             )}
           >
             <List className="h-4 w-4" />
-            List
+            {t("Senarai", "List")}
           </button>
           <button
             onClick={() => setView("calendar")}
@@ -157,7 +162,7 @@ export default function TripsDashboard() {
             )}
           >
             <CalendarDays className="h-4 w-4" />
-            Calendar
+            {t("Kalendar", "Calendar")}
           </button>
         </div>
       </div>
@@ -171,13 +176,13 @@ export default function TripsDashboard() {
           <Table>
             <TableHeader>
               <TableRow>
-                <TableHead>Package</TableHead>
-                <TableHead>Departure</TableHead>
-                <TableHead>Return</TableHead>
-                <TableHead>Tour Leader</TableHead>
-                <TableHead>Occupancy</TableHead>
-                <TableHead>Price (adult)</TableHead>
-                <TableHead>Status</TableHead>
+                <TableHead>{t("Pakej", "Package")}</TableHead>
+                <TableHead>{t("Keberangkatan", "Departure")}</TableHead>
+                <TableHead>{t("Pulang", "Return")}</TableHead>
+                <TableHead>{t("Ketua Tour", "Tour Leader")}</TableHead>
+                <TableHead>{t("Okupansi", "Occupancy")}</TableHead>
+                <TableHead>{t("Harga (dewasa)", "Price (adult)")}</TableHead>
+                <TableHead>{t("Status", "Status")}</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
@@ -187,7 +192,10 @@ export default function TripsDashboard() {
                     colSpan={7}
                     className="h-24 text-center text-muted-foreground"
                   >
-                    No departures match your search.
+                    {t(
+                      "Tiada keberangkatan sepadan dengan carian anda.",
+                      "No departures match your search.",
+                    )}
                   </TableCell>
                 </TableRow>
               ) : (
