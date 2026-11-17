@@ -19,6 +19,7 @@ import {
 import type { Booking } from "@/lib/types";
 import { cn , formatRinggit } from "@/lib/utils";
 import { useLang } from "@/lib/i18n";
+import { useDashboardKpi } from "@/lib/useDashboardKpi";
 import { Badge } from "@/components/ui/badge";
 import {
   Card,
@@ -91,8 +92,9 @@ function buildMonthlyRevenue(bookings: Booking[]): {
 
 export default function DashboardOverview() {
   const { t, lang } = useLang();
+  const { kpi } = useDashboardKpi();
 
-  const stats = useMemo(() => {
+  const mockStats = useMemo(() => {
     const activeLeads = mockLeads.filter(
       (l) => !["won", "lost"].includes(l.stage),
     );
@@ -131,6 +133,23 @@ export default function DashboardOverview() {
       overdueAmount: invoiceOverdue.reduce((s, i) => s + i.balanceDue, 0),
     };
   }, []);
+
+  // Prefer live D1 KPIs; fall back to mock-derived values if API is unavailable.
+  const stats = useMemo(() => {
+    if (!kpi) return mockStats;
+    return {
+      ...mockStats,
+      totalLeads: kpi.totalLeads,
+      openLeads: kpi.openLeads,
+      winRate: kpi.winRate,
+      totalCustomers: kpi.totalCustomers,
+      bookingCount: kpi.bookingCount,
+      confirmedCount: kpi.confirmedCount,
+      collected: kpi.collected,
+      outstanding: kpi.outstanding,
+      overdueAmount: kpi.overdueAmount,
+    };
+  }, [kpi, mockStats]);
 
   const monthly = useMemo(() => buildMonthlyRevenue(mockBookings), []);
   const maxRevenue = Math.max(...monthly.map((m) => m.revenue), 1);
