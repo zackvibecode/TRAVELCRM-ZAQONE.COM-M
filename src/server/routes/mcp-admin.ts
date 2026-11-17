@@ -1,8 +1,8 @@
 import { Hono } from "hono";
 import { sql } from "drizzle-orm";
 import type { DrizzleD1Database } from "drizzle-orm/d1";
-import type * as schema from "../db/schema";
-import { requireRole } from "../middleware/auth";
+import * as schema from "../db/schema";
+import { requireRole, requirePermission } from "../middleware/auth";
 
 type Env = {
   Variables: {
@@ -14,6 +14,8 @@ const mcpAdminRouter = new Hono<Env>();
 
 // All token-management endpoints require Super Admin or Management.
 mcpAdminRouter.use("*", requireRole("super_admin", "management"));
+// Fine-grained permission check from the central matrix.
+mcpAdminRouter.use("*", requirePermission("mcp:manage"));
 
 /** SHA-256 hash of a bearer token (Web Crypto, Workers-compatible). */
 async function hashToken(token: string): Promise<string> {
@@ -158,7 +160,7 @@ mcpAdminRouter.get("/audit", async (c) => {
  */
 mcpAdminRouter.post("/tokens/:id/revoke", async (c) => {
   const db = c.get("db");
-  await db.execute(sql`
+  await db.run(sql`
     UPDATE mcp_tokens SET status = 'revoked' WHERE id = ${c.req.param("id")}
   `);
   return c.json({ ok: true });
@@ -186,7 +188,7 @@ export async function verifyBearerToken(
 
   const row = rows[0];
   // Update last used (best-effort; non-blocking for auth).
-  await db.execute(sql`
+  await db.run(sql`
     UPDATE mcp_tokens SET last_used_at = datetime('now'),
       calls_last_30d = calls_last_30d + 1
     WHERE id = ${row.id}

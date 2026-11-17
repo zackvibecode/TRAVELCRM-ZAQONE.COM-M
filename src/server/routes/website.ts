@@ -1,7 +1,7 @@
 import { Hono } from "hono";
 import { sql } from "drizzle-orm";
 import type { DrizzleD1Database } from "drizzle-orm/d1";
-import type * as schema from "../db/schema";
+import * as schema from "../db/schema";
 import { requireRole } from "../middleware/auth";
 
 type Env = {
@@ -88,7 +88,7 @@ websiteRouter.patch("/admin/packages/:id/featured", async (c) => {
   const db = c.get("db");
   const body = await c.req.json<{ featured?: boolean }>();
   const featured = body.featured ?? true;
-  await db.execute(sql`
+  await db.run(sql`
     UPDATE packages SET featured = ${featured}, updated_at = datetime('now')
     WHERE id = ${c.req.param("id")}
   `);
@@ -183,7 +183,7 @@ websiteRouter.post("/enquiries", async (c) => {
   let sourceId = sourceRows[0]?.id;
   if (!sourceId) {
     sourceId = crypto.randomUUID();
-    await db.execute(sql`
+    await db.run(sql`
       INSERT INTO lead_sources (id, name, active) VALUES (${sourceId}, 'Website', 1)
     `);
   }
@@ -208,7 +208,7 @@ websiteRouter.post("/enquiries", async (c) => {
     notes: enquiryNote || null,
   }).run();
 
-  await db.execute(sql`
+  await db.run(sql`
     INSERT INTO audit_logs (id, actor, role, action, entity_type, entity_id, detail, at)
     VALUES (${crypto.randomUUID()}, 'website', 'public', 'enquiry_to_lead', 'leads', ${leadId}, ${enquiryNote || null}, datetime('now'))
   `);
@@ -490,7 +490,7 @@ websiteRouter.put("/admin/pages/:id", async (c) => {
     scheduledAt?: string | null;
   }>();
 
-  await db.execute(sql`
+  await db.run(sql`
     INSERT INTO site_pages (id, slug, title, content, status, scheduled_at, updated_at)
     VALUES (
       ${id},
@@ -531,7 +531,7 @@ websiteRouter.post("/admin/pages", async (c) => {
 
   if (!body.id) return c.json({ error: "id is required" }, 400);
 
-  await db.execute(sql`
+  await db.run(sql`
     INSERT INTO site_pages (id, slug, title, content, status, updated_at)
     VALUES (
       ${body.id},
@@ -561,7 +561,7 @@ websiteRouter.post("/admin/pages", async (c) => {
  */
 websiteRouter.delete("/admin/pages/:id", async (c) => {
   const db = c.get("db");
-  await db.execute(sql`DELETE FROM site_pages WHERE id = ${c.req.param("id")}`);
+  await db.run(sql`DELETE FROM site_pages WHERE id = ${c.req.param("id")}`);
   await purgeContentCache(c);
   return c.json({ ok: true });
 });
@@ -574,7 +574,7 @@ websiteRouter.patch("/admin/pages/:id/publish", async (c) => {
   const body = await c.req.json<{ status?: "draft" | "published" }>();
   const status = body.status ?? "published";
 
-  await db.execute(sql`
+  await db.run(sql`
     UPDATE site_pages SET status = ${status}, updated_at = datetime('now')
     WHERE id = ${c.req.param("id")}
   `);
@@ -614,7 +614,7 @@ websiteRouter.post("/admin/banners", async (c) => {
   }>();
   const id = body.id ?? crypto.randomUUID();
 
-  await db.execute(sql`
+  await db.run(sql`
     INSERT INTO site_banners (id, title, subtitle, cta_label, cta_href, start_at, end_at, active)
     VALUES (
       ${id}, ${body.title ?? ""}, ${body.subtitle ?? ""},
@@ -650,7 +650,7 @@ websiteRouter.put("/admin/banners/:id", async (c) => {
     active?: boolean;
   }>();
 
-  await db.execute(sql`
+  await db.run(sql`
     INSERT INTO site_banners (id, title, subtitle, cta_label, cta_href, start_at, end_at, active)
     VALUES (
       ${id},
@@ -686,7 +686,7 @@ websiteRouter.patch("/admin/banners/:id/active", async (c) => {
   const db = c.get("db");
   const body = await c.req.json<{ active?: boolean }>();
   const active = body.active ?? true;
-  await db.execute(sql`
+  await db.run(sql`
     UPDATE site_banners SET active = ${active} WHERE id = ${c.req.param("id")}
   `);
   const rows = await db.all<schema.SiteBannerRow>(sql`
@@ -701,7 +701,7 @@ websiteRouter.patch("/admin/banners/:id/active", async (c) => {
  */
 websiteRouter.delete("/admin/banners/:id", async (c) => {
   const db = c.get("db");
-  await db.execute(sql`DELETE FROM site_banners WHERE id = ${c.req.param("id")}`);
+  await db.run(sql`DELETE FROM site_banners WHERE id = ${c.req.param("id")}`);
   await purgeContentCache(c);
   return c.json({ ok: true });
 });
@@ -718,7 +718,7 @@ websiteRouter.put("/admin/seo/:slug", async (c) => {
     keywords?: string;
   }>();
 
-  await db.execute(sql`
+  await db.run(sql`
     INSERT INTO site_seo (slug, meta_title, meta_description, keywords, updated_at)
     VALUES (${slug}, ${body.metaTitle ?? ""}, ${body.metaDescription ?? ""}, ${body.keywords ?? ""}, datetime('now'))
     ON CONFLICT(slug) DO UPDATE SET
@@ -740,7 +740,7 @@ websiteRouter.put("/admin/seo/:slug", async (c) => {
  */
 websiteRouter.delete("/admin/seo/:slug", async (c) => {
   const db = c.get("db");
-  await db.execute(sql`DELETE FROM site_seo WHERE slug = ${c.req.param("slug")}`);
+  await db.run(sql`DELETE FROM site_seo WHERE slug = ${c.req.param("slug")}`);
   await purgeContentCache(c);
   return c.json({ ok: true });
 });

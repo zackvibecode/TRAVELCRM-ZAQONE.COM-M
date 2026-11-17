@@ -1,7 +1,7 @@
 import { betterAuth } from "better-auth";
 import { drizzleAdapter } from "better-auth/adapters/drizzle";
 import type { DrizzleD1Database } from "drizzle-orm/d1";
-import type * as schema from "../db/schema";
+import * as schema from "../db/schema";
 
 export type AuthRole =
   | "super_admin"

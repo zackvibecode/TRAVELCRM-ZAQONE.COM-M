@@ -77,6 +77,7 @@ interface CreateQuotationInput {
   validUntil?: string;
   discount?: number;
   leadId?: string;
+  status?: string;
   items: QuotationItemInput[];
   createdBy?: string;
 }

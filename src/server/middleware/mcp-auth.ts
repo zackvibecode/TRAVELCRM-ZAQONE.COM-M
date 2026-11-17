@@ -1,7 +1,7 @@
 import type { Context, MiddlewareHandler } from "hono";
 import { sql } from "drizzle-orm";
 import type { DrizzleD1Database } from "drizzle-orm/d1";
-import type * as schema from "../db/schema";
+import * as schema from "../db/schema";
 import { verifyBearerToken } from "../routes/mcp-admin";
 
 type McpContext = {
@@ -36,7 +36,7 @@ export function mcpAuth(requiredScope: string): MiddlewareHandler<McpContext> {
 
     if (!scopes.includes(requiredScope) && !scopes.includes("*")) {
       // Audit the denied scope check.
-      await db.execute(sql`
+      await db.run(sql`
         INSERT INTO mcp_audit_logs (id, token_id, tool, arguments, outcome, denied_reason, duration_ms)
         VALUES (${crypto.randomUUID()}, ${token.id}, ${c.req.path}, null, 'denied', ${`missing scope: ${requiredScope}`}, 0)
       `).catch(() => undefined);
@@ -66,7 +66,7 @@ export async function auditMcpCall(
     durationMs?: number;
   },
 ): Promise<void> {
-  await db.execute(sql`
+  await db.run(sql`
     INSERT INTO mcp_audit_logs (id, token_id, tool, arguments, outcome, denied_reason, duration_ms)
     VALUES (
       ${crypto.randomUUID()}, ${params.tokenId}, ${params.tool},

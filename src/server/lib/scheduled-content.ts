@@ -1,6 +1,6 @@
 import { sql } from "drizzle-orm";
 import type { DrizzleD1Database } from "drizzle-orm/d1";
-import type * as schema from "../db/schema";
+import * as schema from "../db/schema";
 
 type DB = DrizzleD1Database<typeof schema>;
 
@@ -25,7 +25,7 @@ export async function runScheduledContent(db: DB): Promise<{
   `);
   if (activated.length > 0) {
     const ids = activated.map((r) => r.id);
-    await db.execute(sql`
+    await db.run(sql`
       UPDATE site_banners SET active = 1
       WHERE id IN ${sql.join(ids.map((id) => sql`${id}`), sql`, `)}
     `);
@@ -39,7 +39,7 @@ export async function runScheduledContent(db: DB): Promise<{
   `);
   if (deactivated.length > 0) {
     const ids = deactivated.map((r) => r.id);
-    await db.execute(sql`
+    await db.run(sql`
       UPDATE site_banners SET active = 0
       WHERE id IN ${sql.join(ids.map((id) => sql`${id}`), sql`, `)}
     `);
@@ -54,7 +54,7 @@ export async function runScheduledContent(db: DB): Promise<{
   `);
   if (pages.length > 0) {
     const ids = pages.map((r) => r.id);
-    await db.execute(sql`
+    await db.run(sql`
       UPDATE site_pages SET status = 'published', updated_at = datetime('now')
       WHERE id IN ${sql.join(ids.map((id) => sql`${id}`), sql`, `)}
     `);

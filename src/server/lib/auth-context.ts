@@ -14,6 +14,10 @@ type AuthEnv = {
   Variables: {
     staff: StaffIdentity;
     auth: Auth;
+    userRole: StaffIdentity["role"];
+    db: import("drizzle-orm/d1").DrizzleD1Database<
+      typeof import("../db/schema")
+    >;
   };
 };
 

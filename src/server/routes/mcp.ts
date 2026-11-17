@@ -1,7 +1,7 @@
 import { Hono } from "hono";
 import { sql } from "drizzle-orm";
 import type { DrizzleD1Database } from "drizzle-orm/d1";
-import type * as schema from "../db/schema";
+import * as schema from "../db/schema";
 import { auditMcpCall } from "../middleware/mcp-auth";
 import { holdSeats } from "../lib/seat-availability";
 import { generateBookingReference } from "../lib/reference";
@@ -590,7 +590,7 @@ mcpRouter.post("/", async (c) => {
           notes: args.notes ? String(args.notes) : null,
           stage: "new",
         }).run();
-        await db.execute(sql`
+        await db.run(sql`
           INSERT INTO audit_logs (id, actor, role, action, entity_type, entity_id, at)
           VALUES (${crypto.randomUUID()}, ${`mcp:${token.id}`}, ${token.role}, 'mcp_create_lead', 'leads', ${leadId}, datetime('now'))
         `).catch(() => undefined);
@@ -627,7 +627,7 @@ mcpRouter.post("/", async (c) => {
           text: note,
           user: `mcp:${token.id}`,
         }).run();
-        await db.execute(sql`
+        await db.run(sql`
           UPDATE leads SET last_activity_at = datetime('now'), updated_at = datetime('now')
           WHERE id = ${leadId}
         `).catch(() => undefined);
@@ -673,7 +673,7 @@ mcpRouter.post("/", async (c) => {
           paxAdult: pax,
           createdBy: `mcp:${token.id}`,
         }).run();
-        await db.execute(sql`
+        await db.run(sql`
           INSERT INTO audit_logs (id, actor, role, action, entity_type, entity_id, detail, at)
           VALUES (${crypto.randomUUID()}, ${`mcp:${token.id}`}, ${token.role}, 'mcp_create_booking_draft', 'bookings', ${bookingId}, ${`hold:${hold.holdId}`}, datetime('now'))
         `).catch(() => undefined);
@@ -726,7 +726,7 @@ mcpRouter.post("/", async (c) => {
           reference: args.reference ? String(args.reference) : null,
           createdBy: `mcp:${token.id}`,
         }).run();
-        await db.execute(sql`
+        await db.run(sql`
           INSERT INTO audit_logs (id, actor, role, action, entity_type, entity_id, detail, at)
           VALUES (${crypto.randomUUID()}, ${`mcp:${token.id}`}, ${token.role}, 'mcp_stage_payment', 'payments', ${paymentId}, ${`invoice:${invoiceNumber}`}, datetime('now'))
         `).catch(() => undefined);
@@ -795,7 +795,7 @@ async function checkRateLimit(
   `);
 
   if (rows.length === 0) {
-    await db.execute(sql`
+    await db.run(sql`
       INSERT INTO mcp_rate_limits (id, token_id, window_start, count)
       VALUES (${crypto.randomUUID()}, ${tokenId}, ${windowStart}, 1)
     `).catch(() => undefined);
@@ -807,7 +807,7 @@ async function checkRateLimit(
     return { allowed: false, retryAfter };
   }
 
-  await db.execute(sql`
+  await db.run(sql`
     UPDATE mcp_rate_limits SET count = count + 1
     WHERE id = ${rows[0].id}
   `).catch(() => undefined);
