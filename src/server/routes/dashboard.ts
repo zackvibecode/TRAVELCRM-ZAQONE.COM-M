@@ -146,4 +146,94 @@ dashboardRouter.get("/monthly-revenue", async (c) => {
   });
 });
 
+/**
+ * GET /dashboard/revenue-trends
+ *
+ * Revenue (verified payments) vs booking value per month for the last 12
+ * months — feeds the dashboard combined revenue/booking trend chart.
+ */
+dashboardRouter.get("/revenue-trends", async (c) => {
+  const db = c.get("db");
+
+  const revenueRows = await db.all<{ month: string; revenue: number }>(sql`
+    SELECT strftime('%Y-%m', paid_at) AS month,
+           COALESCE(SUM(amount), 0) AS revenue
+    FROM payments
+    WHERE status = 'verified'
+      AND paid_at >= date('now', '-11 months', 'start of month')
+    GROUP BY strftime('%Y-%m', paid_at)
+    ORDER BY month ASC
+  `);
+
+  const bookingRows = await db.all<{ month: string; bookings: number; value: number }>(sql`
+    SELECT strftime('%Y-%m', created_at) AS month,
+           COUNT(*) AS bookings,
+           COALESCE(SUM(total_amount - discount), 0) AS value
+    FROM bookings
+    WHERE status NOT IN ('cancelled', 'draft')
+      AND created_at >= date('now', '-11 months', 'start of month')
+    GROUP BY strftime('%Y-%m', created_at)
+    ORDER BY month ASC
+  `);
+
+  const revenueMap = new Map(revenueRows.map((r) => [r.month, Number(r.revenue)]));
+  const bookingMap = new Map(
+    bookingRows.map((r) => [r.month, { bookings: Number(r.bookings), value: Number(r.value) }]),
+  );
+  const months = Array.from(new Set([...revenueMap.keys(), ...bookingMap.keys()])).sort();
+
+  return c.json({
+    trends: months.map((month) => ({
+      month,
+      revenue: revenueMap.get(month) ?? 0,
+      bookings: bookingMap.get(month)?.bookings ?? 0,
+      bookingValue: bookingMap.get(month)?.value ?? 0,
+    })),
+  });
+});
+
+/**
+ * GET /dashboard/top-packages
+ *
+ * Top-selling packages by confirmed/completed booking value and pax count.
+ * Feeds the dashboard "Top Packages" ranking.
+ */
+dashboardRouter.get("/top-packages", async (c) => {
+  const db = c.get("db");
+
+  const rows = await db.all<{
+    packageId: string;
+    name: string;
+    destination: string;
+    bookings: number;
+    pax: number;
+    revenue: number;
+  }>(sql`
+    SELECT
+      p.id AS packageId,
+      p.name AS name,
+      p.destination AS destination,
+      COUNT(b.id) AS bookings,
+      COALESCE(SUM(b.pax_adult + b.pax_child + b.pax_infant), 0) AS pax,
+      COALESCE(SUM(b.paid_amount), 0) AS revenue
+    FROM bookings b
+    JOIN packages p ON p.id = b.package_id
+    WHERE b.status IN ('confirmed', 'completed')
+    GROUP BY p.id, p.name, p.destination
+    ORDER BY revenue DESC, bookings DESC
+    LIMIT 5
+  `);
+
+  return c.json({
+    packages: rows.map((r) => ({
+      packageId: r.packageId,
+      name: r.name,
+      destination: r.destination,
+      bookings: Number(r.bookings),
+      pax: Number(r.pax),
+      revenue: Number(r.revenue),
+    })),
+  });
+});
+
 export default dashboardRouter;
