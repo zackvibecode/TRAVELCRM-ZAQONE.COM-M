@@ -77,6 +77,13 @@ mcpRouter.post("/", async (c) => {
     return c.json(rpcError(id, -32001, "Unauthorized: invalid or expired MCP token"), 401);
   }
 
+  const tokenScopes = Array.isArray(token.scopes)
+    ? token.scopes
+    : typeof token.scopes === "string"
+      ? JSON.parse(token.scopes)
+      : [];
+  const has = (scope: string) => tokenScopes.includes(scope) || tokenScopes.includes("*");
+
   const started = Date.now();
   const audit = (tool: string, outcome: "success" | "denied" | "error", reason?: string) =>
     auditMcpCall(db, {
@@ -94,7 +101,11 @@ mcpRouter.post("/", async (c) => {
     return c.json(
       rpcResult(id, {
         protocolVersion: PROTOCOL_VERSION,
-        capabilities: { tools: {} },
+        capabilities: {
+          tools: {},
+          resources: { listChanged: false },
+          prompts: { listChanged: false },
+        },
         serverInfo: SERVER_INFO,
       }),
     );
@@ -107,20 +118,63 @@ mcpRouter.post("/", async (c) => {
 
   // tools/list — advertise tools allowed by this token's scopes.
   if (method === "tools/list") {
-    const scopes = Array.isArray(token.scopes)
-      ? token.scopes
-      : typeof token.scopes === "string"
-        ? JSON.parse(token.scopes)
-        : [];
-    const allowed = TOOLS.filter(
-      (t) => scopes.includes(t.requiredScope) || scopes.includes("*"),
-    );
+    const allowed = TOOLS.filter((t) => has(t.requiredScope));
     await audit("tools/list", "success");
     return c.json(
       rpcResult(id, {
         tools: allowed.map(({ requiredScope: _s, ...t }) => t),
       }),
     );
+  }
+
+  // resources/list — read-only resources exposed by scope.
+  if (method === "resources/list") {
+    const resources: { uri: string; name: string; description: string; mimeType?: string }[] = [];
+    if (has("packages:read"))
+      resources.push({
+        uri: "zaqone://packages",
+        name: "Published packages",
+        description: "Public travel package catalogue",
+      });
+    if (has("departures:read"))
+      resources.push({
+        uri: "zaqone://departures",
+        name: "Upcoming departures",
+        description: "Departure dates with seat availability",
+      });
+    if (has("invoices:read"))
+      resources.push({
+        uri: "zaqone://invoices",
+        name: "Invoices",
+        description: "Invoice records (no payment proofs)",
+      });
+    await audit("resources/list", "success");
+    return c.json(rpcResult(id, { resources }));
+  }
+
+  // prompts/list — role-aware prompt templates (no sensitive data).
+  if (method === "prompts/list") {
+    const prompts: { name: string; description: string; arguments?: { name: string; required?: boolean }[] }[] = [
+      {
+        name: "summarize-bookings",
+        description: "Summarize recent bookings for a date range",
+        arguments: [{ name: "from", required: true }, { name: "to", required: true }],
+      },
+    ];
+    if (has("leads:write"))
+      prompts.push({
+        name: "draft-lead-followup",
+        description: "Draft a WhatsApp follow-up message for a lead",
+        arguments: [{ name: "leadName", required: true }],
+      });
+    if (has("finance:read") || has("invoices:read"))
+      prompts.push({
+        name: "explain-outstanding",
+        description: "Explain outstanding balances for a customer",
+        arguments: [{ name: "customerName", required: true }],
+      });
+    await audit("prompts/list", "success");
+    return c.json(rpcResult(id, { prompts }));
   }
 
   // tools/call — execute a read-only tool.
@@ -134,13 +188,7 @@ mcpRouter.post("/", async (c) => {
       return c.json(rpcError(id, -32601, `Unknown tool: ${name}`));
     }
 
-    // Scope check.
-    const scopes = Array.isArray(token.scopes)
-      ? token.scopes
-      : typeof token.scopes === "string"
-        ? JSON.parse(token.scopes)
-        : [];
-    if (!scopes.includes(tool.requiredScope) && !scopes.includes("*")) {
+    if (!has(tool.requiredScope)) {
       await audit(name, "denied", `missing scope: ${tool.requiredScope}`);
       return c.json(
         rpcResult(id, {
