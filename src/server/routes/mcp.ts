@@ -353,6 +353,29 @@ mcpRouter.post("/", async (c) => {
       return c.json(rpcError(id, -32601, `Unknown tool: ${name}`));
     }
 
+    // Hard blocklist — destructive actions are NEVER exposed via MCP, per PRD.
+    const DESTRUCTIVE = [
+      "cancel_booking",
+      "void_invoice",
+      "process_refund",
+      "delete_customer",
+      "delete_lead",
+      "release_seat_hold",
+      "confirm_payment",
+      "verify_payment",
+    ];
+    if (DESTRUCTIVE.includes(name)) {
+      await audit(name, "denied", "destructive actions excluded from MCP");
+      return c.json(
+        rpcResult(id, {
+          content: [
+            { type: "text", text: "Forbidden: destructive actions are not available through MCP. Use the admin dashboard." },
+          ],
+          isError: true,
+        }),
+      );
+    }
+
     if (!has(tool.requiredScope)) {
       await audit(name, "denied", `missing scope: ${tool.requiredScope}`);
       return c.json(
