@@ -21,6 +21,7 @@ import PublicContact from "@/pages/PublicContact";
 import WebsiteManager from "@/pages/WebsiteManager";
 import AiTokens from "@/pages/AiTokens";
 import McpAuditLog from "@/pages/McpAuditLog";
+import StaffRoles from "@/pages/StaffRoles";
 
 export default function App() {
   return (
@@ -42,6 +43,7 @@ export default function App() {
           <Route path="/website" element={<RoleRoute path="/website"><WebsiteManager /></RoleRoute>} />
           <Route path="/ai-tokens" element={<RoleRoute path="/ai-tokens"><AiTokens /></RoleRoute>} />
           <Route path="/mcp-audit" element={<RoleRoute path="/mcp-audit"><McpAuditLog /></RoleRoute>} />
+          <Route path="/staff" element={<RoleRoute path="/staff"><StaffRoles /></RoleRoute>} />
           <Route path="/settings" element={<RoleRoute path="/settings"><Placeholder title="Settings" /></RoleRoute>} />
         </Route>
       </Route>

@@ -81,6 +81,7 @@ export default function AppShell() {
         { to: "/website", label: t("Pengurus Laman", "Website Manager"), icon: Globe },
         { to: "/ai-tokens", label: t("Token Akses AI", "AI Access Tokens"), icon: Bot },
         { to: "/mcp-audit", label: t("Log Audit MCP", "MCP Audit Log"), icon: ScrollText },
+        { to: "/staff", label: t("Peranan Staf", "Staff Roles"), icon: Users },
         { to: "/settings", label: t("Tetapan", "Settings"), icon: Settings },
       ],
     },
