@@ -1408,3 +1408,31 @@ export const settingsAuditLogs = sqliteTable(
 export type ApiTokenRow = typeof apiTokens.$inferSelect;
 export type NewApiTokenRow = typeof apiTokens.$inferInsert;
 export type SettingsAuditLogRow = typeof settingsAuditLogs.$inferSelect;
+
+// ---------------------------------------------------------------------------
+// System Settings — notification message templates (email & WhatsApp) with
+// {{placeholder}} interpolation. Seeded with the three default CRM templates.
+// ---------------------------------------------------------------------------
+
+export const notificationTemplates = sqliteTable(
+  "notification_templates",
+  {
+    id: text("id").primaryKey(),
+    code: text("code").notNull().unique(),
+    nameMs: text("name_ms").notNull(),
+    nameEn: text("name_en").notNull(),
+    channel: text("channel", { enum: ["email", "whatsapp"] }).notNull(),
+    subject: text("subject").notNull().default(""),
+    body: text("body").notNull(),
+    enabled: integer("enabled", { mode: "boolean" }).notNull().default(true),
+    updatedBy: text("updated_by"),
+    updatedAt: integer("updatedAt", { mode: "timestamp" })
+      .notNull()
+      .$defaultFn(() => new Date()),
+  },
+  (table) => ({
+    channelIdx: index("notification_templates_channel_idx").on(table.channel),
+  }),
+);
+
+export type NotificationTemplateRow = typeof notificationTemplates.$inferSelect;

@@ -169,6 +169,13 @@
       "when": 1794910067024,
       "tag": "0023_glamorous_kylun",
       "breakpoints": true
+    },
+    {
+      "idx": 24,
+      "version": "6",
+      "when": 1794911167961,
+      "tag": "0024_square_sandman",
+      "breakpoints": true
     }
   ]
 }
