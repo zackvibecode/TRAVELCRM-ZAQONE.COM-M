@@ -177,6 +177,25 @@ export default function AiTokens() {
     setNewExpiry("2027-11-17");
   };
 
+  // Revoke flow state
+  const [revokeTarget, setRevokeTarget] = useState<ApiToken | null>(null);
+  const [revoking, setRevoking] = useState(false);
+
+  const handleRevoke = () => {
+    if (!revokeTarget) return;
+    setRevoking(true);
+    // Mock: simulasikan permintaan API sebelum backend token wujud
+    window.setTimeout(() => {
+      setTokens((prev) =>
+        prev.map((tk) =>
+          tk.id === revokeTarget.id ? { ...tk, status: "revoked" as TokenStatus } : tk,
+        ),
+      );
+      setRevoking(false);
+      setRevokeTarget(null);
+    }, 500);
+  };
+
   const activeCount = tokens.filter((tk) => tk.status === "active").length;
   const totalCalls = tokens.reduce((sum, tk) => sum + tk.callsLast30d, 0);
 
@@ -309,8 +328,14 @@ export default function AiTokens() {
                 </td>
                 <td className="px-4 py-3 text-right">
                   <button
-                    className="rounded-md p-2 text-muted-foreground hover:bg-red-50 hover:text-red-600"
-                    title={t("Batalkan token", "Revoke token")}
+                    onClick={() => setRevokeTarget(tk)}
+                    disabled={tk.status === "revoked"}
+                    className="rounded-md p-2 text-muted-foreground hover:bg-red-50 hover:text-red-600 disabled:cursor-not-allowed disabled:opacity-40"
+                    title={
+                      tk.status === "revoked"
+                        ? t("Token dibatalkan", "Token revoked")
+                        : t("Batalkan token", "Revoke token")
+                    }
                   >
                     <Trash2 className="h-4 w-4" />
                   </button>
@@ -470,6 +495,48 @@ export default function AiTokens() {
                 </button>
               </>
             )}
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Revoke confirmation dialog */}
+      <Dialog open={!!revokeTarget} onOpenChange={(open) => !open && setRevokeTarget(null)}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle>
+              {t("Batalkan Token?", "Revoke Token?")}
+            </DialogTitle>
+            <DialogDescription>
+              {t(
+                "Klien AI yang guna token ini akan terus ditolak. Tindakan ini direkodkan dalam audit log dan tidak boleh diundur.",
+                "AI clients using this token will be rejected immediately. This action is audit-logged and cannot be undone.",
+              )}
+            </DialogDescription>
+          </DialogHeader>
+          {revokeTarget && (
+            <div className="rounded-md border bg-muted/40 px-3 py-2 text-sm">
+              <div className="font-semibold">{revokeTarget.name}</div>
+              <code className="mt-1 block font-mono text-xs text-muted-foreground">
+                {revokeTarget.tokenPreview}
+              </code>
+            </div>
+          )}
+          <DialogFooter>
+            <button
+              onClick={() => setRevokeTarget(null)}
+              className="rounded-md border px-4 py-2 text-sm font-medium hover:bg-muted/50"
+            >
+              {t("Batal", "Cancel")}
+            </button>
+            <button
+              onClick={handleRevoke}
+              disabled={revoking}
+              className="rounded-md bg-red-600 px-4 py-2 text-sm font-semibold text-white hover:bg-red-700 disabled:opacity-50"
+            >
+              {revoking
+                ? t("Membatalkan…", "Revoking…")
+                : t("Ya, Batalkan Token", "Yes, Revoke Token")}
+            </button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
