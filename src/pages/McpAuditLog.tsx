@@ -10,6 +10,13 @@ import {
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useLang } from "@/lib/i18n";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
 
 type AuditOutcome = "success" | "denied" | "error";
 
@@ -117,10 +124,18 @@ export default function McpAuditLog() {
   const { t } = useLang();
   const [filter, setFilter] = useState<"all" | AuditOutcome>("all");
   const [search, setSearch] = useState("");
+  const [tokenFilter, setTokenFilter] = useState("all");
+  const [selected, setSelected] = useState<AuditEntry | null>(null);
+
+  const tokenNames = useMemo(
+    () => Array.from(new Set(STUB_AUDIT.map((e) => e.tokenName))),
+    [],
+  );
 
   const entries = useMemo(() => {
     return STUB_AUDIT.filter((e) => {
       if (filter !== "all" && e.outcome !== filter) return false;
+      if (tokenFilter !== "all" && e.tokenName !== tokenFilter) return false;
       if (!search.trim()) return true;
       const q = search.toLowerCase();
       return (
@@ -129,7 +144,7 @@ export default function McpAuditLog() {
         e.argsSummary.toLowerCase().includes(q)
       );
     });
-  }, [filter, search]);
+  }, [filter, search, tokenFilter]);
 
   const successCount = STUB_AUDIT.filter((e) => e.outcome === "success").length;
   const deniedCount = STUB_AUDIT.filter((e) => e.outcome === "denied").length;
@@ -198,6 +213,18 @@ export default function McpAuditLog() {
                   : t("Ralat", "Error")}
           </button>
         ))}
+        <select
+          value={tokenFilter}
+          onChange={(e) => setTokenFilter(e.target.value)}
+          className="h-9 rounded-md border border-input bg-transparent px-3 text-xs shadow-sm focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
+        >
+          <option value="all">{t("Semua token", "All tokens")}</option>
+          {tokenNames.map((name) => (
+            <option key={name} value={name}>
+              {name}
+            </option>
+          ))}
+        </select>
         <input
           value={search}
           onChange={(e) => setSearch(e.target.value)}
@@ -230,7 +257,11 @@ export default function McpAuditLog() {
             {entries.map((e) => {
               const badge = outcomeBadge(e.outcome);
               return (
-                <tr key={e.id} className="border-b last:border-0 hover:bg-muted/30">
+                <tr
+                  key={e.id}
+                  onClick={() => setSelected(e)}
+                  className="cursor-pointer border-b last:border-0 hover:bg-muted/30"
+                >
                   <td className="whitespace-nowrap px-4 py-3 text-xs text-muted-foreground">
                     <Clock className="mr-1 inline h-3.5 w-3.5" />
                     {e.timestamp}
@@ -286,6 +317,86 @@ export default function McpAuditLog() {
           </p>
         </div>
       </div>
+      {/* Detail dialog */}
+      <Dialog open={!!selected} onOpenChange={(open) => !open && setSelected(null)}>
+        <DialogContent className="max-w-lg">
+          <DialogHeader>
+            <DialogTitle>
+              {t("Butiran Panggilan MCP", "MCP Call Detail")}
+            </DialogTitle>
+            <DialogDescription>
+              {t(
+                "Rekod penuh panggilan alat MCP ini daripada audit log.",
+                "Full record of this MCP tool call from the audit log.",
+              )}
+            </DialogDescription>
+          </DialogHeader>
+          {selected && (
+            <div className="space-y-3 text-sm">
+              <div className="grid grid-cols-2 gap-2">
+                <div>
+                  <div className="text-xs uppercase tracking-wide text-muted-foreground">
+                    {t("Masa", "Time")}
+                  </div>
+                  <div className="font-medium">{selected.timestamp}</div>
+                </div>
+                <div>
+                  <div className="text-xs uppercase tracking-wide text-muted-foreground">
+                    {t("Tempoh", "Duration")}
+                  </div>
+                  <div className="font-mono">{selected.durationMs} ms</div>
+                </div>
+                <div>
+                  <div className="text-xs uppercase tracking-wide text-muted-foreground">
+                    {t("Token", "Token")}
+                  </div>
+                  <div className="font-medium">{selected.tokenName}</div>
+                </div>
+                <div>
+                  <div className="text-xs uppercase tracking-wide text-muted-foreground">
+                    {t("Peranan", "Role")}
+                  </div>
+                  <div className="font-medium uppercase">{selected.role}</div>
+                </div>
+              </div>
+              <div>
+                <div className="text-xs uppercase tracking-wide text-muted-foreground">
+                  {t("Alat", "Tool")}
+                </div>
+                <code className="mt-0.5 inline-block rounded bg-muted px-2 py-1 font-mono text-xs">
+                  {selected.tool}
+                </code>
+              </div>
+              <div>
+                <div className="text-xs uppercase tracking-wide text-muted-foreground">
+                  {t("Argumen", "Arguments")}
+                </div>
+                <pre className="mt-0.5 overflow-x-auto rounded-md border bg-muted/40 px-3 py-2 font-mono text-xs">
+                  {selected.argsSummary}
+                </pre>
+              </div>
+              <div>
+                <div className="text-xs uppercase tracking-wide text-muted-foreground">
+                  {t("Hasil", "Outcome")}
+                </div>
+                <div className="mt-0.5 flex items-center gap-2">
+                  <span
+                    className={cn(
+                      "inline-flex items-center rounded-full border px-2 py-0.5 text-xs font-semibold",
+                      outcomeBadge(selected.outcome).cls,
+                    )}
+                  >
+                    {outcomeBadge(selected.outcome).label}
+                  </span>
+                  {selected.deniedReason && (
+                    <span className="text-xs text-amber-700">{selected.deniedReason}</span>
+                  )}
+                </div>
+              </div>
+            </div>
+          )}
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
