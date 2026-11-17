@@ -6,6 +6,7 @@ import { requireStaffSession, requireRole, requirePermission } from "../middlewa
 import {
   validateSettingPayload,
   validateBankAccount,
+  validateBankAccountPatch,
   validateNumberingRule,
   validateCompany,
 } from "../lib/settings-validation";
@@ -156,6 +157,17 @@ settingsRouter.post(
       isDefault: body.isDefault ?? false,
       createdBy: c.get("staff")?.email ?? "system",
     });
+
+    await db.insert(schema.settingsAuditLogs).values({
+      id: crypto.randomUUID(),
+      actor: c.get("staff")?.email ?? "system",
+      role: "super_admin",
+      module: "bank-accounts",
+      field: body.bankName,
+      beforeValue: null,
+      afterValue: JSON.stringify(body),
+      changeType: "created",
+    });
     return c.json({ success: true, id }, 201);
   },
 );
@@ -174,9 +186,17 @@ settingsRouter.patch(
       holder?: string;
       isDefault?: boolean;
     };
-    const validation = validateBankAccount(body);
+    const validation = validateBankAccountPatch(body);
     if (!validation.valid) {
       return c.json({ success: false, errors: validation.errors }, 400);
+    }
+    const existing = await db
+      .select()
+      .from(schema.bankAccounts)
+      .where(eq(schema.bankAccounts.id, id))
+      .limit(1);
+    if (existing.length === 0) {
+      return c.json({ success: false, error: "Bank account not found" }, 404);
     }
     if (body.isDefault) {
       await db.update(schema.bankAccounts).set({ isDefault: false });
@@ -190,6 +210,17 @@ settingsRouter.patch(
         ...(body.isDefault !== undefined ? { isDefault: body.isDefault } : {}),
       })
       .where(eq(schema.bankAccounts.id, id));
+
+    await db.insert(schema.settingsAuditLogs).values({
+      id: crypto.randomUUID(),
+      actor: c.get("staff")?.email ?? "system",
+      role: "super_admin",
+      module: "bank-accounts",
+      field: existing[0]!.bankName,
+      beforeValue: JSON.stringify(existing[0]),
+      afterValue: JSON.stringify({ ...existing[0], ...body }),
+      changeType: "updated",
+    });
     return c.json({ success: true });
   },
 );
@@ -201,9 +232,27 @@ settingsRouter.delete(
   requirePermission("settings:write"),
   async (c) => {
     const db = c.get("db");
+    const existing = await db
+      .select()
+      .from(schema.bankAccounts)
+      .where(eq(schema.bankAccounts.id, c.req.param("id")))
+      .limit(1);
+    if (existing.length === 0) {
+      return c.json({ success: false, error: "Bank account not found" }, 404);
+    }
     await db
       .delete(schema.bankAccounts)
       .where(eq(schema.bankAccounts.id, c.req.param("id")));
+    await db.insert(schema.settingsAuditLogs).values({
+      id: crypto.randomUUID(),
+      actor: c.get("staff")?.email ?? "system",
+      role: "super_admin",
+      module: "bank-accounts",
+      field: existing[0]!.bankName,
+      beforeValue: JSON.stringify(existing[0]),
+      afterValue: null,
+      changeType: "deleted",
+    });
     return c.json({ success: true });
   },
 );

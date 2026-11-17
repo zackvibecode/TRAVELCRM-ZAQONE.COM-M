@@ -142,6 +142,49 @@ export function validateBankAccount(value: {
   return { valid: Object.keys(errors).length === 0, errors };
 }
 
+/**
+ * Validate a partial bank account update (PATCH). Only the provided fields
+ * are checked; at least one field must be present.
+ */
+export function validateBankAccountPatch(value: {
+  bankName?: unknown;
+  accountNo?: unknown;
+  holder?: unknown;
+  isDefault?: unknown;
+}): ValidationResult {
+  const errors: Record<string, string> = {};
+  const provided = Object.keys(value).filter(
+    (k) =>
+      ["bankName", "accountNo", "holder", "isDefault"].includes(k) &&
+      value[k as keyof typeof value] !== undefined,
+  );
+  if (provided.length === 0) {
+    return { valid: false, errors: { _: "at least one field is required" } };
+  }
+  if (
+    value.bankName !== undefined &&
+    (typeof value.bankName !== "string" || !value.bankName.trim())
+  ) {
+    errors.bankName = "bankName must be a non-empty string";
+  }
+  if (
+    value.accountNo !== undefined &&
+    (typeof value.accountNo !== "string" || !value.accountNo.trim())
+  ) {
+    errors.accountNo = "accountNo must be a non-empty string";
+  }
+  if (
+    value.holder !== undefined &&
+    (typeof value.holder !== "string" || !value.holder.trim())
+  ) {
+    errors.holder = "holder must be a non-empty string";
+  }
+  if (value.isDefault !== undefined && typeof value.isDefault !== "boolean") {
+    errors.isDefault = "isDefault must be a boolean";
+  }
+  return { valid: Object.keys(errors).length === 0, errors };
+}
+
 const NUMBERING_DOCS = ["booking", "invoice", "receipt", "quote", "credit_note"];
 const RESET_ON = ["never", "year", "month"];
 
