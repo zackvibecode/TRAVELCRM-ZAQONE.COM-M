@@ -237,6 +237,23 @@ mcpRouter.post("/", async (c) => {
       : [];
   const has = (scope: string) => tokenScopes.includes(scope) || tokenScopes.includes("*");
 
+  // Per-token rate limit (fixed 1-minute window, D1-backed).
+  const rate = await checkRateLimit(db, token.id);
+  if (!rate.allowed) {
+    return new Response(
+      JSON.stringify(
+        rpcError(body.id, -32003, `Rate limit exceeded — retry in ${rate.retryAfter}s`),
+      ),
+      {
+        status: 429,
+        headers: {
+          "Content-Type": "application/json",
+          "Retry-After": String(rate.retryAfter),
+        },
+      },
+    );
+  }
+
   const started = Date.now();
   const audit = (tool: string, outcome: "success" | "denied" | "error", reason?: string) =>
     auditMcpCall(db, {
@@ -754,6 +771,45 @@ async function verifyTokenForMcp(
 ): Promise<schema.McpTokenRow | null> {
   const { verifyBearerToken } = await import("../routes/mcp-admin");
   return verifyBearerToken(db, authHeader);
+}
+
+/**
+ * Fixed-window per-token rate limit (120 calls / minute), backed by D1.
+ * Returns true when allowed, false when the caller must back off.
+ */
+async function checkRateLimit(
+  db: DrizzleD1Database<typeof schema>,
+  tokenId: string,
+): Promise<{ allowed: boolean; retryAfter: number }> {
+  const windowStart = new Date(Math.floor(Date.now() / 60000) * 60000)
+    .toISOString()
+    .slice(0, 16);
+  const LIMIT = 120;
+
+  const rows = await db.all<{ id: string; count: number }>(sql`
+    SELECT id, count FROM mcp_rate_limits
+    WHERE token_id = ${tokenId} AND window_start = ${windowStart}
+    LIMIT 1
+  `);
+
+  if (rows.length === 0) {
+    await db.execute(sql`
+      INSERT INTO mcp_rate_limits (id, token_id, window_start, count)
+      VALUES (${crypto.randomUUID()}, ${tokenId}, ${windowStart}, 1)
+    `).catch(() => undefined);
+    return { allowed: true, retryAfter: 0 };
+  }
+
+  if (rows[0].count >= LIMIT) {
+    const retryAfter = 60 - (Math.floor(Date.now() / 1000) % 60);
+    return { allowed: false, retryAfter };
+  }
+
+  await db.execute(sql`
+    UPDATE mcp_rate_limits SET count = count + 1
+    WHERE id = ${rows[0].id}
+  `).catch(() => undefined);
+  return { allowed: true, retryAfter: 0 };
 }
 
 export default mcpRouter;
