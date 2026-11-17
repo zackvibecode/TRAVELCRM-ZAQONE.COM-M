@@ -76,6 +76,7 @@ const ROUTE_LABELS: Record<string, { ms: string; en: string }> = {
   "/ai-tokens": { ms: "Token Akses AI", en: "AI Access Tokens" },
   "/mcp-audit": { ms: "Log Audit MCP", en: "MCP Audit Log" },
   "/staff": { ms: "Peranan Staf", en: "Staff Roles" },
+  "/staff-audit": { ms: "Log Audit Staf", en: "Staff Audit Log" },
   "/settings": { ms: "Tetapan", en: "Settings" },
 };
 

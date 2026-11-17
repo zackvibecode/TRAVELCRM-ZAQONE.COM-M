@@ -24,6 +24,7 @@ import WebsiteManager from "@/pages/WebsiteManager";
 import AiTokens from "@/pages/AiTokens";
 import McpAuditLog from "@/pages/McpAuditLog";
 import StaffRoles from "@/pages/StaffRoles";
+import StaffAuditLog from "@/pages/StaffAuditLog";
 
 export default function App() {
   return (
@@ -48,6 +49,7 @@ export default function App() {
           <Route path="/ai-tokens" element={<RoleRoute path="/ai-tokens"><AiTokens /></RoleRoute>} />
           <Route path="/mcp-audit" element={<RoleRoute path="/mcp-audit"><McpAuditLog /></RoleRoute>} />
           <Route path="/staff" element={<RoleRoute path="/staff"><StaffRoles /></RoleRoute>} />
+          <Route path="/staff-audit" element={<RoleRoute path="/staff-audit"><StaffAuditLog /></RoleRoute>} />
           <Route path="/settings" element={<RoleRoute path="/settings"><Placeholder title="Settings" /></RoleRoute>} />
         </Route>
       </Route>

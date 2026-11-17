@@ -82,6 +82,7 @@ export default function AppShell() {
         { to: "/ai-tokens", label: t("Token Akses AI", "AI Access Tokens"), icon: Bot },
         { to: "/mcp-audit", label: t("Log Audit MCP", "MCP Audit Log"), icon: ScrollText },
         { to: "/staff", label: t("Peranan Staf", "Staff Roles"), icon: Users },
+        { to: "/staff-audit", label: t("Log Audit Staf", "Staff Audit Log"), icon: ScrollText },
         { to: "/settings", label: t("Tetapan", "Settings"), icon: Settings },
       ],
     },
