@@ -33,6 +33,86 @@ function csvResponse(rows: Record<string, unknown>[], filename: string): Respons
   });
 }
 
+/** XML-escape a value for SpreadsheetML. */
+function xmlEscape(s: string): string {
+  return s
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;");
+}
+
+/**
+ * Excel export via SpreadsheetML 2003 (.xls XML) — opens natively in Excel
+ * and LibreOffice, zero dependencies, Workers-compatible.
+ */
+function xlsResponse(
+  rows: Record<string, unknown>[],
+  sheetName: string,
+  filename: string,
+): Response {
+  const headers = rows.length ? Object.keys(rows[0]) : ["message"];
+  const headerCells = headers
+    .map((h) => `<Cell ss:StyleID="hdr"><Data ss:Type="String">${xmlEscape(h)}</Data></Cell>`)
+    .join("");
+  const bodyRows = rows.length
+    ? rows
+        .map(
+          (r) =>
+            `<Row>${headers
+              .map((h) => {
+                const v = r[h];
+                if (typeof v === "number" && Number.isFinite(v))
+                  return `<Cell><Data ss:Type="Number">${v}</Data></Cell>`;
+                return `<Cell><Data ss:Type="String">${xmlEscape(
+                  v === null || v === undefined ? "" : String(v),
+                )}</Data></Cell>`;
+              })
+              .join("")}</Row>`,
+        )
+        .join("")
+    : `<Row><Cell><Data ss:Type="String">no data</Data></Cell></Row>`;
+
+  const xml = `<?xml version="1.0"?>
+<?mso-application progid="Excel.Sheet"?>
+<Workbook xmlns="urn:schemas-microsoft-com:office:spreadsheet"
+ xmlns:ss="urn:schemas-microsoft-com:office:spreadsheet">
+ <Styles>
+  <Style ss:ID="hdr">
+   <Font ss:Bold="1"/>
+  </Style>
+ </Styles>
+ <Worksheet ss:Name="${xmlEscape(sheetName)}">
+  <Table>
+   <Row>${headerCells}</Row>
+   ${bodyRows}
+  </Table>
+ </Worksheet>
+</Workbook>`;
+
+  return new Response(xml, {
+    headers: {
+      "Content-Type": "application/vnd.ms-excel; charset=utf-8",
+      "Content-Disposition": `attachment; filename="${filename}"`,
+    },
+  });
+}
+
+/** Shared export-format dispatch: json (default), csv, xlsx. */
+function exportResponse(
+  format: string | undefined,
+  rows: Record<string, unknown>[],
+  sheetName: string,
+  csvName: string,
+  jsonBody: Record<string, unknown>,
+): Response {
+  if (format === "csv") return csvResponse(rows, csvName);
+  if (format === "xlsx") return xlsResponse(rows, sheetName, csvName.replace(".csv", ".xls"));
+  return new Response(JSON.stringify(jsonBody), {
+    headers: { "Content-Type": "application/json; charset=utf-8" },
+  });
+}
+
 /** Clamp a query string to a safe date string (YYYY-MM-DD), or null. */
 function safeDate(v: string | undefined): string | null {
   return v && /^\d{4}-\d{2}-\d{2}$/.test(v) ? v : null;
@@ -69,12 +149,18 @@ reportsRouter.get("/sales", async (c) => {
     paid: Number(r.paid),
   }));
 
-  if (format === "csv") return csvResponse(data, "sales-report.csv");
+  if (format === "csv" || format === "xlsx")
+    return exportResponse(format, data, "Sales", "sales-report.csv", {
+      report: "sales",
+      from,
+      to,
+      rows: data,
+    });
   return c.json({ report: "sales", from, to, rows: data });
 });
 
 /**
- * GET /reports/finance?from=&to=&format=csv
+ * GET /reports/finance?from=&to=&format=csv|xlsx
  * Invoice totals, collections, and outstanding balances per month.
  */
 reportsRouter.get("/finance", async (c) => {
@@ -112,7 +198,13 @@ reportsRouter.get("/finance", async (c) => {
     outstanding: Number(r.outstanding),
   }));
 
-  if (format === "csv") return csvResponse(data, "finance-report.csv");
+  if (format === "csv" || format === "xlsx")
+    return exportResponse(format, data, "Finance", "finance-report.csv", {
+      report: "finance",
+      from,
+      to,
+      rows: data,
+    });
   return c.json({ report: "finance", from, to, rows: data });
 });
 
@@ -168,7 +260,13 @@ reportsRouter.get("/occupancy", async (c) => {
     };
   });
 
-  if (format === `csv`) return csvResponse(data, "occupancy-report.csv");
+  if (format === "csv" || format === "xlsx")
+    return exportResponse(format, data, "Occupancy", "occupancy-report.csv", {
+      report: "occupancy",
+      from,
+      to,
+      rows: data,
+    });
   return c.json({ report: "occupancy", from, to, rows: data });
 });
 
@@ -219,7 +317,13 @@ reportsRouter.get("/staff", async (c) => {
     revenue: Number(r.revenue),
   }));
 
-  if (format === "csv") return csvResponse(data, "staff-report.csv");
+  if (format === "csv" || format === "xlsx")
+    return exportResponse(format, data, "Staff", "staff-report.csv", {
+      report: "staff",
+      from,
+      to,
+      rows: data,
+    });
   return c.json({ report: "staff", from, to, rows: data });
 });
 
