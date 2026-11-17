@@ -82,6 +82,7 @@ const ROUTE_LABELS: Record<string, { ms: string; en: string }> = {
   "/document-numbering": { ms: "Penomboran Dokumen", en: "Document Numbering" },
   "/booking-defaults": { ms: "Lalai Tempahan", en: "Booking Defaults" },
   "/notification-templates": { ms: "Templat Pemberitahuan", en: "Notification Templates" },
+  "/api-tokens": { ms: "Token API", en: "API Tokens" },
   "/settings": { ms: "Tetapan", en: "Settings" },
 };
 

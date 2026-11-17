@@ -23,6 +23,7 @@ export const ROUTE_ROLES: Record<string, StaffRole[]> = {
   "/document-numbering": ["super_admin", "management"],
   "/booking-defaults": ["super_admin", "management", "sales", "operations"],
   "/notification-templates": ["super_admin", "management"],
+  "/api-tokens": ["super_admin"],
   "/settings": ["super_admin"],
 };
 

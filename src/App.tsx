@@ -30,6 +30,7 @@ import BankAccounts from "@/pages/BankAccounts";
 import DocumentNumbering from "@/pages/DocumentNumbering";
 import BookingDefaults from "@/pages/BookingDefaults";
 import NotificationTemplates from "@/pages/NotificationTemplates";
+import ApiTokenPanel from "@/pages/ApiTokenPanel";
 
 export default function App() {
   return (
@@ -61,6 +62,7 @@ export default function App() {
           <Route path="/document-numbering" element={<RoleRoute path="/document-numbering"><DocumentNumbering /></RoleRoute>} />
           <Route path="/booking-defaults" element={<RoleRoute path="/booking-defaults"><BookingDefaults /></RoleRoute>} />
           <Route path="/notification-templates" element={<RoleRoute path="/notification-templates"><NotificationTemplates /></RoleRoute>} />
+          <Route path="/api-tokens" element={<RoleRoute path="/api-tokens"><ApiTokenPanel /></RoleRoute>} />
         </Route>
       </Route>
 
