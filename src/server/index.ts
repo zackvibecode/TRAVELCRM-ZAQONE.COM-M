@@ -68,6 +68,23 @@ app.route("/auth", authRouter);
 app.route("/staff", staffRouter);
 app.route("/staff-audit", staffAuditRouter);
 app.route("/settings", settingsRouter);
+
+// Public branding assets (company logo) served from R2, cacheable.
+app.get("/branding/*", async (c) => {
+  const key = c.req.path.replace(/^\/branding\//, "");
+  if (!/^[a-zA-Z0-9._-]+$/.test(key)) {
+    return c.json({ error: "invalid key" }, 400);
+  }
+  const obj = await c.env.DOCUMENTS.get(`branding/${key}`);
+  if (!obj) {
+    return c.json({ error: "not found" }, 404);
+  }
+  const headers = new Headers();
+  obj.writeHttpMetadata(headers);
+  headers.set("etag", obj.httpEtag);
+  headers.set("cache-control", "public, max-age=86400");
+  return new Response(obj.body, { headers });
+});
 app.route("/bookings", bookingsRouter);
 app.route("/", passengersRouter);
 app.route("/departures", departuresRouter);

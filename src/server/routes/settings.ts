@@ -7,9 +7,13 @@ import {
   validateSettingPayload,
   validateBankAccount,
   validateNumberingRule,
+  validateCompany,
 } from "../lib/settings-validation";
 
 type Env = {
+  Bindings: {
+    DOCUMENTS: R2Bucket;
+  };
   Variables: {
     db: DrizzleD1Database<typeof schema>;
     userRole: string;
@@ -273,6 +277,126 @@ settingsRouter.post(
       .where(and(eq(schema.numberingRules.id, id)));
 
     return c.json({ success: true, number });
+  },
+);
+
+/**
+ * GET /settings/company — company profile for invoices & branding.
+ * Readable by management, finance and super admin.
+ */
+settingsRouter.get(
+  "/company",
+  requireRole("super_admin", "management", "finance"),
+  async (c) => {
+    const db = c.get("db");
+    const row = await db
+      .select()
+      .from(schema.appSettings)
+      .where(eq(schema.appSettings.key, "company"))
+      .limit(1);
+    return c.json({
+      success: true,
+      company: row[0]?.value ?? null,
+    });
+  },
+);
+
+/**
+ * PUT /settings/company — update company profile (super admin only),
+ * validated and logged like other settings groups.
+ */
+settingsRouter.put(
+  "/company",
+  requireRole("super_admin"),
+  requirePermission("settings:write"),
+  async (c) => {
+    const db = c.get("db");
+    const value = (await c.req.json()) as Record<string, unknown>;
+    const validation = validateCompany(value);
+    if (!validation.valid) {
+      return c.json({ success: false, errors: validation.errors }, 400);
+    }
+
+    const staff = c.get("staff");
+    const previous = await db
+      .select({ value: schema.appSettings.value })
+      .from(schema.appSettings)
+      .where(eq(schema.appSettings.key, "company"))
+      .limit(1);
+
+    if (previous.length > 0) {
+      await db
+        .update(schema.appSettings)
+        .set({ value, updatedBy: staff?.email ?? "system", updatedAt: new Date() })
+        .where(eq(schema.appSettings.key, "company"));
+    } else {
+      await db.insert(schema.appSettings).values({
+        key: "company",
+        value,
+        updatedBy: staff?.email ?? "system",
+      });
+    }
+
+    await db.insert(schema.settingsAuditLogs).values({
+      id: crypto.randomUUID(),
+      actor: staff?.email ?? "system",
+      role: "super_admin",
+      module: "company",
+      field: "company",
+      beforeValue: previous.length > 0 ? JSON.stringify(previous[0]!.value) : null,
+      afterValue: JSON.stringify(value),
+      changeType: "updated",
+    });
+
+    return c.json({ success: true, company: value });
+  },
+);
+
+/**
+ * POST /settings/company/logo — upload the company logo to R2 and
+ * update `company.logoUrl` in app_settings. Multipart form: `file`.
+ */
+settingsRouter.post(
+  "/company/logo",
+  requireRole("super_admin"),
+  requirePermission("settings:write"),
+  async (c) => {
+    const form = await c.req.formData();
+    const file = form.get("file");
+    if (!(file instanceof File)) {
+      return c.json({ success: false, error: "file is required" }, 400);
+    }
+    const allowed = ["image/jpeg", "image/png", "image/webp", "image/svg+xml"];
+    if (file.type && !allowed.includes(file.type)) {
+      return c.json(
+        { success: false, error: "only JPEG, PNG, WebP or SVG logos are allowed" },
+        400,
+      );
+    }
+    if (file.size > 2 * 1024 * 1024) {
+      return c.json({ success: false, error: "logo must be 2 MB or smaller" }, 400);
+    }
+
+    const key = `branding/logo-${crypto.randomUUID()}`;
+    await c.env.DOCUMENTS.put(key, await file.arrayBuffer(), {
+      httpMetadata: { contentType: file.type || "application/octet-stream" },
+    });
+    const logoUrl = `/branding/${key.split("/")[1]}`;
+
+    const db = c.get("db");
+    const row = await db
+      .select({ value: schema.appSettings.value })
+      .from(schema.appSettings)
+      .where(eq(schema.appSettings.key, "company"))
+      .limit(1);
+    const company = (row[0]?.value ?? {}) as Record<string, unknown>;
+    const updated = { ...company, logoUrl };
+    await db
+      .update(schema.appSettings)
+      .set({ value: updated, updatedBy: c.get("staff")?.email ?? "system", updatedAt: new Date() })
+      .where(eq(schema.appSettings.key, "company"));
+
+    return c.json({ success: true, key, logoUrl });
   },
 );
 
