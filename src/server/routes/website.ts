@@ -544,6 +544,53 @@ websiteRouter.patch("/admin/pages/:id/publish", async (c) => {
 });
 
 /**
+ * GET /website/admin/banners — every banner including inactive.
+ */
+websiteRouter.get("/admin/banners", async (c) => {
+  const db = c.get("db");
+  const rows = await db.all<schema.SiteBannerRow>(sql`
+    SELECT * FROM site_banners ORDER BY created_at DESC
+  `);
+  return c.json({ banners: rows });
+});
+
+/**
+ * POST /website/admin/banners — create/replace a banner with a display window.
+ */
+websiteRouter.post("/admin/banners", async (c) => {
+  const db = c.get("db");
+  const body = await c.req.json<{
+    id?: string;
+    title?: string;
+    subtitle?: string;
+    ctaLabel?: string;
+    ctaHref?: string;
+    startAt?: string | null;
+    endAt?: string | null;
+    active?: boolean;
+  }>();
+  const id = body.id ?? crypto.randomUUID();
+
+  await db.execute(sql`
+    INSERT INTO site_banners (id, title, subtitle, cta_label, cta_href, start_at, end_at, active)
+    VALUES (
+      ${id}, ${body.title ?? ""}, ${body.subtitle ?? ""},
+      ${body.ctaLabel ?? ""}, ${body.ctaHref ?? "/site/packages"},
+      ${body.startAt ?? null}, ${body.endAt ?? null}, ${body.active ?? true}
+    )
+    ON CONFLICT(id) DO UPDATE SET
+      title = excluded.title, subtitle = excluded.subtitle,
+      cta_label = excluded.cta_label, cta_href = excluded.cta_href,
+      start_at = excluded.start_at, end_at = excluded.end_at, active = excluded.active
+  `);
+
+  const rows = await db.all<schema.SiteBannerRow>(sql`
+    SELECT * FROM site_banners WHERE id = ${id} LIMIT 1
+  `);
+  return c.json({ banner: rows[0] ?? null }, 201);
+});
+
+/**
  * PUT /website/admin/banners/:id — upsert a banner.
  */
 websiteRouter.put("/admin/banners/:id", async (c) => {
@@ -583,6 +630,22 @@ websiteRouter.put("/admin/banners/:id", async (c) => {
 
   const rows = await db.all<schema.SiteBannerRow>(sql`
     SELECT * FROM site_banners WHERE id = ${id} LIMIT 1
+  `);
+  return c.json({ banner: rows[0] ?? null });
+});
+
+/**
+ * PATCH /website/admin/banners/:id/active — enable/disable a banner.
+ */
+websiteRouter.patch("/admin/banners/:id/active", async (c) => {
+  const db = c.get("db");
+  const body = await c.req.json<{ active?: boolean }>();
+  const active = body.active ?? true;
+  await db.execute(sql`
+    UPDATE site_banners SET active = ${active} WHERE id = ${c.req.param("id")}
+  `);
+  const rows = await db.all<schema.SiteBannerRow>(sql`
+    SELECT * FROM site_banners WHERE id = ${c.req.param("id")} LIMIT 1
   `);
   return c.json({ banner: rows[0] ?? null });
 });
