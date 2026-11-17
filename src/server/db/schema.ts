@@ -138,6 +138,9 @@ export const packages = sqliteTable(
     coverImageUrl: text("cover_image_url"),
     images: text("images", { mode: "json" }).$type<string[]>().notNull().default([]),
     pdfUrl: text("pdf_url"),
+    featured: integer("featured", { mode: "boolean" })
+      .notNull()
+      .default(false),
     publishStatus: text("publish_status", {
       enum: ["draft", "published", "archived"],
     })

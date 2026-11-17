@@ -17,6 +17,98 @@ const websiteRouter = new Hono<Env>();
  */
 
 // ---------------------------------------------------------------------------
+// Featured packages & admin content summary.
+// ---------------------------------------------------------------------------
+
+/**
+ * GET /website/featured — featured published packages (for homepage).
+ */
+websiteRouter.get("/featured", async (c) => {
+  const db = c.get("db");
+  const rows = await db.all<{
+    id: string;
+    name: string;
+    destination: string;
+    durationDays: number;
+    adultPrice: number;
+    coverImageUrl: string | null;
+  }>(sql`
+    SELECT id, name, destination, duration_days AS durationDays,
+           adult_price AS adultPrice, cover_image_url AS coverImageUrl
+    FROM packages
+    WHERE publish_status = 'published' AND featured = 1
+    ORDER BY name ASC
+    LIMIT 8
+  `);
+  return c.json({ packages: rows });
+});
+
+/**
+ * PATCH /website/admin/packages/:id/featured — toggle featured flag.
+ */
+websiteRouter.patch("/admin/packages/:id/featured", async (c) => {
+  const db = c.get("db");
+  const body = await c.req.json<{ featured?: boolean }>();
+  const featured = body.featured ?? true;
+  await db.execute(sql`
+    UPDATE packages SET featured = ${featured}, updated_at = datetime('now')
+    WHERE id = ${c.req.param("id")}
+  `);
+  const rows = await db.all<{ id: string; featured: number }>(sql`
+    SELECT id, featured FROM packages WHERE id = ${c.req.param("id")} LIMIT 1
+  `);
+  return c.json({ package: rows[0] ?? null });
+});
+
+/**
+ * GET /website/admin/summary — counts for the Website Manager overview cards.
+ */
+websiteRouter.get("/admin/summary", async (c) => {
+  const db = c.get("db");
+
+  const pages = await db.all<{
+    total: number;
+    published: number;
+  }>(sql`
+    SELECT COUNT(*) AS total,
+           SUM(CASE WHEN status = 'published' THEN 1 ELSE 0 END) AS published
+    FROM site_pages
+  `);
+  const banners = await db.all<{ total: number; active: number }>(sql`
+    SELECT COUNT(*) AS total,
+           SUM(CASE WHEN active = 1 THEN 1 ELSE 0 END) AS active
+    FROM site_banners
+  `);
+  const packages = await db.all<{ published: number; featured: number }>(sql`
+    SELECT
+      SUM(CASE WHEN publish_status = 'published' THEN 1 ELSE 0 END) AS published,
+      SUM(CASE WHEN featured = 1 THEN 1 ELSE 0 END) AS featured
+    FROM packages
+  `);
+  const enquiries = await db.all<{ count: number }>(sql`
+    SELECT COUNT(*) AS count FROM leads WHERE source_id IN (
+      SELECT id FROM lead_sources WHERE name = 'Website'
+    )
+  `);
+
+  return c.json({
+    pages: {
+      total: Number(pages[0]?.total ?? 0),
+      published: Number(pages[0]?.published ?? 0),
+    },
+    banners: {
+      total: Number(banners[0]?.total ?? 0),
+      active: Number(banners[0]?.active ?? 0),
+    },
+    packages: {
+      published: Number(packages[0]?.published ?? 0),
+      featured: Number(packages[0]?.featured ?? 0),
+    },
+    enquiries: Number(enquiries[0]?.count ?? 0),
+  });
+});
+
+// ---------------------------------------------------------------------------
 // Public website enquiry → CRM lead capture (PRD req #9).
 // ---------------------------------------------------------------------------
 

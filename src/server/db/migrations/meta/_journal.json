@@ -120,6 +120,13 @@
       "when": 1794896786690,
       "tag": "0016_living_human_fly",
       "breakpoints": true
+    },
+    {
+      "idx": 17,
+      "version": "6",
+      "when": 1794897360003,
+      "tag": "0017_round_shockwave",
+      "breakpoints": true
     }
   ]
 }
