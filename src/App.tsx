@@ -1,6 +1,7 @@
 import { Routes, Route } from "react-router-dom";
 import AppShell from "@/components/AppShell";
 import ProtectedRoute from "@/components/ProtectedRoute";
+import RoleRoute from "@/components/RoleRoute";
 import LoginPage from "@/pages/LoginPage";
 import BookingWorkspace from "@/pages/BookingWorkspace";
 import TripsDashboard from "@/pages/TripsDashboard";
@@ -30,18 +31,18 @@ export default function App() {
       {/* Admin workspace (requires session) */}
       <Route element={<ProtectedRoute />}>
         <Route element={<AppShell />}>
-          <Route index element={<DashboardOverview />} />
-        <Route path="/bookings" element={<BookingWorkspace />} />
-        <Route path="/trips" element={<TripsDashboard />} />
-        <Route path="/packages" element={<PackageCatalog />} />
-        <Route path="/leads" element={<LeadsPipeline />} />
-        <Route path="/customers" element={<Customers />} />
-        <Route path="/billing" element={<BillingWorkspace />} />
-        <Route path="/reports" element={<ReportsPage />} />
-        <Route path="/website" element={<WebsiteManager />} />
-        <Route path="/ai-tokens" element={<AiTokens />} />
-        <Route path="/mcp-audit" element={<McpAuditLog />} />
-        <Route path="/settings" element={<Placeholder title="Settings" />} />
+          <Route index element={<RoleRoute path="/"><DashboardOverview /></RoleRoute>} />
+          <Route path="/bookings" element={<RoleRoute path="/bookings"><BookingWorkspace /></RoleRoute>} />
+          <Route path="/trips" element={<RoleRoute path="/trips"><TripsDashboard /></RoleRoute>} />
+          <Route path="/packages" element={<RoleRoute path="/packages"><PackageCatalog /></RoleRoute>} />
+          <Route path="/leads" element={<RoleRoute path="/leads"><LeadsPipeline /></RoleRoute>} />
+          <Route path="/customers" element={<RoleRoute path="/customers"><Customers /></RoleRoute>} />
+          <Route path="/billing" element={<RoleRoute path="/billing"><BillingWorkspace /></RoleRoute>} />
+          <Route path="/reports" element={<RoleRoute path="/reports"><ReportsPage /></RoleRoute>} />
+          <Route path="/website" element={<RoleRoute path="/website"><WebsiteManager /></RoleRoute>} />
+          <Route path="/ai-tokens" element={<RoleRoute path="/ai-tokens"><AiTokens /></RoleRoute>} />
+          <Route path="/mcp-audit" element={<RoleRoute path="/mcp-audit"><McpAuditLog /></RoleRoute>} />
+          <Route path="/settings" element={<RoleRoute path="/settings"><Placeholder title="Settings" /></RoleRoute>} />
         </Route>
       </Route>
 

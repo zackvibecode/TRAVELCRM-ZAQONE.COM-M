@@ -23,6 +23,7 @@ import {
 import { cn } from "@/lib/utils";
 import { useLang, type Lang } from "@/lib/i18n";
 import { getSession, logout, type StaffRole } from "@/lib/auth";
+import { canAccess } from "@/lib/roles";
 
 const ROLE_BADGE: Record<StaffRole, { ms: string; en: string }> = {
   super_admin: { ms: "Super Admin", en: "Super Admin" },
@@ -111,7 +112,15 @@ export default function AppShell() {
         </div>
 
         <nav className="flex-1 overflow-y-auto px-3 py-4">
-          {navSections.map((section) => (
+          {navSections
+            .map((section) => ({
+              ...section,
+              items: section.items.filter((item) =>
+                canAccess(item.to, session?.role),
+              ),
+            }))
+            .filter((section) => section.items.length > 0)
+            .map((section) => (
             <div key={section.title} className="mb-6">
               {!collapsed && (
                 <div className="mb-2 px-2 text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">
