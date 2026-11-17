@@ -3,6 +3,8 @@ import { sql } from "drizzle-orm";
 import type { DrizzleD1Database } from "drizzle-orm/d1";
 import type * as schema from "../db/schema";
 import { auditMcpCall } from "../middleware/mcp-auth";
+import { holdSeats } from "../lib/seat-availability";
+import { generateBookingReference } from "../lib/reference";
 
 type Env = {
   Variables: {
@@ -138,6 +140,21 @@ const TOOLS = [
       required: ["leadId", "note"],
     },
     requiredScope: "leads:write",
+  },
+  {
+    name: "create_booking_draft",
+    description: "Create a draft booking and temporarily hold seats (15 min).",
+    inputSchema: {
+      type: "object",
+      properties: {
+        customerId: { type: "string" },
+        packageId: { type: "string" },
+        departureId: { type: "string" },
+        pax: { type: "number" },
+      },
+      required: ["customerId", "packageId", "departureId", "pax"],
+    },
+    requiredScope: "bookings:write",
   },
 ];
 
@@ -547,6 +564,60 @@ mcpRouter.post("/", async (c) => {
           WHERE id = ${leadId}
         `).catch(() => undefined);
         text = JSON.stringify({ id: activityId, leadId, type: "note" });
+      } else if (name === "create_booking_draft") {
+        const customerId = String(args.customerId ?? "");
+        const packageId = String(args.packageId ?? "");
+        const departureId = String(args.departureId ?? "");
+        const pax = Number(args.pax) || 0;
+
+        if (!customerId || !packageId || !departureId || pax < 1) {
+          await audit(name, "error", "invalid draft parameters");
+          return c.json(
+            rpcResult(id, {
+              content: [{ type: "text", text: "Invalid: customerId, packageId, departureId and pax>=1 are required" }],
+              isError: true,
+            }),
+          );
+        }
+
+        // Atomic seat hold first — never create a draft without inventory.
+        const hold = await holdSeats(db, departureId, pax, `mcp:${token.id}`);
+        if (!hold.ok) {
+          await audit(name, "denied", `seat hold failed: ${hold.reason}`);
+          return c.json(
+            rpcResult(id, {
+              content: [{ type: "text", text: `Cannot hold seats: ${hold.reason}` }],
+              isError: true,
+            }),
+          );
+        }
+
+        const bookingId = crypto.randomUUID();
+        const reference = generateBookingReference();
+        await db.insert(schema.bookings).values({
+          id: bookingId,
+          reference,
+          customerId,
+          packageId,
+          departureId,
+          type: pax > 1 ? "group" : "individual",
+          status: "draft",
+          paxAdult: pax,
+          createdBy: `mcp:${token.id}`,
+        }).run();
+        await db.execute(sql`
+          INSERT INTO audit_logs (id, actor, role, action, entity_type, entity_id, detail, at)
+          VALUES (${crypto.randomUUID()}, ${`mcp:${token.id}`}, ${token.role}, 'mcp_create_booking_draft', 'bookings', ${bookingId}, ${`hold:${hold.holdId}`}, datetime('now'))
+        `).catch(() => undefined);
+
+        text = JSON.stringify({
+          id: bookingId,
+          reference,
+          status: "draft",
+          seatHoldId: hold.holdId,
+          holdExpiresInMinutes: 15,
+          seatsAvailable: hold.seatsAvailable,
+        });
       } else {
         text = "[]";
       }
