@@ -110,6 +110,35 @@ const TOOLS = [
     },
     requiredScope: "invoices:read",
   },
+  {
+    name: "create_lead",
+    description: "Create a new CRM lead (same validation as the dashboard).",
+    inputSchema: {
+      type: "object",
+      properties: {
+        name: { type: "string" },
+        phone: { type: "string" },
+        email: { type: "string" },
+        destination: { type: "string" },
+        notes: { type: "string" },
+      },
+      required: ["name", "phone"],
+    },
+    requiredScope: "leads:write",
+  },
+  {
+    name: "log_lead_activity",
+    description: "Append an activity note to an existing lead.",
+    inputSchema: {
+      type: "object",
+      properties: {
+        leadId: { type: "string" },
+        note: { type: "string" },
+      },
+      required: ["leadId", "note"],
+    },
+    requiredScope: "leads:write",
+  },
 ];
 
 function rpcResult(id: RpcRequest["id"], result: unknown) {
@@ -454,6 +483,70 @@ mcpRouter.post("/", async (c) => {
           FROM invoices WHERE number = ${number} LIMIT 1
         `);
         text = rows.length ? JSON.stringify(rows[0]) : JSON.stringify({ error: "invoice not found" });
+      } else if (name === "create_lead") {
+        const leadName = String(args.name ?? "").trim();
+        const phone = String(args.phone ?? "").trim();
+        if (!leadName || !/\d/.test(phone)) {
+          await audit(name, "error", "invalid name or phone");
+          return c.json(
+            rpcResult(id, {
+              content: [{ type: "text", text: "Invalid: name and a phone with digits are required" }],
+              isError: true,
+            }),
+          );
+        }
+        const leadId = crypto.randomUUID();
+        await db.insert(schema.leads).values({
+          id: leadId,
+          name: leadName,
+          phone,
+          email: args.email ? String(args.email) : null,
+          destination: args.destination ? String(args.destination) : null,
+          notes: args.notes ? String(args.notes) : null,
+          stage: "new",
+        }).run();
+        await db.execute(sql`
+          INSERT INTO audit_logs (id, actor, role, action, entity_type, entity_id, at)
+          VALUES (${crypto.randomUUID()}, ${`mcp:${token.id}`}, ${token.role}, 'mcp_create_lead', 'leads', ${leadId}, datetime('now'))
+        `).catch(() => undefined);
+        text = JSON.stringify({ id: leadId, name: leadName, stage: "new" });
+      } else if (name === "log_lead_activity") {
+        const leadId = String(args.leadId ?? "");
+        const note = String(args.note ?? "").trim();
+        if (!leadId || !note) {
+          await audit(name, "error", "leadId and note required");
+          return c.json(
+            rpcResult(id, {
+              content: [{ type: "text", text: "Invalid: leadId and note are required" }],
+              isError: true,
+            }),
+          );
+        }
+        const exists = await db.all<{ id: string }>(sql`
+          SELECT id FROM leads WHERE id = ${leadId} LIMIT 1
+        `);
+        if (!exists.length) {
+          await audit(name, "error", "lead not found");
+          return c.json(
+            rpcResult(id, {
+              content: [{ type: "text", text: "Lead not found" }],
+              isError: true,
+            }),
+          );
+        }
+        const activityId = crypto.randomUUID();
+        await db.insert(schema.leadActivities).values({
+          id: activityId,
+          leadId,
+          type: "note",
+          text: note,
+          user: `mcp:${token.id}`,
+        }).run();
+        await db.execute(sql`
+          UPDATE leads SET last_activity_at = datetime('now'), updated_at = datetime('now')
+          WHERE id = ${leadId}
+        `).catch(() => undefined);
+        text = JSON.stringify({ id: activityId, leadId, type: "note" });
       } else {
         text = "[]";
       }
