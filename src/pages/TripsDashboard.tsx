@@ -15,6 +15,7 @@ import { useLang } from "@/lib/i18n";
 import DepartureCalendar from "@/components/DepartureCalendar";
 import DepartureDetail from "@/components/DepartureDetail";
 import SeatAvailabilitySummary from "@/components/SeatAvailabilitySummary";
+import NewDepartureDialog from "@/components/NewDepartureDialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
@@ -92,9 +93,12 @@ export default function TripsDashboard() {
   const [view, setView] = useState<"list" | "calendar">("list");
   const [selectedDeparture, setSelectedDeparture] =
     useState<Departure | null>(null);
+  const [showNewDialog, setShowNewDialog] = useState(false);
+  const [departures, setDepartures] =
+    useState<Departure[]>(mockDepartures);
 
-  const departures = useMemo(() => {
-    return mockDepartures.filter((d) => {
+  const filteredDepartures = useMemo(() => {
+    return departures.filter((d) => {
       if (!search) return true;
       const q = search.toLowerCase();
       return (
@@ -103,7 +107,7 @@ export default function TripsDashboard() {
         d.departureDate.includes(q)
       );
     });
-  }, [search]);
+  }, [departures, search]);
 
   return (
     <div className="space-y-6">
@@ -119,7 +123,7 @@ export default function TripsDashboard() {
             )}
           </p>
         </div>
-        <Button>
+        <Button onClick={() => setShowNewDialog(true)}>
           <Plane className="h-4 w-4" />
           {t("Keberangkatan Baharu", "New Departure")}
         </Button>
@@ -186,7 +190,7 @@ export default function TripsDashboard() {
               </TableRow>
             </TableHeader>
             <TableBody>
-              {departures.length === 0 ? (
+              {filteredDepartures.length === 0 ? (
                 <TableRow>
                   <TableCell
                     colSpan={7}
@@ -199,7 +203,7 @@ export default function TripsDashboard() {
                   </TableCell>
                 </TableRow>
               ) : (
-                departures.map((d) => (
+                filteredDepartures.map((d) => (
                   <TableRow
                     key={d.id}
                     className="cursor-pointer"
@@ -241,6 +245,14 @@ export default function TripsDashboard() {
         open={selectedDeparture !== null}
         onOpenChange={(open) => {
           if (!open) setSelectedDeparture(null);
+        }}
+      />
+
+      <NewDepartureDialog
+        open={showNewDialog}
+        onOpenChange={setShowNewDialog}
+        onCreate={(departure) => {
+          setDepartures((prev) => [departure, ...prev]);
         }}
       />
     </div>
