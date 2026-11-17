@@ -86,6 +86,7 @@ export default function AppShell() {
         { to: "/staff-audit", label: t("Log Audit Staf", "Staff Audit Log"), icon: ScrollText },
         { to: "/company-profile", label: t("Profil Syarikat", "Company Profile"), icon: Building2 },
         { to: "/bank-accounts", label: t("Akaun Bank", "Bank Accounts"), icon: Banknote },
+        { to: "/document-numbering", label: t("Penomboran Dokumen", "Document Numbering"), icon: FileBarChart },
         { to: "/settings", label: t("Tetapan", "Settings"), icon: Settings },
       ],
     },

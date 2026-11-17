@@ -27,6 +27,7 @@ import StaffAuditLog from "@/pages/StaffAuditLog";
 import Settings from "@/pages/Settings";
 import CompanyProfile from "@/pages/CompanyProfile";
 import BankAccounts from "@/pages/BankAccounts";
+import DocumentNumbering from "@/pages/DocumentNumbering";
 
 export default function App() {
   return (
@@ -55,6 +56,7 @@ export default function App() {
           <Route path="/settings" element={<RoleRoute path="/settings"><Settings /></RoleRoute>} />
           <Route path="/company-profile" element={<RoleRoute path="/company-profile"><CompanyProfile /></RoleRoute>} />
           <Route path="/bank-accounts" element={<RoleRoute path="/bank-accounts"><BankAccounts /></RoleRoute>} />
+          <Route path="/document-numbering" element={<RoleRoute path="/document-numbering"><DocumentNumbering /></RoleRoute>} />
         </Route>
       </Route>
 
