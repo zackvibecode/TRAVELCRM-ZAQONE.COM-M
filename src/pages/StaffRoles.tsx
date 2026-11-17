@@ -84,6 +84,7 @@ const ROUTE_LABELS: Record<string, { ms: string; en: string }> = {
   "/notification-templates": { ms: "Templat Pemberitahuan", en: "Notification Templates" },
   "/api-tokens": { ms: "Token API", en: "API Tokens" },
   "/data-maintenance": { ms: "Penyelenggaraan Data", en: "Data Maintenance" },
+  "/settings-audit": { ms: "Log Audit Tetapan", en: "Settings Audit Log" },
   "/settings": { ms: "Tetapan", en: "Settings" },
 };
 

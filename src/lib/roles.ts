@@ -25,6 +25,7 @@ export const ROUTE_ROLES: Record<string, StaffRole[]> = {
   "/notification-templates": ["super_admin", "management"],
   "/api-tokens": ["super_admin"],
   "/data-maintenance": ["super_admin"],
+  "/settings-audit": ["super_admin"],
   "/settings": ["super_admin"],
 };
 

@@ -32,6 +32,7 @@ import BookingDefaults from "@/pages/BookingDefaults";
 import NotificationTemplates from "@/pages/NotificationTemplates";
 import ApiTokenPanel from "@/pages/ApiTokenPanel";
 import DataMaintenance from "@/pages/DataMaintenance";
+import SettingsAuditLog from "@/pages/SettingsAuditLog";
 
 export default function App() {
   return (
@@ -65,6 +66,7 @@ export default function App() {
           <Route path="/notification-templates" element={<RoleRoute path="/notification-templates"><NotificationTemplates /></RoleRoute>} />
           <Route path="/api-tokens" element={<RoleRoute path="/api-tokens"><ApiTokenPanel /></RoleRoute>} />
           <Route path="/data-maintenance" element={<RoleRoute path="/data-maintenance"><DataMaintenance /></RoleRoute>} />
+          <Route path="/settings-audit" element={<RoleRoute path="/settings-audit"><SettingsAuditLog /></RoleRoute>} />
         </Route>
       </Route>
 

@@ -94,6 +94,7 @@ export default function AppShell() {
         { to: "/notification-templates", label: t("Templat Pemberitahuan", "Notification Templates"), icon: Mail },
         { to: "/api-tokens", label: t("Token API", "API Tokens"), icon: KeyRound },
         { to: "/data-maintenance", label: t("Penyelenggaraan Data", "Data Maintenance"), icon: Database },
+        { to: "/settings-audit", label: t("Log Audit Tetapan", "Settings Audit Log"), icon: ScrollText },
         { to: "/settings", label: t("Tetapan", "Settings"), icon: Settings },
       ],
     },
