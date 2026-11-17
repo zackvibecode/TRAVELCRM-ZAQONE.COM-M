@@ -162,6 +162,13 @@
       "when": 1794909887394,
       "tag": "0022_sharp_ben_urich",
       "breakpoints": true
+    },
+    {
+      "idx": 23,
+      "version": "6",
+      "when": 1794910067024,
+      "tag": "0023_glamorous_kylun",
+      "breakpoints": true
     }
   ]
 }

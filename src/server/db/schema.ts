@@ -1354,3 +1354,57 @@ export const numberingRules = sqliteTable("numbering_rules", {
 export type AppSettingRow = typeof appSettings.$inferSelect;
 export type BankAccountRow = typeof bankAccounts.$inferSelect;
 export type NumberingRuleRow = typeof numberingRules.$inferSelect;
+
+// ---------------------------------------------------------------------------
+// System Settings — external integration API tokens and settings-change audit
+// trail. Token secrets are stored only as SHA-256 hashes; the plaintext is
+// shown once at creation. Settings changes are immutable before/after records.
+// ---------------------------------------------------------------------------
+
+export const apiTokens = sqliteTable(
+  "api_tokens",
+  {
+    id: text("id").primaryKey(),
+    name: text("name").notNull(),
+    tokenHash: text("token_hash").notNull().unique(),
+    tokenPreview: text("token_preview").notNull(),
+    createdBy: text("created_by"),
+    scopes: text("scopes", { mode: "json" }).$type<string[]>().notNull().default([]),
+    status: text("status", { enum: ["active", "revoked", "expired"] })
+      .notNull()
+      .default("active"),
+    lastUsedAt: integer("last_used_at", { mode: "timestamp" }),
+    expiresAt: integer("expires_at", { mode: "timestamp" }).notNull(),
+    createdAt: integer("createdAt", { mode: "timestamp" })
+      .notNull()
+      .$defaultFn(() => new Date()),
+  },
+  (table) => ({
+    statusIdx: index("api_tokens_status_idx").on(table.status),
+  }),
+);
+
+export const settingsAuditLogs = sqliteTable(
+  "settings_audit_logs",
+  {
+    id: text("id").primaryKey(),
+    actor: text("actor"),
+    role: text("role"),
+    module: text("module").notNull(),
+    field: text("field").notNull(),
+    beforeValue: text("before_value"),
+    afterValue: text("after_value"),
+    changeType: text("change_type", {
+      enum: ["updated", "created", "deleted"],
+    }).notNull(),
+    at: text("at").notNull().default(sql`(datetime('now'))`),
+  },
+  (table) => ({
+    moduleIdx: index("settings_audit_logs_module_idx").on(table.module),
+    atIdx: index("settings_audit_logs_at_idx").on(table.at),
+  }),
+);
+
+export type ApiTokenRow = typeof apiTokens.$inferSelect;
+export type NewApiTokenRow = typeof apiTokens.$inferInsert;
+export type SettingsAuditLogRow = typeof settingsAuditLogs.$inferSelect;
