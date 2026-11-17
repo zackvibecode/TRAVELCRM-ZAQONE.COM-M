@@ -1010,3 +1010,67 @@ export const alerts = sqliteTable(
 
 export type AlertRow = typeof alerts.$inferSelect;
 export type NewAlertRow = typeof alerts.$inferInsert;
+
+export type SitePageRow = typeof sitePages.$inferSelect;
+export type NewSitePageRow = typeof sitePages.$inferInsert;
+export type SiteBannerRow = typeof siteBanners.$inferSelect;
+export type NewSiteBannerRow = typeof siteBanners.$inferInsert;
+export type SiteSeoRow = typeof siteSeo.$inferSelect;
+export type NewSiteSeoRow = typeof siteSeo.$inferInsert;
+// SEO metadata driving the public website. Enquiries from the public site are
+// captured in `leads` (PRD: enquiry capture), so no separate table is needed.
+// ---------------------------------------------------------------------------
+export const sitePages = sqliteTable(
+  "site_pages",
+  {
+    id: text("id").primaryKey(),
+    slug: text("slug").notNull().unique(),
+    title: text("title").notNull(),
+    content: text("content").notNull().default(""),
+    status: text("status", { enum: ["draft", "published"] })
+      .notNull()
+      .default("draft"),
+    scheduledAt: text("scheduled_at"),
+    updatedAt: text("updated_at")
+      .notNull()
+      .default(sql`(datetime('now'))`),
+  },
+  (table) => ({
+    statusIdx: index("site_pages_status_idx").on(table.status),
+  }),
+);
+
+export const siteBanners = sqliteTable(
+  "site_banners",
+  {
+    id: text("id").primaryKey(),
+    title: text("title").notNull(),
+    subtitle: text("subtitle").notNull().default(""),
+    ctaLabel: text("cta_label").notNull().default(""),
+    ctaHref: text("cta_href").notNull().default("/site/packages"),
+    startAt: text("start_at"),
+    endAt: text("end_at"),
+    active: integer("active", { mode: "boolean" })
+      .notNull()
+      .default(true),
+    createdAt: text("created_at")
+      .notNull()
+      .default(sql`(datetime('now'))`),
+  },
+  (table) => ({
+    activeIdx: index("site_banners_active_idx").on(table.active),
+  }),
+);
+
+export const siteSeo = sqliteTable(
+  "site_seo",
+  {
+    slug: text("slug").primaryKey(),
+    metaTitle: text("meta_title").notNull().default(""),
+    metaDescription: text("meta_description").notNull().default(""),
+    keywords: text("keywords").notNull().default(""),
+    updatedAt: text("updated_at")
+      .notNull()
+      .default(sql`(datetime('now'))`),
+  },
+);
