@@ -78,6 +78,7 @@ const ROUTE_LABELS: Record<string, { ms: string; en: string }> = {
   "/staff": { ms: "Peranan Staf", en: "Staff Roles" },
   "/staff-audit": { ms: "Log Audit Staf", en: "Staff Audit Log" },
   "/company-profile": { ms: "Profil Syarikat", en: "Company Profile" },
+  "/bank-accounts": { ms: "Akaun Bank", en: "Bank Accounts" },
   "/settings": { ms: "Tetapan", en: "Settings" },
 };
 
