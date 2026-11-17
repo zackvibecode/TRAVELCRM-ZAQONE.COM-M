@@ -1,4 +1,5 @@
 import { createAuthClient } from "better-auth/react";
+import type { ClientFetchOption } from "@better-auth/core";
 
 export type StaffRole =
   | "super_admin"
@@ -25,6 +26,61 @@ export const API_BASE_URL =
   "https://travelos-suite-api.zarulzaqwan1234.workers.dev";
 
 /**
+ * Mobile browsers (iOS Safari / ITP) block the cross-origin third-party
+ * session cookie, so cookie-only sessions silently fail on phones. The
+ * Better Auth bearer plugin solves this: the sign-in response carries the
+ * session token in the `set-auth-token` header; we persist it here and send
+ * it back as `Authorization: Bearer <token>` on every request. The server
+ * converts the header into a session cookie before routing, so both the
+ * cookie path (laptop) and the bearer path (mobile) work.
+ */
+const TOKEN_KEY = "zaqone_session_token";
+
+export function getStoredToken(): string | null {
+  try {
+    return localStorage.getItem(TOKEN_KEY);
+  } catch {
+    return null;
+  }
+}
+
+function storeToken(token: string | null): void {
+  try {
+    if (token) {
+      localStorage.setItem(TOKEN_KEY, token);
+    } else {
+      localStorage.removeItem(TOKEN_KEY);
+    }
+  } catch {
+    // storage unavailable — ignore
+  }
+}
+
+type FetchOptions = ClientFetchOption;
+
+/**
+ * Shared fetchOptions: attach the bearer token (if stored) to outgoing
+ * requests and capture the `set-auth-token` header from sign-in responses.
+ */
+const bearerFetchOptions: FetchOptions = {
+  onRequest: (context) => {
+    const token = getStoredToken();
+    if (token) {
+      const headers = new Headers(context.headers);
+      headers.set("Authorization", `Bearer ${token}`);
+      context.headers = headers;
+    }
+    return context;
+  },
+  onSuccess: (context) => {
+    const token = context.response.headers.get("set-auth-token");
+    if (token) {
+      storeToken(token);
+    }
+  },
+};
+
+/**
  * Real Better Auth client backed by the Cloudflare Worker.
  * Replaces the previous mock accounts while keeping the same exported
  * helpers used by the UI (getSession / logout).
@@ -35,6 +91,7 @@ export const authClient = createAuthClient({
   // Without this the client calls /api/auth/* by default and gets a 404,
   // which the UI misreports as "invalid email or password".
   basePath: "/auth",
+  fetchOptions: bearerFetchOptions,
 });
 
 const SESSION_KEY = "zaqone_staff_session";
@@ -108,19 +165,21 @@ export async function login(
   password: string,
 ): Promise<{ ok: boolean; session: StaffSession | null; error?: string }> {
   try {
+    // The shared bearerFetchOptions.onSuccess captures `set-auth-token`.
     const res = await authClient.signIn.email({
       email: email.trim().toLowerCase(),
       password,
     });
-    if (res.error) {
+    if ("error" in res && res.error) {
       return {
         ok: false,
         session: null,
         error: res.error.message ?? "Invalid email or password",
       };
     }
-    const session = res.data?.user
-      ? toStaffSession(res.data.user as Parameters<typeof toStaffSession>[0])
+    const payload = res as { data?: { user?: Parameters<typeof toStaffSession>[0] } | null };
+    const session = payload.data?.user
+      ? toStaffSession(payload.data.user)
       : null;
     cacheSession(session);
     return { ok: session !== null, session };
@@ -140,6 +199,7 @@ export async function logout(): Promise<void> {
   } catch {
     // best-effort — clear local state regardless
   }
+  storeToken(null);
   cacheSession(null);
 }
 

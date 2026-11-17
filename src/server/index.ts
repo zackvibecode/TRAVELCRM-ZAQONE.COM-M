@@ -54,6 +54,8 @@ const app = new Hono<AppEnv>();
 
 // Allow the Pages frontend (and local dev) to call this Worker, including
 // credentialed Better Auth requests (cookies must be sent & accepted).
+// `set-auth-token` is exposed so mobile clients (cookie-blocked) can read
+// the bearer session token from sign-in responses (bearer plugin).
 const ALLOWED_ORIGINS = new Set([
   "https://travelos-suite-web.pages.dev",
 ]);
@@ -72,6 +74,7 @@ app.use(
     origin: (origin) => (origin && isAllowedOrigin(origin) ? origin : null),
     allowHeaders: ["Content-Type", "Authorization", "Cookie"],
     allowMethods: ["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"],
+    exposeHeaders: ["set-auth-token"],
     credentials: true,
   }),
 );

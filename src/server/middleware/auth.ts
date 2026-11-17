@@ -26,6 +26,10 @@ export const ROLES: Role[] = [
  */
 export async function requireStaffSession(c: Context<AuthEnv>, next: Next) {
   const auth = getAuth(c);
+  // The bearer plugin (see server/lib/auth.ts) converts a mobile client's
+  // `Authorization: Bearer <token>` header into a session cookie before the
+  // getSession endpoint runs, so session resolution works even when mobile
+  // browsers block the third-party session cookie.
   const session = await auth.api.getSession({ headers: c.req.raw.headers });
 
   if (!session?.user) {

@@ -1,4 +1,5 @@
 import { betterAuth } from "better-auth";
+import { bearer } from "better-auth/plugins";
 import { drizzleAdapter } from "better-auth/adapters/drizzle";
 import type { DrizzleD1Database } from "drizzle-orm/d1";
 import * as schema from "../db/schema";
@@ -65,6 +66,12 @@ export function createAuth(db: DrizzleD1Database<typeof schema>, env: Env) {
         path: "/",
       },
     },
+    // Mobile browsers (iOS Safari/ITP) block the cross-origin third-party
+    // session cookie. The bearer plugin lets those clients send the session
+    // token via `Authorization: Bearer <token>` instead: it rewrites the
+    // header into a signed session cookie before routing, and exposes the
+    // token via the `set-auth-token` response header on sign-in responses.
+    plugins: [bearer()],
     user: {
       additionalFields: {
         role: {
