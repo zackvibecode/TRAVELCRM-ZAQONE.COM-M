@@ -516,4 +516,107 @@ settingsRouter.put(
   },
 );
 
+/**
+ * GET /settings/booking-defaults — alias of terms focused on booking flow
+ * defaults (hold duration, deposit, payment terms, check-in, min pax).
+ */
+settingsRouter.get(
+  "/booking-defaults",
+  requireRole("super_admin", "management", "sales", "finance", "operations"),
+  async (c) => {
+    const db = c.get("db");
+    const row = await db
+      .select()
+      .from(schema.appSettings)
+      .where(eq(schema.appSettings.key, "terms"))
+      .limit(1);
+    const terms = (row[0]?.value ?? {}) as Record<string, unknown>;
+    return c.json({
+      success: true,
+      defaults: {
+        holdMinutes: terms.draftHoldMinutes ?? 30,
+        autoRelease: terms.autoReleaseExpiredHolds ?? true,
+        depositPercent: terms.defaultDepositPercent ?? 30,
+        fullPaymentDays: terms.fullPaymentDaysBefore ?? 14,
+        overdueGraceDays: terms.overdueGraceDays ?? 3,
+        paymentMethods: terms.paymentMethods ?? [],
+        checkInHours: terms.checkInHours ?? 3,
+        minPax: terms.minPax ?? 2,
+        termsText: terms.termsText ?? "",
+      },
+    });
+  },
+);
+
+/**
+ * PUT /settings/booking-defaults — update booking flow defaults (super admin
+ * only). Accepts the frontend field names and maps them to the terms payload.
+ */
+settingsRouter.put(
+  "/booking-defaults",
+  requireRole("super_admin", "management"),
+  requirePermission("settings:write"),
+  async (c) => {
+    const db = c.get("db");
+    const body = (await c.req.json()) as Record<string, unknown>;
+    const termsUpdate: Record<string, unknown> = {
+      ...(body.holdMinutes !== undefined
+        ? { draftHoldMinutes: body.holdMinutes }
+        : {}),
+      ...(body.autoRelease !== undefined
+        ? { autoReleaseExpiredHolds: body.autoRelease }
+        : {}),
+      ...(body.depositPercent !== undefined
+        ? { defaultDepositPercent: body.depositPercent }
+        : {}),
+      ...(body.fullPaymentDays !== undefined
+        ? { fullPaymentDaysBefore: body.fullPaymentDays }
+        : {}),
+      ...(body.overdueGraceDays !== undefined
+        ? { overdueGraceDays: body.overdueGraceDays }
+        : {}),
+      ...(body.paymentMethods !== undefined
+        ? { paymentMethods: body.paymentMethods }
+        : {}),
+      ...(body.checkInHours !== undefined
+        ? { checkInHours: body.checkInHours }
+        : {}),
+      ...(body.minPax !== undefined ? { minPax: body.minPax } : {}),
+    };
+
+    // Merge into the existing terms payload.
+    const row = await db
+      .select({ value: schema.appSettings.value })
+      .from(schema.appSettings)
+      .where(eq(schema.appSettings.key, "terms"))
+      .limit(1);
+    const current = (row[0]?.value ?? {}) as Record<string, unknown>;
+    const merged = { ...current, ...termsUpdate };
+
+    const validation = validateSettingPayload("terms", merged);
+    if (!validation.valid) {
+      return c.json({ success: false, errors: validation.errors }, 400);
+    }
+
+    const staff = c.get("staff");
+    await db
+      .update(schema.appSettings)
+      .set({ value: merged, updatedBy: staff?.email ?? "system", updatedAt: new Date() })
+      .where(eq(schema.appSettings.key, "terms"));
+
+    await db.insert(schema.settingsAuditLogs).values({
+      id: crypto.randomUUID(),
+      actor: staff?.email ?? "system",
+      role: c.get("staff")?.role ?? "management",
+      module: "booking-defaults",
+      field: "booking-defaults",
+      beforeValue: JSON.stringify(current),
+      afterValue: JSON.stringify(merged),
+      changeType: "updated",
+    });
+
+    return c.json({ success: true, defaults: merged });
+  },
+);
+
 export default settingsRouter;

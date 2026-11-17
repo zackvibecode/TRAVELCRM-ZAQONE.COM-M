@@ -205,6 +205,24 @@ export function validateTerms(value: Record<string, unknown>): ValidationResult 
     errors.draftHoldMinutes = "draftHoldMinutes must be 5-1440";
   }
   if (
+    value.autoReleaseExpiredHolds !== undefined &&
+    typeof value.autoReleaseExpiredHolds !== "boolean"
+  ) {
+    errors.autoReleaseExpiredHolds = "autoReleaseExpiredHolds must be a boolean";
+  }
+  const grace = Number(value.overdueGraceDays ?? 3);
+  if (!Number.isInteger(grace) || grace < 0 || grace > 90) {
+    errors.overdueGraceDays = "overdueGraceDays must be 0-90";
+  }
+  const checkIn = Number(value.checkInHours ?? 3);
+  if (!Number.isInteger(checkIn) || checkIn < 1 || checkIn > 6) {
+    errors.checkInHours = "checkInHours must be 1-6";
+  }
+  const minPax = Number(value.minPax ?? 2);
+  if (!Number.isInteger(minPax) || minPax < 1 || minPax > 50) {
+    errors.minPax = "minPax must be 1-50";
+  }
+  if (
     value.paymentMethods !== undefined &&
     !Array.isArray(value.paymentMethods)
   ) {
