@@ -8,7 +8,7 @@
     {
       "binding": "DB",
       "database_name": "travelos-suite",
-      "database_id": "PLACEHOLDER_DATABASE_ID",
+      "database_id": "3813ffa8-3b13-47eb-ae92-0c70d3a0821d",
       "migrations_dir": "src/server/db/migrations"
     }
   ],

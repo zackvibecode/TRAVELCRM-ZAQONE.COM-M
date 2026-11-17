@@ -2,6 +2,7 @@ import { useState } from "react";
 import { Link } from "react-router-dom";
 import { ArrowLeft, Languages, Mail, Plane, Send } from "lucide-react";
 import { useLang } from "@/lib/i18n";
+import { requestPasswordReset } from "@/lib/auth";
 
 export default function ForgotPasswordPage() {
   const { t, lang, setLang } = useLang();
@@ -9,14 +10,16 @@ export default function ForgotPasswordPage() {
   const [sent, setSent] = useState(false);
   const [submitting, setSubmitting] = useState(false);
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setSubmitting(true);
-    // Mock — backend reset endpoint menyusul pada fasa backend.
-    window.setTimeout(() => {
-      setSubmitting(false);
-      setSent(true);
-    }, 500);
+    try {
+      await requestPasswordReset(email);
+    } catch {
+      // Better Auth returns success even for unknown emails; ignore errors.
+    }
+    setSubmitting(false);
+    setSent(true);
   };
 
   return (

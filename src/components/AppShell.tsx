@@ -54,9 +54,9 @@ export default function AppShell() {
   const navigate = useNavigate();
   const session = getSession();
 
-  const handleSignOut = () => {
-    logout();
+  const handleSignOut = async () => {
     setUserMenuOpen(false);
+    await logout();
     navigate("/login", { replace: true });
   };
 

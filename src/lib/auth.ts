@@ -1,5 +1,5 @@
-// Mock auth (frontend-only). Backend Better Auth akan menggantikan ini
-// pada task backend Staff Access — API contract kekal sama.
+import { createAuthClient } from "better-auth/react";
+
 export type StaffRole =
   | "super_admin"
   | "management"
@@ -14,39 +14,41 @@ export interface StaffSession {
   role: StaffRole;
 }
 
+/**
+ * Backend API base URL. The Worker serves Better Auth under /auth.
+ * In local dev the Vite dev server can proxy /auth to the Worker; in
+ * production the frontend is served from Pages and talks to the Worker
+ * domain directly.
+ */
+export const API_BASE_URL =
+  ((import.meta as { env?: Record<string, string> }).env?.VITE_API_URL) ??
+  "https://travelos-suite-api.zarulzaqwan1234.workers.dev";
+
+/**
+ * Real Better Auth client backed by the Cloudflare Worker.
+ * Replaces the previous mock accounts while keeping the same exported
+ * helpers used by the UI (getSession / logout).
+ */
+export const authClient = createAuthClient({
+  baseURL: API_BASE_URL,
+});
+
 const SESSION_KEY = "zaqone_staff_session";
 
-// Akaun demo — backend sebenar akan mengesahkan melalui Better Auth nanti.
-const DEMO_ACCOUNTS: (StaffSession & { password: string })[] = [
-  { userId: "usr_owner", name: "Zack (Owner)", email: "owner@zaqone.travel", role: "super_admin", password: "demo1234" },
-  { userId: "usr_mgr", name: "Farah (Management)", email: "manager@zaqone.travel", role: "management", password: "demo1234" },
-  { userId: "usr_sales", name: "Adib (Sales)", email: "sales@zaqone.travel", role: "sales", password: "demo1234" },
-  { userId: "usr_fin", name: "Melati (Finance)", email: "finance@zaqone.travel", role: "finance", password: "demo1234" },
-  { userId: "usr_ops", name: "Imran (Operations)", email: "ops@zaqone.travel", role: "operations", password: "demo1234" },
-];
-
-export function listDemoAccounts(): Pick<StaffSession, "name" | "email" | "role">[] {
-  return DEMO_ACCOUNTS.map(({ name, email, role }) => ({ name, email, role }));
+/** Cache the last-known session so getSession() stays synchronous. */
+function cacheSession(session: StaffSession | null): void {
+  try {
+    if (session) {
+      localStorage.setItem(SESSION_KEY, JSON.stringify(session));
+    } else {
+      localStorage.removeItem(SESSION_KEY);
+    }
+  } catch {
+    // storage unavailable — ignore
+  }
 }
 
-export function loginMock(email: string, password: string): StaffSession | null {
-  const normalized = email.trim().toLowerCase();
-  const account = DEMO_ACCOUNTS.find(
-    (a) => a.email === normalized && a.password === password,
-  );
-  if (!account) return null;
-
-  const session: StaffSession = {
-    userId: account.userId,
-    name: account.name,
-    email: account.email,
-    role: account.role,
-  };
-  localStorage.setItem(SESSION_KEY, JSON.stringify(session));
-  return session;
-}
-
-export function getSession(): StaffSession | null {
+function readCachedSession(): StaffSession | null {
   try {
     const raw = localStorage.getItem(SESSION_KEY);
     return raw ? (JSON.parse(raw) as StaffSession) : null;
@@ -55,6 +57,100 @@ export function getSession(): StaffSession | null {
   }
 }
 
-export function logout(): void {
-  localStorage.removeItem(SESSION_KEY);
+/** Map a Better Auth user payload onto the UI's StaffSession shape. */
+function toStaffSession(user: {
+  id?: string;
+  name?: string;
+  email?: string;
+  role?: string;
+}): StaffSession | null {
+  if (!user?.id) return null;
+  return {
+    userId: user.id,
+    name: user.name ?? "",
+    email: user.email ?? "",
+    role: (user.role as StaffRole) ?? "sales",
+  };
+}
+
+/**
+ * Fetch the authoritative session from the server.
+ * Returns null when signed out; updates the local cache either way.
+ */
+export async function fetchSession(): Promise<StaffSession | null> {
+  try {
+    const res = await authClient.getSession();
+    const user = (res.data?.user ?? null) as Parameters<typeof toStaffSession>[0] | null;
+    const session = user ? toStaffSession(user) : null;
+    cacheSession(session);
+    return session;
+  } catch {
+    cacheSession(null);
+    return null;
+  }
+}
+
+/**
+ * Synchronous cached session — same contract as the old mock helper.
+ * Use fetchSession() for the authoritative server check (e.g. route guards).
+ */
+export function getSession(): StaffSession | null {
+  return readCachedSession();
+}
+
+/** Sign in with email + password through Better Auth. */
+export async function login(
+  email: string,
+  password: string,
+): Promise<{ ok: boolean; session: StaffSession | null; error?: string }> {
+  try {
+    const res = await authClient.signIn.email({
+      email: email.trim().toLowerCase(),
+      password,
+    });
+    if (res.error) {
+      return {
+        ok: false,
+        session: null,
+        error: res.error.message ?? "Invalid email or password",
+      };
+    }
+    const session = res.data?.user
+      ? toStaffSession(res.data.user as Parameters<typeof toStaffSession>[0])
+      : null;
+    cacheSession(session);
+    return { ok: session !== null, session };
+  } catch (err) {
+    return {
+      ok: false,
+      session: null,
+      error: err instanceof Error ? err.message : "Network error",
+    };
+  }
+}
+
+/** Sign out server-side and clear the local cache. */
+export async function logout(): Promise<void> {
+  try {
+    await authClient.signOut();
+  } catch {
+    // best-effort — clear local state regardless
+  }
+  cacheSession(null);
+}
+
+/** Request a password-reset email through Better Auth. */
+export async function requestPasswordReset(email: string): Promise<void> {
+  await authClient.$fetch("/forget-password", {
+    method: "POST",
+    body: { email: email.trim().toLowerCase() },
+  });
+}
+
+/** Complete a password reset with the token from the email link. */
+export async function resetPassword(
+  token: string,
+  newPassword: string,
+): Promise<void> {
+  await authClient.resetPassword({ newPassword, token });
 }

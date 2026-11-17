@@ -1,17 +1,8 @@
 import { useState } from "react";
 import { useLocation, useNavigate, Link } from "react-router-dom";
-import { Languages, Lock, LogIn, Mail, Plane, Eye, EyeOff, ShieldCheck } from "lucide-react";
+import { Languages, Lock, LogIn, Mail, Plane, Eye, EyeOff } from "lucide-react";
 import { useLang } from "@/lib/i18n";
-import { loginMock, listDemoAccounts, type StaffRole } from "@/lib/auth";
-import { cn } from "@/lib/utils";
-
-const ROLE_LABELS: Record<StaffRole, { ms: string; en: string }> = {
-  super_admin: { ms: "Super Admin", en: "Super Admin" },
-  management: { ms: "Pengurusan", en: "Management" },
-  sales: { ms: "Jualan", en: "Sales" },
-  finance: { ms: "Kewangan", en: "Finance" },
-  operations: { ms: "Operasi", en: "Operations" },
-};
+import { login } from "@/lib/auth";
 
 export default function LoginPage() {
   const { t, lang, setLang } = useLang();
@@ -25,32 +16,30 @@ export default function LoginPage() {
   const [error, setError] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError(null);
     setSubmitting(true);
-
-    // Mock auth — backend Better Auth menyusul pada task backend.
-    window.setTimeout(() => {
-      const session = loginMock(email, password);
-      setSubmitting(false);
-      if (!session) {
+    try {
+      const result = await login(email, password);
+      if (!result.ok) {
         setError(
-          t(
-            "Emel atau kata laluan tidak sah. Cuba akaun demo di bawah.",
-            "Invalid email or password. Try a demo account below.",
-          ),
+          result.error === "Invalid email or password"
+            ? t(
+                "Emel atau kata laluan tidak sah.",
+                "Invalid email or password.",
+              )
+            : t(
+                "Tidak dapat berhubung dengan pelayan. Cuba lagi.",
+                "Could not reach the server. Try again.",
+              ),
         );
         return;
       }
       navigate(from);
-    }, 400);
-  };
-
-  const fillDemo = (demoEmail: string) => {
-    setEmail(demoEmail);
-    setPassword("demo1234");
-    setError(null);
+    } finally {
+      setSubmitting(false);
+    }
   };
 
   return (
@@ -143,35 +132,6 @@ export default function LoginPage() {
               {submitting ? t("Sedang log masuk…", "Signing in…") : t("Log Masuk", "Sign In")}
             </button>
           </form>
-
-          {/* Demo accounts (mock auth sahaja) */}
-          <div className="mt-5 border-t pt-4">
-            <div className="mb-2 flex items-center gap-1.5 text-xs font-medium text-muted-foreground">
-              <ShieldCheck className="h-3.5 w-3.5" />
-              {t(
-                "Akaun demo (mock) — klik untuk isi. Kata laluan: demo1234",
-                "Demo accounts (mock) — click to fill. Password: demo1234",
-              )}
-            </div>
-            <div className="grid gap-1.5">
-              {listDemoAccounts().map((a) => (
-                <button
-                  key={a.email}
-                  type="button"
-                  onClick={() => fillDemo(a.email)}
-                  className={cn(
-                    "flex items-center justify-between rounded-md border px-3 py-1.5 text-left text-xs transition-colors hover:bg-muted/50",
-                    email === a.email && "border-primary/50 bg-primary/5",
-                  )}
-                >
-                  <span className="font-medium">{a.name}</span>
-                  <span className="text-muted-foreground">
-                    {t(ROLE_LABELS[a.role].ms, ROLE_LABELS[a.role].en)}
-                  </span>
-                </button>
-              ))}
-            </div>
-          </div>
         </div>
 
         {/* Footer */}

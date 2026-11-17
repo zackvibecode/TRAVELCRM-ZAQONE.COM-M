@@ -2,6 +2,7 @@ import { useState } from "react";
 import { Link, useNavigate, useSearchParams } from "react-router-dom";
 import { ArrowLeft, Eye, EyeOff, Languages, Lock, Plane, ShieldCheck } from "lucide-react";
 import { useLang } from "@/lib/i18n";
+import { resetPassword } from "@/lib/auth";
 
 export default function ResetPasswordPage() {
   const { t, lang, setLang } = useLang();
@@ -16,7 +17,7 @@ export default function ResetPasswordPage() {
   const [done, setDone] = useState(false);
   const [submitting, setSubmitting] = useState(false);
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError(null);
     if (password !== confirm) {
@@ -38,11 +39,19 @@ export default function ResetPasswordPage() {
       return;
     }
     setSubmitting(true);
-    // Mock — backend reset endpoint menyusul pada fasa backend.
-    window.setTimeout(() => {
-      setSubmitting(false);
+    try {
+      await resetPassword(token ?? "", password);
       setDone(true);
-    }, 500);
+    } catch {
+      setError(
+        t(
+          "Pautan tidak sah atau telah tamat tempoh. Cuba minta semula.",
+          "Invalid or expired link. Please request a new one.",
+        ),
+      );
+    } finally {
+      setSubmitting(false);
+    }
   };
 
   return (

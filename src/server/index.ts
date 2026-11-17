@@ -29,8 +29,10 @@ import settingsRouter from "./routes/settings";
 import templatesRouter from "./routes/notification-templates";
 import apiTokensRouter from "./routes/api-tokens";
 import maintenanceRouter from "./routes/data-maintenance";
+import bootstrapRouter from "./routes/bootstrap";
 import { releaseExpiredHolds } from "./lib/seat-availability";
 import { runScheduledContent } from "./lib/scheduled-content";
+import { cors } from "hono/cors";
 
 export type Env = {
   DB: D1Database;
@@ -48,6 +50,30 @@ type AppEnv = {
 };
 
 const app = new Hono<AppEnv>();
+
+// Allow the Pages frontend (and local dev) to call this Worker, including
+// credentialed Better Auth requests (cookies must be sent & accepted).
+const ALLOWED_ORIGINS = new Set([
+  "https://travelos-suite-web.pages.dev",
+]);
+function isAllowedOrigin(origin: string): boolean {
+  return (
+    ALLOWED_ORIGINS.has(origin) ||
+    // Per-deployment preview URLs of the Pages project.
+    /^https:\/\/[a-z0-9]+\.travelos-suite-web\.pages\.dev$/.test(origin) ||
+    origin.startsWith("http://localhost:") ||
+    origin.startsWith("http://127.0.0.1:")
+  );
+}
+app.use(
+  "*",
+  cors({
+    origin: (origin) => (origin && isAllowedOrigin(origin) ? origin : null),
+    allowHeaders: ["Content-Type", "Authorization", "Cookie"],
+    allowMethods: ["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"],
+    credentials: true,
+  }),
+);
 
 // Attach a Drizzle client to every request.
 app.use("*", async (c, next) => {
@@ -68,6 +94,7 @@ app.get("/health", (c) => {
 });
 
 app.route("/auth", authRouter);
+app.route("/bootstrap", bootstrapRouter);
 app.route("/staff", staffRouter);
 app.route("/staff-audit", staffAuditRouter);
 app.route("/settings", settingsRouter);

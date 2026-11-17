@@ -23,6 +23,7 @@ export type Env = {
 export function createAuth(db: DrizzleD1Database<typeof schema>, env: Env) {
   return betterAuth({
     secret: env.BETTER_AUTH_SECRET ?? "dev-secret-change-in-production",
+    basePath: "/auth",
     database: drizzleAdapter(db, {
       provider: "sqlite",
     }),
@@ -43,8 +44,14 @@ export function createAuth(db: DrizzleD1Database<typeof schema>, env: Env) {
       updateAge: 60 * 60 * 24, // refresh session daily
     },
     advanced: {
-      // Workers: no Node crypto reliance issues; use default Web Crypto.
+      // Cross-subdomain cookies so the Pages frontend can hold the session
+      // against the workers.dev API domain (SameSite=None + Secure).
       cookiePrefix: "zaqone",
+      defaultCookieAttributes: {
+        sameSite: "none",
+        secure: true,
+        path: "/",
+      },
     },
     user: {
       additionalFields: {
