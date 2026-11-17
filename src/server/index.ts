@@ -27,6 +27,7 @@ import staffRouter from "./routes/staff";
 import staffAuditRouter from "./routes/staff-audit";
 import settingsRouter from "./routes/settings";
 import templatesRouter from "./routes/notification-templates";
+import apiTokensRouter from "./routes/api-tokens";
 import { releaseExpiredHolds } from "./lib/seat-availability";
 import { runScheduledContent } from "./lib/scheduled-content";
 
@@ -70,6 +71,7 @@ app.route("/staff", staffRouter);
 app.route("/staff-audit", staffAuditRouter);
 app.route("/settings", settingsRouter);
 app.route("/notification-templates", templatesRouter);
+app.route("/api-tokens", apiTokensRouter);
 
 // Public branding assets (company logo) served from R2, cacheable.
 app.get("/branding/*", async (c) => {
