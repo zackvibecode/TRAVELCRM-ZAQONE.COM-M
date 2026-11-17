@@ -1302,3 +1302,55 @@ export const staffAuditLogs = sqliteTable(
 
 export type StaffAuditLogRow = typeof staffAuditLogs.$inferSelect;
 export type NewStaffAuditLogRow = typeof staffAuditLogs.$inferInsert;
+
+// ---------------------------------------------------------------------------
+// System Settings — app settings (key/value), bank accounts, and document
+// numbering rules. Written by the settings API; seeded with sane defaults.
+// ---------------------------------------------------------------------------
+
+export const appSettings = sqliteTable(
+  "app_settings",
+  {
+    key: text("key").primaryKey(),
+    value: text("value", { mode: "json" }).notNull(),
+    updatedBy: text("updated_by"),
+    updatedAt: integer("updatedAt", { mode: "timestamp" })
+      .notNull()
+      .$defaultFn(() => new Date()),
+  },
+);
+
+export const bankAccounts = sqliteTable("bank_accounts", {
+  id: text("id").primaryKey(),
+  bankName: text("bank_name").notNull(),
+  accountNo: text("account_no").notNull(),
+  holder: text("holder").notNull(),
+  isDefault: integer("is_default", { mode: "boolean" })
+    .notNull()
+    .default(false),
+  createdBy: text("created_by"),
+  createdAt: integer("createdAt", { mode: "timestamp" })
+    .notNull()
+    .$defaultFn(() => new Date()),
+});
+
+export const numberingRules = sqliteTable("numbering_rules", {
+  id: text("id").primaryKey(),
+  doc: text("doc", {
+    enum: ["booking", "invoice", "receipt", "quote", "credit_note"],
+  }).notNull().unique(),
+  prefix: text("prefix").notNull(),
+  digits: integer("digits").notNull().default(6),
+  nextNo: integer("next_no").notNull().default(1),
+  resetOn: text("reset_on", {
+    enum: ["never", "year", "month"],
+  }).notNull().default("year"),
+  lastResetAt: integer("last_reset_at", { mode: "timestamp" }),
+  updatedAt: integer("updatedAt", { mode: "timestamp" })
+    .notNull()
+    .$defaultFn(() => new Date()),
+});
+
+export type AppSettingRow = typeof appSettings.$inferSelect;
+export type BankAccountRow = typeof bankAccounts.$inferSelect;
+export type NumberingRuleRow = typeof numberingRules.$inferSelect;
