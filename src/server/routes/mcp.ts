@@ -120,6 +120,40 @@ function rpcError(id: RpcRequest["id"], code: number, message: string) {
 }
 
 /**
+ * Redact fields that MCP must never expose regardless of role (PRD requirement):
+ * passport numbers/scans and payment proof keys/URLs. Even super_admin tokens
+ * cannot read these through MCP — they are only available in the dashboard.
+ */
+function redactSensitive(text: string): string {
+  const BLOCKED = [
+    "passportNumber",
+    "passport_number",
+    "passportScan",
+    "passport_scan",
+    "proofKey",
+    "proof_key",
+    "proofUrl",
+    "documentUrl",
+  ];
+  try {
+    const scrub = (value: unknown): unknown => {
+      if (Array.isArray(value)) return value.map(scrub);
+      if (value && typeof value === "object") {
+        return Object.fromEntries(
+          Object.entries(value as Record<string, unknown>)
+            .filter(([k]) => !BLOCKED.includes(k))
+            .map(([k, v]) => [k, scrub(v)]),
+        );
+      }
+      return value;
+    };
+    return JSON.stringify(scrub(JSON.parse(text)));
+  } catch {
+    return text; // non-JSON text: leave untouched (all tool outputs are JSON)
+  }
+}
+
+/**
  * POST /mcp — JSON-RPC 2.0 Streamable endpoint.
  * Requires a valid bearer token (verified by mcpAuth on all methods except
  * initialize, which still validates the token but needs no specific scope).
@@ -425,7 +459,9 @@ mcpRouter.post("/", async (c) => {
       }
 
       await audit(name, "success");
-      return c.json(rpcResult(id, { content: [{ type: "text", text }] }));
+      return c.json(
+        rpcResult(id, { content: [{ type: "text", text: redactSensitive(text) }] }),
+      );
     } catch (err) {
       await audit(name, "error", String(err));
       return c.json(rpcError(id, -32000, "tool execution failed"));
