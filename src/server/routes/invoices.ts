@@ -35,25 +35,12 @@ function isInvoiceStatus(value: unknown): value is InvoiceStatus {
   );
 }
 
-/** Sequential invoice number: INV-<year>-<0001>. */
+/** Sequential invoice number — uses the configurable numbering_rules when set. */
 async function nextInvoiceNumber(
   db: DrizzleD1Database<typeof schema>,
 ): Promise<string> {
-  const year = new Date().getFullYear();
-  const prefix = `INV-${year}-`;
-
-  const rows = await db
-    .select({ number: schema.invoices.number })
-    .from(schema.invoices)
-    .where(like(schema.invoices.number, `${prefix}%`))
-    .all();
-
-  let max = 0;
-  for (const row of rows) {
-    const seq = Number(row.number.slice(prefix.length));
-    if (!Number.isNaN(seq) && seq > max) max = seq;
-  }
-  return `${prefix}${String(max + 1).padStart(4, "0")}`;
+  const { nextDocumentNumber } = await import("../lib/document-numbering");
+  return nextDocumentNumber(db, "invoice");
 }
 
 interface ItemInput {
