@@ -1020,6 +1020,70 @@ export type SiteBannerRow = typeof siteBanners.$inferSelect;
 export type NewSiteBannerRow = typeof siteBanners.$inferInsert;
 export type SiteSeoRow = typeof siteSeo.$inferSelect;
 export type NewSiteSeoRow = typeof siteSeo.$inferInsert;
+
+// ---------------------------------------------------------------------------
+// MCP access tokens. AI clients authenticate with a bearer token; only a
+// SHA-256 hash of the secret is stored at rest. Each token inherits a staff
+// role and an explicit scope set; every call is written to mcp_audit_logs.
+// ---------------------------------------------------------------------------
+export const mcpTokens = sqliteTable(
+  "mcp_tokens",
+  {
+    id: text("id").primaryKey(),
+    name: text("name").notNull(),
+    tokenHash: text("token_hash").notNull().unique(),
+    tokenPreview: text("token_preview").notNull(),
+    role: text("role", {
+      enum: ["super_admin", "management", "sales", "finance", "operations"],
+    }).notNull(),
+    scopes: text("scopes", { mode: "json" })
+      .$type<string[]>()
+      .notNull()
+      .default([]),
+    status: text("status", {
+      enum: ["active", "revoked", "expired"],
+    })
+      .notNull()
+      .default("active"),
+    createdBy: text("created_by"),
+    createdAt: text("created_at")
+      .notNull()
+      .default(sql`(datetime('now'))`),
+    lastUsedAt: text("last_used_at"),
+    expiresAt: text("expires_at").notNull(),
+    callsLast30d: integer("calls_last_30d").notNull().default(0),
+  },
+  (table) => ({
+    hashIdx: index("mcp_tokens_hash_idx").on(table.tokenHash),
+    statusIdx: index("mcp_tokens_status_idx").on(table.status),
+  }),
+);
+
+export const mcpAuditLogs = sqliteTable(
+  "mcp_audit_logs",
+  {
+    id: text("id").primaryKey(),
+    tokenId: text("token_id"),
+    tool: text("tool").notNull(),
+    arguments: text("arguments"),
+    outcome: text("outcome", { enum: ["success", "denied", "error"] }).notNull(),
+    deniedReason: text("denied_reason"),
+    durationMs: integer("duration_ms").notNull().default(0),
+    createdAt: text("created_at")
+      .notNull()
+      .default(sql`(datetime('now'))`),
+  },
+  (table) => ({
+    tokenIdx: index("mcp_audit_token_idx").on(table.tokenId),
+    toolIdx: index("mcp_audit_tool_idx").on(table.tool),
+    createdIdx: index("mcp_audit_created_idx").on(table.createdAt),
+  }),
+);
+
+export type McpTokenRow = typeof mcpTokens.$inferSelect;
+export type NewMcpTokenRow = typeof mcpTokens.$inferInsert;
+export type McpAuditLogRow = typeof mcpAuditLogs.$inferSelect;
+export type NewMcpAuditLogRow = typeof mcpAuditLogs.$inferInsert;
 // SEO metadata driving the public website. Enquiries from the public site are
 // captured in `leads` (PRD: enquiry capture), so no separate table is needed.
 // ---------------------------------------------------------------------------
