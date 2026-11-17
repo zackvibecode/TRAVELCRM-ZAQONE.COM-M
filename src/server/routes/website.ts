@@ -2,6 +2,7 @@ import { Hono } from "hono";
 import { sql } from "drizzle-orm";
 import type { DrizzleD1Database } from "drizzle-orm/d1";
 import type * as schema from "../db/schema";
+import { requireRole } from "../middleware/auth";
 
 type Env = {
   Bindings: {
@@ -39,6 +40,13 @@ async function purgeContentCache(c: { req: { url: string } }): Promise<void> {
     // Cache purge is best-effort; never fail the mutation.
   }
 }
+
+/**
+ * All admin content-management endpoints require Super Admin or Management.
+ * Public read endpoints (pages, banners, packages, seo, images) stay open.
+ */
+websiteRouter.use("/admin/*", requireRole("super_admin", "management"));
+websiteRouter.use("/admin", requireRole("super_admin", "management"));
 
 
 /**
