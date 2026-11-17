@@ -90,6 +90,26 @@ const TOOLS = [
     },
     requiredScope: "packages:read",
   },
+  {
+    name: "get_seat_availability",
+    description: "Confirmed/held/available seats for one departure.",
+    inputSchema: {
+      type: "object",
+      properties: { departureId: { type: "string" } },
+      required: ["departureId"],
+    },
+    requiredScope: "seats:read",
+  },
+  {
+    name: "get_invoice_balance",
+    description: "Outstanding balance for an invoice number (no payment proofs).",
+    inputSchema: {
+      type: "object",
+      properties: { number: { type: "string" } },
+      required: ["number"],
+    },
+    requiredScope: "invoices:read",
+  },
 ];
 
 function rpcResult(id: RpcRequest["id"], result: unknown) {
@@ -354,6 +374,52 @@ mcpRouter.post("/", async (c) => {
         } else {
           text = JSON.stringify({ error: "package not found" });
         }
+      } else if (name === "get_seat_availability") {
+        const departureId = String(args.departureId ?? "");
+        const rows = await db.all<{
+          id: string;
+          departureDate: string;
+          seatCapacity: number;
+          seatsBooked: number;
+          seatsHeld: number;
+          status: string;
+        }>(sql`
+          SELECT id, departure_date AS departureDate,
+                 seat_capacity AS seatCapacity,
+                 seats_booked AS seatsBooked, seats_held AS seatsHeld, status
+          FROM departures WHERE id = ${departureId} LIMIT 1
+        `);
+        if (rows.length) {
+          const d = rows[0];
+          const capacity = Number(d.seatCapacity);
+          const confirmed = Number(d.seatsBooked);
+          const held = Number(d.seatsHeld);
+          text = JSON.stringify({
+            ...d,
+            capacity,
+            confirmed,
+            held,
+            available: Math.max(0, capacity - confirmed - held),
+          });
+        } else {
+          text = JSON.stringify({ error: "departure not found" });
+        }
+      } else if (name === "get_invoice_balance") {
+        const number = String(args.number ?? "");
+        const rows = await db.all<{
+          id: string;
+          number: string;
+          status: string;
+          total: number;
+          paidAmount: number;
+          balanceDue: number;
+          dueDate: string | null;
+        }>(sql`
+          SELECT id, number, status, total, paid_amount AS paidAmount,
+                 balance_due AS balanceDue, due_date AS dueDate
+          FROM invoices WHERE number = ${number} LIMIT 1
+        `);
+        text = rows.length ? JSON.stringify(rows[0]) : JSON.stringify({ error: "invoice not found" });
       } else {
         text = "[]";
       }
