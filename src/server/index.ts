@@ -21,6 +21,7 @@ import reportsRouter from "./routes/reports";
 import alertsRouter from "./routes/alerts";
 import websiteRouter from "./routes/website";
 import { releaseExpiredHolds } from "./lib/seat-availability";
+import { runScheduledContent } from "./lib/scheduled-content";
 
 export type Env = {
   DB: D1Database;
@@ -85,4 +86,10 @@ export async function scheduled(
   const db = drizzle(env.DB, { schema });
   const released = await releaseExpiredHolds(db);
   console.log(`[seat-holds] released ${released} expired hold(s)`);
+
+  const content = await runScheduledContent(db);
+  console.log(
+    `[scheduled-content] ${content.bannersActivated} banner(s) activated, ` +
+      `${content.bannersDeactivated} deactivated, ${content.pagesPublished} page(s) published`,
+  );
 }
