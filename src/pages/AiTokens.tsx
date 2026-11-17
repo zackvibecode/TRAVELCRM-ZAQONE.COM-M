@@ -12,6 +12,15 @@ import {
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useLang } from "@/lib/i18n";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
+import { Input } from "@/components/ui/input";
 
 type TokenStatus = "active" | "revoked" | "expired";
 type TokenRole = "super_admin" | "management" | "sales" | "finance" | "operations";
@@ -115,8 +124,58 @@ function statusBadgeClass(status: TokenStatus) {
 
 export default function AiTokens() {
   const { t } = useLang();
-  const [tokens] = useState<ApiToken[]>(STUB_TOKENS);
+  const [tokens, setTokens] = useState<ApiToken[]>(STUB_TOKENS);
   const [revealed, setRevealed] = useState<Record<string, boolean>>({});
+
+  // Create-token dialog state (mock submit — backend MCP token API menyusul)
+  const [dialogOpen, setDialogOpen] = useState(false);
+  const [newName, setNewName] = useState("");
+  const [newRole, setNewRole] = useState<TokenRole>("sales");
+  const [newScopes, setNewScopes] = useState<string[]>(["leads:read"]);
+  const [newExpiry, setNewExpiry] = useState("2027-11-17");
+  const [submitting, setSubmitting] = useState(false);
+  const [generated, setGenerated] = useState<string | null>(null);
+
+  const toggleScope = (scope: string) =>
+    setNewScopes((prev) =>
+      prev.includes(scope) ? prev.filter((s) => s !== scope) : [...prev, scope],
+    );
+
+  const handleGenerate = () => {
+    setSubmitting(true);
+    // Mock: simulasikan permintaan API sebelum backend token wujud
+    window.setTimeout(() => {
+      const raw = "zqk_live_" + Array.from({ length: 32 }, () =>
+        "0123456789abcdef"[Math.floor(Math.random() * 16)],
+      ).join("");
+      setTokens((prev) => [
+        {
+          id: `tok_${Date.now()}`,
+          name: newName.trim() || t("Token Baru", "New Token"),
+          tokenPreview: `${raw.slice(0, 13)}…${raw.slice(-4)}`,
+          role: newRole,
+          scopes: newScopes.length ? newScopes : ["leads:read"],
+          status: "active",
+          createdAt: new Date().toISOString().slice(0, 10),
+          lastUsed: null,
+          expiresAt: newExpiry,
+          callsLast30d: 0,
+        },
+        ...prev,
+      ]);
+      setGenerated(raw);
+      setSubmitting(false);
+    }, 600);
+  };
+
+  const resetDialog = () => {
+    setDialogOpen(false);
+    setGenerated(null);
+    setNewName("");
+    setNewRole("sales");
+    setNewScopes(["leads:read"]);
+    setNewExpiry("2027-11-17");
+  };
 
   const activeCount = tokens.filter((tk) => tk.status === "active").length;
   const totalCalls = tokens.reduce((sum, tk) => sum + tk.callsLast30d, 0);
@@ -136,7 +195,10 @@ export default function AiTokens() {
             )}
           </p>
         </div>
-        <button className="inline-flex items-center gap-2 rounded-md bg-primary px-4 py-2 text-sm font-semibold text-white hover:bg-primary/90">
+        <button
+          onClick={() => setDialogOpen(true)}
+          className="inline-flex items-center gap-2 rounded-md bg-primary px-4 py-2 text-sm font-semibold text-white hover:bg-primary/90"
+        >
           <Plus className="h-4 w-4" />
           {t("Jana Token Baru", "Generate New Token")}
         </button>
@@ -271,6 +333,146 @@ export default function AiTokens() {
           </p>
         </div>
       </div>
+
+      {/* Create-token dialog */}
+      <Dialog open={dialogOpen} onOpenChange={(open) => !open && resetDialog()}>
+        <DialogContent className="max-w-lg">
+          <DialogHeader>
+            <DialogTitle>
+              {generated
+                ? t("Token Dijana", "Token Generated")
+                : t("Jana Token Baru", "Generate New Token")}
+            </DialogTitle>
+            <DialogDescription>
+              {generated
+                ? t(
+                    "Salin token ini sekarang — ia tidak akan ditunjukkan lagi.",
+                    "Copy this token now — it will not be shown again.",
+                  )
+                : t(
+                    "Token mewarisi peranan staf; setiap panggilan MCP direkodkan dalam audit log.",
+                    "Tokens inherit a staff role; every MCP call is audit-logged.",
+                  )}
+            </DialogDescription>
+          </DialogHeader>
+
+          {generated ? (
+            <div className="space-y-3">
+              <code className="block break-all rounded-md border bg-muted px-3 py-2 font-mono text-xs">
+                {generated}
+              </code>
+              <div className="flex gap-2">
+                <button
+                  onClick={() => navigator.clipboard?.writeText(generated)}
+                  className="inline-flex items-center gap-2 rounded-md border bg-white px-3 py-1.5 text-xs font-medium hover:bg-muted/50"
+                >
+                  <Copy className="h-3.5 w-3.5" />
+                  {t("Salin Token", "Copy Token")}
+                </button>
+              </div>
+            </div>
+          ) : (
+            <div className="space-y-4">
+              <div className="space-y-1.5">
+                <label className="text-sm font-medium">
+                  {t("Nama Token", "Token Name")}
+                </label>
+                <Input
+                  value={newName}
+                  onChange={(e) => setNewName(e.target.value)}
+                  placeholder={t("cth. Claude Desktop — Owner", "e.g. Claude Desktop — Owner")}
+                />
+              </div>
+
+              <div className="space-y-1.5">
+                <label className="text-sm font-medium">
+                  {t("Peranan (token mewarisi kebenaran peranan ini)", "Role (token inherits this role's permissions)")}
+                </label>
+                <div className="flex flex-wrap gap-2">
+                  {(Object.keys(ROLE_LABELS) as TokenRole[]).map((role) => (
+                    <button
+                      key={role}
+                      type="button"
+                      onClick={() => setNewRole(role)}
+                      className={cn(
+                        "rounded-full border px-3 py-1 text-xs font-medium",
+                        newRole === role
+                          ? "border-primary bg-primary text-white"
+                          : "bg-white hover:bg-muted/50",
+                      )}
+                    >
+                      {t(ROLE_LABELS[role].ms, ROLE_LABELS[role].en)}
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              <div className="space-y-1.5">
+                <label className="text-sm font-medium">
+                  {t("Skop Akses", "Access Scopes")}
+                </label>
+                <div className="flex flex-wrap gap-2">
+                  {MCP_SCOPES.map((scope) => (
+                    <button
+                      key={scope}
+                      type="button"
+                      onClick={() => toggleScope(scope)}
+                      className={cn(
+                        "rounded-full border px-2.5 py-1 font-mono text-[11px]",
+                        newScopes.includes(scope)
+                          ? "border-primary bg-primary/10 text-primary"
+                          : "bg-white text-muted-foreground hover:bg-muted/50",
+                      )}
+                    >
+                      {scope}
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              <div className="space-y-1.5">
+                <label className="text-sm font-medium">
+                  {t("Tamat Tempoh", "Expiry Date")}
+                </label>
+                <Input
+                  type="date"
+                  value={newExpiry}
+                  onChange={(e) => setNewExpiry(e.target.value)}
+                />
+              </div>
+            </div>
+          )}
+
+          <DialogFooter>
+            {generated ? (
+              <button
+                onClick={resetDialog}
+                className="rounded-md bg-primary px-4 py-2 text-sm font-semibold text-white hover:bg-primary/90"
+              >
+                {t("Selesai", "Done")}
+              </button>
+            ) : (
+              <>
+                <button
+                  onClick={resetDialog}
+                  className="rounded-md border px-4 py-2 text-sm font-medium hover:bg-muted/50"
+                >
+                  {t("Batal", "Cancel")}
+                </button>
+                <button
+                  onClick={handleGenerate}
+                  disabled={submitting}
+                  className="rounded-md bg-primary px-4 py-2 text-sm font-semibold text-white hover:bg-primary/90 disabled:opacity-50"
+                >
+                  {submitting
+                    ? t("Menjana…", "Generating…")
+                    : t("Jana Token", "Generate Token")}
+                </button>
+              </>
+            )}
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
