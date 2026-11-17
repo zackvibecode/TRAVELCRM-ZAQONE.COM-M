@@ -29,6 +29,14 @@ export function createAuth(db: DrizzleD1Database<typeof schema>, env: Env) {
     emailAndPassword: {
       enabled: true,
       autoSignIn: true,
+      // Password reset uses the verification table; delivery is logged for
+      // now (no mail provider configured in this environment).
+      sendResetPassword: async ({ user, url }) => {
+        console.log(
+          `[auth] password reset requested for ${user.email}: ${url}`,
+        );
+      },
+      requireEmailVerification: false,
     },
     session: {
       expiresIn: 60 * 60 * 24 * 7, // 7 days
