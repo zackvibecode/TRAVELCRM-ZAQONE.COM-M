@@ -21,6 +21,7 @@ import reportsRouter from "./routes/reports";
 import alertsRouter from "./routes/alerts";
 import websiteRouter from "./routes/website";
 import mcpAdminRouter from "./routes/mcp-admin";
+import mcpRouter from "./routes/mcp";
 import { releaseExpiredHolds } from "./lib/seat-availability";
 import { runScheduledContent } from "./lib/scheduled-content";
 
@@ -76,6 +77,7 @@ app.route("/reports", reportsRouter);
 app.route("/alerts", alertsRouter);
 app.route("/website", websiteRouter);
 app.route("/mcp-admin", mcpAdminRouter);
+app.route("/mcp", mcpRouter);
 
 export default app;
 
