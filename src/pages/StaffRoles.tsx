@@ -1,5 +1,21 @@
-import { useState } from "react";
-import { Users, ShieldCheck, ChevronDown, Check } from "lucide-react";
+import { useMemo, useState } from "react";
+import {
+  Activity,
+  AlertCircle,
+  AlertTriangle,
+  Check,
+  CheckCircle2,
+  Download,
+  KeyRound,
+  Mail,
+  Pause,
+  Play,
+  Search,
+  ShieldCheck,
+  UserPlus,
+  Users,
+  X,
+} from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useLang } from "@/lib/i18n";
 import {
@@ -10,27 +26,26 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
-import { ROUTE_ROLES } from "@/lib/roles";
 import type { StaffRole } from "@/lib/auth";
 
 type StaffStatus = "active" | "invited" | "suspended";
+type StaffTab = "team" | "roles" | "activity";
 
 interface StaffMember {
   id: string;
   name: string;
+  initials: string;
   email: string;
   role: StaffRole;
   status: StaffStatus;
-  lastActive: string;
+  last: string;
+  device: string;
+  joined: string;
+  twofa: boolean;
+  activity: number;
 }
 
-const ROLES: StaffRole[] = [
-  "super_admin",
-  "management",
-  "sales",
-  "finance",
-  "operations",
-];
+const ROLES: StaffRole[] = ["super_admin", "management", "sales", "finance", "operations"];
 
 const ROLE_LABELS: Record<StaffRole, { ms: string; en: string }> = {
   super_admin: { ms: "Super Admin", en: "Super Admin" },
@@ -40,318 +55,455 @@ const ROLE_LABELS: Record<StaffRole, { ms: string; en: string }> = {
   operations: { ms: "Operasi", en: "Operations" },
 };
 
-const ROLE_BADGE_CLASS: Record<StaffRole, string> = {
-  super_admin: "bg-red-50 text-red-700 border-red-200",
-  management: "bg-violet-50 text-violet-700 border-violet-200",
-  sales: "bg-sky-50 text-sky-700 border-sky-200",
-  finance: "bg-emerald-50 text-emerald-700 border-emerald-200",
-  operations: "bg-amber-50 text-amber-700 border-amber-200",
-};
-
 const STATUS_LABELS: Record<StaffStatus, { ms: string; en: string }> = {
   active: { ms: "Aktif", en: "Active" },
-  invited: { ms: "Dijemput", en: "Invited" },
-  suspended: { ms: "Digantung", en: "Suspended" },
+  invited: { ms: "Menunggu", en: "Pending" },
+  suspended: { ms: "Nonaktif", en: "Inactive" },
+};
+
+const STATUS_CLASS: Record<StaffStatus, string> = {
+  active: "bg-emerald-50 text-emerald-700",
+  invited: "bg-amber-50 text-amber-700",
+  suspended: "bg-muted text-muted-foreground",
+};
+
+const MODULES = [
+  { id: "bookings", ms: "Tempahan", en: "Bookings" },
+  { id: "customers", ms: "Pelanggan & Lead", en: "Customer & Lead" },
+  { id: "billing", ms: "Billing & Pembayaran", en: "Billing & Payments" },
+  { id: "packages", ms: "Pakej", en: "Packages" },
+  { id: "trips", ms: "Trip & Kerusi", en: "Trips & Seats" },
+  { id: "website", ms: "Pengurus Laman", en: "Website Manager" },
+  { id: "staff", ms: "Akses Staf", en: "Staff Access" },
+  { id: "mcp", ms: "Pelayan MCP", en: "MCP Server" },
+];
+
+const INITIAL_PERMISSIONS: Record<StaffRole, Record<string, boolean>> = {
+  super_admin: { bookings: true, customers: true, billing: true, packages: true, trips: true, website: true, staff: true, mcp: true },
+  management: { bookings: true, customers: true, billing: true, packages: true, trips: true, website: true, staff: false, mcp: false },
+  sales: { bookings: true, customers: true, billing: false, packages: true, trips: false, website: false, staff: false, mcp: false },
+  finance: { bookings: true, customers: false, billing: true, packages: false, trips: false, website: false, staff: false, mcp: false },
+  operations: { bookings: true, customers: false, billing: false, packages: true, trips: true, website: false, staff: false, mcp: false },
 };
 
 // Stub data — backend staff API menyusul pada task backend.
 const STUB_STAFF: StaffMember[] = [
-  { id: "usr_owner", name: "Zack (Owner)", email: "owner@zaqone.travel", role: "super_admin", status: "active", lastActive: "2026-11-17 15:40" },
-  { id: "usr_mgr", name: "Farah (Management)", email: "manager@zaqone.travel", role: "management", status: "active", lastActive: "2026-11-17 11:02" },
-  { id: "usr_sales", name: "Adib (Sales)", email: "sales@zaqone.travel", role: "sales", status: "active", lastActive: "2026-11-16 18:25" },
-  { id: "usr_fin", name: "Melati (Finance)", email: "finance@zaqone.travel", role: "finance", status: "active", lastActive: "2026-11-15 09:14" },
-  { id: "usr_ops", name: "Imran (Operations)", email: "ops@zaqone.travel", role: "operations", status: "invited", lastActive: "—" },
+  { id: "usr_owner", name: "Zack (Owner)", initials: "ZO", email: "owner@zaqone.travel", role: "super_admin", status: "active", last: "Hari ini, 15:40", device: "Windows · Kuala Lumpur", joined: "Jan 2023", twofa: true, activity: 42 },
+  { id: "usr_mgr", name: "Farah (Management)", initials: "FM", email: "manager@zaqone.travel", role: "management", status: "active", last: "Hari ini, 11:02", device: "MacBook · Kuala Lumpur", joined: "Mar 2023", twofa: true, activity: 31 },
+  { id: "usr_sales", name: "Adib (Sales)", initials: "AS", email: "sales@zaqone.travel", role: "sales", status: "active", last: "Semalam, 18:25", device: "iPhone · Shah Alam", joined: "Jun 2023", twofa: true, activity: 18 },
+  { id: "usr_fin", name: "Melati (Finance)", initials: "MF", email: "finance@zaqone.travel", role: "finance", status: "active", last: "Semalam, 09:14", device: "Windows · Kuala Lumpur", joined: "Okt 2023", twofa: false, activity: 26 },
+  { id: "usr_ops", name: "Imran (Operations)", initials: "IO", email: "ops@zaqone.travel", role: "operations", status: "invited", last: "Belum pernah masuk", device: "—", joined: "Diundang 2 hari lalu", twofa: false, activity: 0 },
 ];
 
-const ROUTE_LABELS: Record<string, { ms: string; en: string }> = {
-  "/": { ms: "Papan Pemuka", en: "Dashboard" },
-  "/bookings": { ms: "Tempahan", en: "Bookings" },
-  "/trips": { ms: "Trip & Kerusi", en: "Trips & Seats" },
-  "/packages": { ms: "Pakej", en: "Packages" },
-  "/customers": { ms: "Pelanggan", en: "Customers" },
-  "/leads": { ms: "Saluran Leads", en: "Leads Pipeline" },
-  "/billing": { ms: "Billing & Pembayaran", en: "Billing & Payments" },
-  "/reports": { ms: "Laporan", en: "Reports" },
-  "/website": { ms: "Pengurus Laman", en: "Website Manager" },
-  "/ai-tokens": { ms: "Token Akses AI", en: "AI Access Tokens" },
-  "/mcp-audit": { ms: "Log Audit MCP", en: "MCP Audit Log" },
-  "/staff": { ms: "Peranan Staf", en: "Staff Roles" },
-  "/staff-audit": { ms: "Log Audit Staf", en: "Staff Audit Log" },
-  "/company-profile": { ms: "Profil Syarikat", en: "Company Profile" },
-  "/bank-accounts": { ms: "Akaun Bank", en: "Bank Accounts" },
-  "/document-numbering": { ms: "Penomboran Dokumen", en: "Document Numbering" },
-  "/booking-defaults": { ms: "Lalai Tempahan", en: "Booking Defaults" },
-  "/notification-templates": { ms: "Templat Pemberitahuan", en: "Notification Templates" },
-  "/api-tokens": { ms: "Token API", en: "API Tokens" },
-  "/data-maintenance": { ms: "Penyelenggaraan Data", en: "Data Maintenance" },
-  "/settings-audit": { ms: "Log Audit Tetapan", en: "Settings Audit Log" },
-  "/settings": { ms: "Tetapan", en: "Settings" },
-};
+interface ActivityEntry {
+  id: string;
+  who: string;
+  action: { ms: string; en: string };
+  target: string;
+  time: string;
+  ip: string;
+  ok: boolean;
+}
+
+const ACTIVITY: ActivityEntry[] = [
+  { id: "l1", who: "Zack (Owner)", action: { ms: "Mengubah izin peranan Jualan", en: "Changed Sales role permissions" }, target: "Billing & Payments", time: "Hari ini, 09.14", ip: "10.4.2.11", ok: true },
+  { id: "l2", who: "Melati (Finance)", action: { ms: "Verifikasi pembayaran", en: "Verified payment" }, target: "TRV-2291", time: "Hari ini, 09.02", ip: "10.4.2.37", ok: true },
+  { id: "l3", who: "Tidak dikenal", action: { ms: "Percobaan masuk gagal", en: "Failed sign-in attempt" }, target: "ops@zaqone.travel", time: "Hari ini, 08.47", ip: "103.28.11.5", ok: false },
+  { id: "l4", who: "Adib (Sales)", action: { ms: "Memindahkan lead ke Booking", en: "Moved lead to Booking" }, target: "Adi Nugroho", time: "Hari ini, 08.21", ip: "10.4.2.24", ok: true },
+  { id: "l5", who: "Farah (Management)", action: { ms: "Menerbitkan halaman", en: "Published a page" }, target: "Promo Langkawi 4D3N", time: "Semalam, 17.40", ip: "10.4.2.52", ok: true },
+];
 
 export default function StaffRoles() {
-  const { t, lang } = useLang();
+  const { t } = useLang();
   const [staff, setStaff] = useState<StaffMember[]>(STUB_STAFF);
+  const [permissions, setPermissions] = useState(INITIAL_PERMISSIONS);
+  const [tab, setTab] = useState<StaffTab>("team");
+  const [query, setQuery] = useState("");
+  const [roleFilter, setRoleFilter] = useState<StaffRole | "all">("all");
+  const [selectedId, setSelectedId] = useState("usr_owner");
+  const [logFilter, setLogFilter] = useState<"all" | "ok" | "fail">("all");
+  const [notice, setNotice] = useState("");
+  const [inviteOpen, setInviteOpen] = useState(false);
+  const [invite, setInvite] = useState({ email: "", role: "sales" as StaffRole });
+  const [inviteError, setInviteError] = useState("");
 
-  // Change-role dialog state (mock submit — backend staff API menyusul)
-  const [roleTarget, setRoleTarget] = useState<StaffMember | null>(null);
-  const [pickedRole, setPickedRole] = useState<StaffRole>("sales");
-  const [submitting, setSubmitting] = useState(false);
+  function showNotice(message: string) {
+    setNotice(message);
+    window.setTimeout(() => setNotice(""), 4000);
+  }
 
-  const openRoleDialog = (member: StaffMember) => {
-    setRoleTarget(member);
-    setPickedRole(member.role);
-  };
+  function patchStaff(id: string, patch: Partial<StaffMember>) {
+    setStaff((current) => current.map((p) => (p.id === id ? { ...p, ...patch } : p)));
+  }
 
-  const handleRoleChange = () => {
-    if (!roleTarget) return;
-    setSubmitting(true);
-    window.setTimeout(() => {
-      setStaff((prev) =>
-        prev.map((m) =>
-          m.id === roleTarget.id ? { ...m, role: pickedRole } : m,
-        ),
-      );
-      setSubmitting(false);
-      setRoleTarget(null);
-    }, 400);
-  };
+  function submitInvite() {
+    const email = invite.email.trim();
+    if (!email) {
+      setInviteError(t("Email wajib diisi", "Email is required"));
+      return;
+    }
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/.test(email)) {
+      setInviteError(t("Format email belum benar", "Invalid email format"));
+      return;
+    }
+    if (staff.some((p) => p.email.toLowerCase() === email.toLowerCase())) {
+      setInviteError(t("Email ini sudah terdaftar", "This email is already registered"));
+      return;
+    }
+    const name = email.split("@")[0].replace(/[._-]+/g, " ").replace(/\b\w/g, (c) => c.toUpperCase());
+    const person: StaffMember = {
+      id: `s-${Date.now()}`,
+      name,
+      initials: name.split(" ").slice(0, 2).map((p) => p[0].toUpperCase()).join(""),
+      email,
+      role: invite.role,
+      status: "invited",
+      last: t("Belum pernah masuk", "Never signed in"),
+      device: "—",
+      joined: t("Diundang baru saja", "Invited just now"),
+      twofa: false,
+      activity: 0,
+    };
+    setStaff((current) => [person, ...current]);
+    setSelectedId(person.id);
+    setTab("team");
+    setQuery("");
+    setRoleFilter("all");
+    setInvite({ email: "", role: "sales" });
+    setInviteError("");
+    setInviteOpen(false);
+    showNotice(t(`Undangan dikirim ke ${email} sebagai ${ROLE_LABELS[invite.role].en}`, `Invite sent to ${email} as ${ROLE_LABELS[invite.role].en}`));
+  }
 
-  const roleCounts = ROLES.map((r) => ({
-    role: r,
-    count: staff.filter((m) => m.role === r).length,
-  }));
+  const visible = useMemo(
+    () =>
+      staff.filter((p) => {
+        const q = query.trim().toLowerCase();
+        if (q && !p.name.toLowerCase().includes(q) && !p.email.toLowerCase().includes(q)) return false;
+        if (roleFilter !== "all" && p.role !== roleFilter) return false;
+        return true;
+      }),
+    [staff, query, roleFilter],
+  );
+
+  const selected = staff.find((p) => p.id === selectedId) ?? staff[0];
+  const activeCount = staff.filter((p) => p.status === "active").length;
+  const pendingCount = staff.filter((p) => p.status === "invited").length;
+  const todayEvents = ACTIVITY.filter((e) => e.time.startsWith("Hari ini")).length;
+  const logs = ACTIVITY.filter((e) => logFilter === "all" || (logFilter === "ok" ? e.ok : !e.ok));
+  const pillCls = "inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[11.5px] font-semibold whitespace-nowrap";
+  const tabs: { id: StaffTab; label: { ms: string; en: string }; count: number }[] = [
+    { id: "team", label: { ms: "Staf", en: "Team" }, count: staff.length },
+    { id: "roles", label: { ms: "Peran & izin", en: "Roles & permissions" }, count: ROLES.length },
+    { id: "activity", label: { ms: "Aktiviti", en: "Activity" }, count: ACTIVITY.length },
+  ];
 
   return (
     <div className="space-y-6">
       {/* Header */}
-      <div>
-        <h1 className="font-display text-2xl font-bold tracking-tight">
-          {t("Peranan Staf", "Staff Roles")}
-        </h1>
-        <p className="text-sm text-muted-foreground">
-          {t(
-            "Urus peranan dan akses staf ke ruang kerja CRM.",
-            "Manage staff roles and their access to the CRM workspace.",
-          )}
-        </p>
-      </div>
+      <header className="flex flex-wrap items-end justify-between gap-3">
+        <div className="min-w-0">
+          <h1 className="font-display text-2xl font-bold tracking-tight">{t("Akses Staf", "Staff Access")}</h1>
+          <p className="mt-1.5 text-[13px] text-muted-foreground">
+            {activeCount} {t("staf aktif", "active staff")} · {ROLES.length} {t("peran", "roles")} · {pendingCount} {t("undangan menunggu", "pending invites")}
+          </p>
+        </div>
+        <div className="flex flex-wrap gap-2">
+          <button onClick={() => showNotice(t("Laporan akses 30 hari disediakan", "30-day access report prepared"))} className="inline-flex items-center gap-1.5 rounded-md border px-3 py-2 text-[13px] font-semibold hover:bg-muted/50">
+            <Download className="h-4 w-4" />
+            {t("Laporan Akses", "Access Report")}
+          </button>
+          <button onClick={() => { setInviteError(""); setInviteOpen(true); }} className="inline-flex items-center gap-1.5 rounded-md bg-primary px-3 py-2 text-[13px] font-semibold text-white hover:bg-primary/90">
+            <UserPlus className="h-4 w-4" />
+            {t("Undang Staf", "Invite Staff")}
+          </button>
+        </div>
+      </header>
 
       {/* Metrics */}
       <div className="grid grid-cols-2 gap-3 xl:grid-cols-4">
         {[
-          { label: t("Jumlah Staf", "Total staff"), value: String(staff.length), note: t("semua status", "all statuses") },
-          { label: t("Aktif", "Active"), value: String(staff.filter((m) => m.status === "active").length), note: t("log masuk terkini", "recently signed in") },
-          { label: t("Menunggu Jemputan", "Awaiting invite"), value: String(staff.filter((m) => m.status === "invited").length), note: t("belum pernah masuk", "never signed in") },
-          { label: t("Peranan", "Roles"), value: String(ROLES.length), note: t("dari Super Admin ke Operasi", "from Super Admin to Operations") },
+          { label: t("Staf aktif", "Active staff"), icon: Users, value: String(activeCount), note: t(`dari ${staff.length} akaun`, `of ${staff.length} accounts`) },
+          { label: t("Peran terpakai", "Roles in use"), icon: ShieldCheck, value: String(ROLES.length), note: t(`${MODULES.length} modul diatur`, `${MODULES.length} modules managed`) },
+          { label: t("Undangan menunggu", "Pending invites"), icon: Mail, value: String(pendingCount), note: t("belum terima emel", "emails not accepted yet") },
+          { label: t("Aktiviti hari ini", "Activity today"), icon: Activity, value: String(todayEvents), note: t("termasuk 1 cubaan gagal", "including 1 failed attempt") },
         ].map((m, i) => (
-          <div key={i} className="flex min-w-0 flex-col gap-1 rounded-[var(--radius-card)] border border-[var(--color-border)] bg-[var(--color-surface)] p-4">
-            <span className="text-[12px] font-semibold text-muted-foreground">{m.label}</span>
-            <span className="font-display text-[24px] font-bold leading-tight tracking-tight [font-variant-numeric:tabular-nums]">{m.value}</span>
-            <span className="truncate text-[12px] text-muted-foreground">{m.note}</span>
-          </div>
-        ))}
-      </div>
-
-      {/* Role summary cards */}
-      <div className="grid grid-cols-2 gap-3 sm:grid-cols-5">
-        {roleCounts.map(({ role, count }) => (
-          <div key={role} className="rounded-lg border bg-white p-3">
-            <div className="flex items-center gap-1.5">
-              <span
-                className={cn(
-                  "inline-flex rounded-full border px-2 py-0.5 text-[11px] font-semibold",
-                  ROLE_BADGE_CLASS[role],
-                )}
-              >
-                {t(ROLE_LABELS[role].ms, ROLE_LABELS[role].en)}
-              </span>
+          <article key={i} className="flex min-w-0 flex-col gap-1 rounded-[var(--radius-card)] border border-[var(--color-border)] bg-[var(--color-surface)] p-4">
+            <div className="flex items-center justify-between gap-2">
+              <span className="truncate text-[12px] font-semibold text-muted-foreground">{m.label}</span>
+              <m.icon className="h-3.5 w-3.5 flex-none text-muted-foreground" />
             </div>
-            <p className="mt-2 font-display text-xl font-bold">{count}</p>
-            <p className="text-xs text-muted-foreground">
-              {t("staf", "staff")}
-            </p>
-          </div>
+            <div className="font-display text-[24px] font-bold leading-tight tracking-tight [font-variant-numeric:tabular-nums]">{m.value}</div>
+            <span className="truncate text-[12px] text-muted-foreground">{m.note}</span>
+          </article>
         ))}
       </div>
 
-      {/* Staff table */}
-      <div className="overflow-hidden rounded-lg border bg-white">
-        <table className="w-full text-sm">
-          <thead>
-            <tr className="border-b bg-muted/40 text-left text-xs uppercase tracking-wide text-muted-foreground">
-              <th className="px-4 py-2.5 font-semibold">
-                {t("Staf", "Staff")}
-              </th>
-              <th className="px-4 py-2.5 font-semibold">
-                {t("Peranan", "Role")}
-              </th>
-              <th className="px-4 py-2.5 font-semibold">
-                {t("Status", "Status")}
-              </th>
-              <th className="hidden px-4 py-2.5 font-semibold md:table-cell">
-                {t("Aktif Terakhir", "Last Active")}
-              </th>
-              <th className="px-4 py-2.5" />
-            </tr>
-          </thead>
-          <tbody>
-            {staff.map((m) => (
-              <tr key={m.id} className="border-b last:border-b-0">
-                <td className="px-4 py-3">
-                  <div className="font-medium">{m.name}</div>
-                  <div className="text-xs text-muted-foreground">{m.email}</div>
-                </td>
-                <td className="px-4 py-3">
-                  <span
-                    className={cn(
-                      "inline-flex rounded-full border px-2 py-0.5 text-xs font-semibold",
-                      ROLE_BADGE_CLASS[m.role],
-                    )}
-                  >
-                    {t(ROLE_LABELS[m.role].ms, ROLE_LABELS[m.role].en)}
-                  </span>
-                </td>
-                <td className="px-4 py-3 text-xs">
-                  {m.status === "active" ? (
-                    <span className="text-emerald-700">
-                      ● {t(STATUS_LABELS.active.ms, STATUS_LABELS.active.en)}
-                    </span>
-                  ) : m.status === "invited" ? (
-                    <span className="text-amber-700">
-                      ● {t(STATUS_LABELS.invited.ms, STATUS_LABELS.invited.en)}
-                    </span>
-                  ) : (
-                    <span className="text-red-700">
-                      ● {t(STATUS_LABELS.suspended.ms, STATUS_LABELS.suspended.en)}
-                    </span>
-                  )}
-                </td>
-                <td className="hidden px-4 py-3 text-xs text-muted-foreground md:table-cell">
-                  {m.lastActive}
-                </td>
-                <td className="px-4 py-3 text-right">
-                  <button
-                    onClick={() => openRoleDialog(m)}
-                    className="inline-flex items-center gap-1 rounded-md border px-2.5 py-1.5 text-xs font-medium hover:bg-muted/50"
-                  >
-                    <ShieldCheck className="h-3.5 w-3.5" />
-                    {t("Tukar Peranan", "Change Role")}
-                  </button>
-                </td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
+      {/* Tabs */}
+      <div className="flex gap-1 border-b">
+        {tabs.map((item) => (
+          <button
+            key={item.id}
+            onClick={() => setTab(item.id)}
+            className={cn(
+              "flex items-center gap-1.5 border-b-2 px-3 py-2 text-sm font-semibold transition-colors",
+              tab === item.id ? "border-primary text-primary" : "border-transparent text-muted-foreground hover:text-foreground",
+            )}
+          >
+            {t(item.label.ms, item.label.en)}
+            <span className={cn("rounded-full px-1.5 py-0.5 text-[11px] font-bold [font-variant-numeric:tabular-nums]", tab === item.id ? "bg-primary/10 text-primary" : "bg-muted text-muted-foreground")}>
+              {item.count}
+            </span>
+          </button>
+        ))}
       </div>
 
-      {/* Permission matrix preview */}
-      <div>
-        <h2 className="mb-2 font-display text-lg font-bold tracking-tight">
-          {t("Matriks Kebenaran Halaman", "Page Permission Matrix")}
-        </h2>
-        <div className="overflow-x-auto rounded-lg border bg-white">
-          <table className="w-full text-sm">
-            <thead>
-              <tr className="border-b bg-muted/40 text-left text-xs uppercase tracking-wide text-muted-foreground">
-                <th className="px-4 py-2.5 font-semibold">
-                  {t("Halaman", "Page")}
-                </th>
-                {ROLES.map((r) => (
-                  <th key={r} className="px-3 py-2.5 text-center font-semibold">
-                    {t(ROLE_LABELS[r].ms, ROLE_LABELS[r].en).split(" ")[0]}
-                  </th>
+      {/* Team tab */}
+      {tab === "team" && (
+        <div className="grid gap-5 lg:grid-cols-[minmax(0,1fr)_330px] items-start">
+          <section className="overflow-hidden rounded-[var(--radius-panel)] border bg-[var(--color-surface)]">
+            <div className="flex flex-wrap items-center gap-2 border-b p-4">
+              <div className="flex min-w-0 flex-1 items-center gap-2 rounded-md border bg-muted/30 px-3 py-2">
+                <Search className="h-3.5 w-3.5 flex-none text-muted-foreground" />
+                <input value={query} onChange={(e) => setQuery(e.target.value)} placeholder={t("Cari nama atau emel…", "Search name or email…")} className="min-w-0 flex-1 bg-transparent text-sm outline-none placeholder:text-muted-foreground" />
+              </div>
+              <label className="flex items-center gap-1.5 text-xs text-muted-foreground">
+                {t("Peran", "Role")}
+                <select value={roleFilter} onChange={(e) => setRoleFilter(e.target.value as StaffRole | "all")} className="h-9 rounded-md border bg-white px-2 text-xs">
+                  <option value="all">{t("Semua peran", "All roles")}</option>
+                  {ROLES.map((r) => <option key={r} value={r}>{t(ROLE_LABELS[r].ms, ROLE_LABELS[r].en)}</option>)}
+                </select>
+              </label>
+            </div>
+            {visible.length === 0 ? (
+              <div className="px-5 py-12 text-center">
+                <p className="font-semibold">{t("Tiada staf sepadan", "No matching staff")}</p>
+                <p className="mt-1.5 text-[13px] text-muted-foreground">{t("Ubah kata kunci atau peran.", "Change the keyword or role filter.")}</p>
+                <button onClick={() => { setQuery(""); setRoleFilter("all"); }} className="mt-3 rounded-md border px-3 py-1.5 text-xs font-semibold">{t("Atur ulang", "Reset filter")}</button>
+              </div>
+            ) : (
+              <ul>
+                {visible.map((p) => (
+                  <li key={p.id} className="border-b last:border-0">
+                    <button
+                      onClick={() => setSelectedId(p.id)}
+                      className={cn("flex w-full items-center gap-3 px-4 py-3 text-left transition-colors hover:bg-muted/30", selected?.id === p.id && "bg-primary/5")}
+                    >
+                      <span className={cn("grid h-9 w-9 flex-none place-items-center rounded-full text-xs font-bold", selected?.id === p.id ? "bg-white text-primary" : "bg-muted text-muted-foreground")}>{p.initials}</span>
+                      <span className="min-w-0 flex-1">
+                        <span className="block truncate text-[13.5px] font-semibold">{p.name}</span>
+                        <span className="block truncate text-[11.5px] text-muted-foreground">{t(ROLE_LABELS[p.role].ms, ROLE_LABELS[p.role].en)} · {p.last}</span>
+                      </span>
+                      <span className={cn(pillCls, STATUS_CLASS[p.status])}>{t(STATUS_LABELS[p.status].ms, STATUS_LABELS[p.status].en)}</span>
+                    </button>
+                  </li>
                 ))}
-              </tr>
-            </thead>
-            <tbody>
-              {Object.entries(ROUTE_ROLES).map(([path, allowed]) => (
-                <tr key={path} className="border-b last:border-b-0">
-                  <td className="px-4 py-2.5">
-                    <span className="font-medium">
-                      {t(
-                        ROUTE_LABELS[path]?.ms ?? path,
-                        ROUTE_LABELS[path]?.en ?? path,
-                      )}
-                    </span>
-                    <span className="ml-2 text-xs text-muted-foreground">
-                      {path}
-                    </span>
-                  </td>
-                  {ROLES.map((r) => (
-                    <td key={r} className="px-3 py-2.5 text-center">
-                      {allowed.includes(r) ? (
-                        <Check className="mx-auto h-4 w-4 text-emerald-600" />
-                      ) : (
-                        <span className="text-muted-foreground">—</span>
-                      )}
-                    </td>
-                  ))}
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
-      </div>
+              </ul>
+            )}
+          </section>
 
-      {/* Change-role dialog */}
-      <Dialog open={roleTarget !== null} onOpenChange={(o) => !o && setRoleTarget(null)}>
-        <DialogContent className="sm:max-w-sm">
-          <DialogHeader>
-            <DialogTitle>
-              {t("Tukar Peranan", "Change Role")}
-            </DialogTitle>
-            <DialogDescription>
-              {roleTarget?.name} · {roleTarget?.email}
-            </DialogDescription>
-          </DialogHeader>
-          <div className="space-y-1.5">
-            {ROLES.map((r) => (
-              <button
-                key={r}
-                onClick={() => setPickedRole(r)}
-                className={cn(
-                  "flex w-full items-center justify-between rounded-md border px-3 py-2 text-sm transition-colors hover:bg-muted/50",
-                  pickedRole === r && "border-primary/60 bg-primary/5",
-                )}
-              >
-                <span className="font-medium">
-                  {t(ROLE_LABELS[r].ms, ROLE_LABELS[r].en)}
+          {/* Detail panel */}
+          {selected && (
+            <aside className="overflow-hidden rounded-[var(--radius-panel)] border bg-[var(--color-surface)]">
+              <div className="flex flex-col gap-4 p-5">
+                <div className="flex items-center gap-3">
+                  <span className="grid h-11 w-11 flex-none place-items-center rounded-full bg-muted text-sm font-bold text-muted-foreground">{selected.initials}</span>
+                  <div className="min-w-0">
+                    <p className="break-words text-[15px] font-bold">{selected.name}</p>
+                    <p className="mt-0.5 break-words text-xs text-muted-foreground">{selected.email}</p>
+                  </div>
+                </div>
+                <div className="flex flex-wrap gap-1.5">
+                  <span className={cn(pillCls, STATUS_CLASS[selected.status])}>{t(STATUS_LABELS[selected.status].ms, STATUS_LABELS[selected.status].en)}</span>
+                  <span className="rounded-full border bg-muted px-2 py-0.5 text-[11px] font-semibold text-muted-foreground">
+                    {selected.twofa ? t("2FA aktif", "2FA active") : t("2FA belum aktif", "2FA not active")}
+                  </span>
+                </div>
+                <dl className="grid grid-cols-[92px_minmax(0,1fr)] gap-x-3 gap-y-1.5 text-[13px]">
+                  <dt className="text-xs text-muted-foreground">{t("Peran", "Role")}</dt>
+                  <dd>
+                    <select
+                      value={selected.role}
+                      onChange={(e) => { const role = e.target.value as StaffRole; patchStaff(selected.id, { role }); showNotice(t(`Peran ${selected.name} ditukar ke ${ROLE_LABELS[role].en}`, `${selected.name} role changed to ${ROLE_LABELS[role].en}`)); }}
+                      className="h-8 w-full rounded-md border bg-white px-2 text-xs"
+                    >
+                      {ROLES.map((r) => <option key={r} value={r}>{t(ROLE_LABELS[r].ms, ROLE_LABELS[r].en)}</option>)}
+                    </select>
+                  </dd>
+                  <dt className="text-xs text-muted-foreground">{t("Masuk terakhir", "Last sign-in")}</dt>
+                  <dd>{selected.last}</dd>
+                  <dt className="text-xs text-muted-foreground">{t("Perangkat", "Device")}</dt>
+                  <dd>{selected.device}</dd>
+                  <dt className="text-xs text-muted-foreground">{t("Bergabung", "Joined")}</dt>
+                  <dd>{selected.joined}</dd>
+                  <dt className="text-xs text-muted-foreground">{t("Aktiviti", "Activity")}</dt>
+                  <dd className="[font-variant-numeric:tabular-nums]">{selected.activity} {t("aksi minggu ini", "actions this week")}</dd>
+                </dl>
+                <div className="flex flex-col gap-1.5">
+                  <p className="text-[11px] font-bold uppercase tracking-wide text-muted-foreground">{t("Modul boleh diakses", "Accessible modules")}</p>
+                  <div className="flex flex-wrap gap-1.5">
+                    {MODULES.filter((m) => permissions[selected.role]?.[m.id]).map((m) => (
+                      <span key={m.id} className="rounded-full border bg-muted px-2 py-0.5 text-[11px] font-semibold text-muted-foreground">{t(m.ms, m.en)}</span>
+                    ))}
+                  </div>
+                </div>
+                <div className="flex flex-wrap gap-2 border-t pt-4">
+                  <button
+                    onClick={() => { patchStaff(selected.id, { status: selected.status === "active" ? "suspended" : "active" }); showNotice(t(`Akaun ${selected.name} ${selected.status === "active" ? "dijeda" : "diaktifkan"}`, `${selected.name} account ${selected.status === "active" ? "paused" : "activated"}`)); }}
+                    className="inline-flex items-center gap-1 rounded-md border px-2 py-1.5 text-xs font-semibold hover:bg-muted/50"
+                  >
+                    {selected.status === "active" ? <Pause className="h-3.5 w-3.5" /> : <Play className="h-3.5 w-3.5" />}
+                    {selected.status === "active" ? t("Jeda Akaun", "Pause Account") : t("Aktifkan Akaun", "Activate Account")}
+                  </button>
+                  <button
+                    onClick={() => showNotice(t(`Pautan tetapan semula kata laluan dihantar ke ${selected.email}`, `Password reset link sent to ${selected.email}`))}
+                    className="inline-flex items-center gap-1 rounded-md border px-2 py-1.5 text-xs font-semibold hover:bg-muted/50"
+                  >
+                    <KeyRound className="h-3.5 w-3.5" />
+                    {t("Atur Ulang Sandi", "Reset Password")}
+                  </button>
+                </div>
+              </div>
+            </aside>
+          )}
+        </div>
+      )}
+
+      {/* Roles tab */}
+      {tab === "roles" && (
+        <section className="overflow-hidden rounded-[var(--radius-panel)] border bg-[var(--color-surface)]">
+          <div className="border-b px-5 py-4">
+            <h2 className="font-display text-base font-bold">{t("Matriks Izin Peran", "Role Permission Matrix")}</h2>
+            <p className="mt-1 text-[13px] text-muted-foreground">{t("Tandakan modul yang boleh dibuka oleh setiap peran.", "Tick the modules each role is allowed to open.")}</p>
+          </div>
+          <div className="overflow-x-auto">
+            <table className="w-full text-sm">
+              <thead className="border-b bg-muted/40 text-left text-[11px] uppercase tracking-wide text-muted-foreground">
+                <tr>
+                  <th className="px-4 py-2.5 font-bold">{t("Modul", "Module")}</th>
+                  {ROLES.map((r) => <th key={r} className="px-3 py-2.5 text-center font-bold">{t(ROLE_LABELS[r].ms, ROLE_LABELS[r].en).split(" ")[0]}</th>)}
+                </tr>
+              </thead>
+              <tbody>
+                {MODULES.map((m) => (
+                  <tr key={m.id} className="border-b last:border-0">
+                    <td className="px-4 py-2.5 font-semibold">{t(m.ms, m.en)}</td>
+                    {ROLES.map((r) => (
+                      <td key={r} className="px-3 py-2 text-center">
+                        <input
+                          type="checkbox"
+                          checked={permissions[r][m.id]}
+                          disabled={r === "super_admin" && m.id === "staff"}
+                          aria-label={`${t(m.ms, m.en)} — ${t(ROLE_LABELS[r].ms, ROLE_LABELS[r].en)}`}
+                          onChange={(e) => {
+                            const checked = e.target.checked;
+                            setPermissions((cur) => ({ ...cur, [r]: { ...cur[r], [m.id]: checked } }));
+                            showNotice(t(`${ROLE_LABELS[r].en}: akses ${m.en} ${checked ? "diaktifkan" : "dimatikan"}`, `${ROLE_LABELS[r].en}: ${m.en} access ${checked ? "enabled" : "disabled"}`));
+                          }}
+                          className="h-4 w-4 accent-[var(--color-primary)]"
+                        />
+                      </td>
+                    ))}
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </section>
+      )}
+
+      {/* Activity tab */}
+      {tab === "activity" && (
+        <section className="overflow-hidden rounded-[var(--radius-panel)] border bg-[var(--color-surface)]">
+          <div className="flex flex-wrap items-center gap-2 border-b p-4">
+            <h2 className="flex-1 font-display text-base font-bold">{t("Log Aktiviti", "Activity Log")}</h2>
+            <label className="flex items-center gap-1.5 text-xs text-muted-foreground">
+              {t("Status", "Status")}
+              <select value={logFilter} onChange={(e) => setLogFilter(e.target.value as "all" | "ok" | "fail")} className="h-9 rounded-md border bg-white px-2 text-xs">
+                <option value="all">{t("Semua", "All")}</option>
+                <option value="ok">{t("Berjaya", "Success")}</option>
+                <option value="fail">{t("Gagal", "Failed")}</option>
+              </select>
+            </label>
+          </div>
+          <div>
+            {logs.map((e) => (
+              <div key={e.id} className="flex items-start gap-3 border-b px-4 py-3 last:border-0">
+                <span className={cn("grid h-7 w-7 flex-none place-items-center rounded-full bg-muted text-muted-foreground", !e.ok && "bg-red-50 text-red-600")}>
+                  {e.ok ? <Check className="h-3.5 w-3.5" /> : <AlertTriangle className="h-3.5 w-3.5" />}
                 </span>
-                {pickedRole === r && (
-                  <Check className="h-4 w-4 text-primary" />
-                )}
-              </button>
+                <div className="min-w-0 flex-1">
+                  <p className="text-[13px] font-semibold">{t(e.action.ms, e.action.en)}</p>
+                  <div className="mt-0.5 flex flex-wrap gap-x-2 text-[11px] text-muted-foreground">
+                    <span>{e.who}</span><span>· {e.target}</span><span>· {e.ip}</span>
+                  </div>
+                </div>
+                <div className="flex flex-none flex-col items-end gap-1">
+                  <span className={cn(pillCls, e.ok ? "bg-emerald-50 text-emerald-700" : "bg-red-50 text-red-700")}>
+                    {e.ok ? t("Berjaya", "Success") : t("Gagal", "Failed")}
+                  </span>
+                  <span className="whitespace-nowrap text-[11px] text-muted-foreground">{e.time}</span>
+                </div>
+              </div>
             ))}
+          </div>
+        </section>
+      )}
+
+      {/* Invite dialog */}
+      <Dialog open={inviteOpen} onOpenChange={setInviteOpen}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle>{t("Undang Staf Baru", "Invite New Staff")}</DialogTitle>
+            <DialogDescription>{t("Undangan dihantar melalui emel; staf memilih kata laluan sendiri.", "Invite is sent via email; the staff member chooses their own password.")}</DialogDescription>
+          </DialogHeader>
+          <div className="space-y-3">
+            <div className="space-y-1.5">
+              <label htmlFor="sa-email" className="text-[12.5px] font-semibold text-muted-foreground">{t("Emel Kerja", "Work email")}</label>
+              <input
+                id="sa-email"
+                type="email"
+                value={invite.email}
+                onChange={(e) => { setInvite((c) => ({ ...c, email: e.target.value })); setInviteError(""); }}
+                aria-invalid={!!inviteError}
+                placeholder="nama@zaqone.travel"
+                className={cn("h-9 w-full rounded-md border border-input bg-transparent px-3 text-sm shadow-sm focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring", inviteError && "border-red-400")}
+              />
+              {inviteError && <p className="flex items-center gap-1 text-xs font-medium text-red-600"><AlertCircle className="h-3.5 w-3.5" />{inviteError}</p>}
+            </div>
+            <div className="space-y-1.5">
+              <label htmlFor="sa-role" className="text-[12.5px] font-semibold text-muted-foreground">{t("Peran", "Role")}</label>
+              <select id="sa-role" value={invite.role} onChange={(e) => setInvite((c) => ({ ...c, role: e.target.value as StaffRole }))} className="h-9 w-full rounded-md border border-input bg-white px-3 text-sm shadow-sm">
+                {ROLES.map((r) => <option key={r} value={r}>{t(ROLE_LABELS[r].ms, ROLE_LABELS[r].en)}</option>)}
+              </select>
+            </div>
+            <div className="flex flex-col gap-1.5">
+              <p className="text-[11px] font-bold uppercase tracking-wide text-muted-foreground">{t("Modul akan terbuka", "Modules to open")}</p>
+              <div className="flex flex-wrap gap-1.5">
+                {MODULES.filter((m) => permissions[invite.role]?.[m.id]).map((m) => (
+                  <span key={m.id} className="rounded-full border bg-muted px-2 py-0.5 text-[11px] font-semibold text-muted-foreground">{t(m.ms, m.en)}</span>
+                ))}
+              </div>
+            </div>
           </div>
           <DialogFooter>
-            <button
-              onClick={() => setRoleTarget(null)}
-              className="rounded-md border px-3 py-2 text-sm font-medium hover:bg-muted/50"
-            >
-              {t("Batal", "Cancel")}
-            </button>
-            <button
-              onClick={handleRoleChange}
-              disabled={submitting || pickedRole === roleTarget?.role}
-              className="inline-flex items-center gap-1.5 rounded-md bg-primary px-3 py-2 text-sm font-semibold text-white hover:bg-primary/90 disabled:opacity-50"
-            >
-              <Users className="h-4 w-4" />
-              {submitting
-                ? t("Sedang simpan…", "Saving…")
-                : t("Simpan Peranan", "Save Role")}
+            <button onClick={() => setInviteOpen(false)} className="rounded-md px-3 py-2 text-sm font-semibold text-muted-foreground hover:text-foreground">{t("Batal", "Cancel")}</button>
+            <button onClick={submitInvite} className="inline-flex items-center gap-1.5 rounded-md bg-primary px-3 py-2 text-sm font-semibold text-white hover:bg-primary/90">
+              <UserPlus className="h-4 w-4" />
+              {t("Hantar Undangan", "Send Invite")}
             </button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
 
-      <p className="flex items-center gap-1.5 text-xs text-muted-foreground">
-        <ChevronDown className="h-3.5 w-3.5" />
-        {t(
-          "Data olok-olok — pengurusan staf sebenar akan didayakan pada fasa backend.",
-          "Mock data — real staff management will be enabled in the backend phase.",
-        )}
-        {lang === "ms" ? "" : ""}
-      </p>
+      {/* Toast */}
+      {notice && (
+        <div role="status" aria-live="polite" className="fixed bottom-6 right-6 z-[80] flex max-w-[340px] items-center gap-3 rounded-[var(--radius-card)] bg-[var(--color-text)] px-4 py-3 text-[13px] text-[var(--color-surface)] shadow-2xl">
+          <CheckCircle2 className="h-4 w-4 flex-none text-emerald-300" />
+          <span className="min-w-0 flex-1">{notice}</span>
+          <button aria-label={t("Tutup notifikasi", "Dismiss notification")} onClick={() => setNotice("")} className="grid h-6 w-6 flex-none place-items-center"><X className="h-4 w-4" /></button>
+        </div>
+      )}
     </div>
   );
 }

@@ -888,6 +888,17 @@ export default function WebsiteManager() {
 
               <div className="flex items-center gap-1">
                 <Button
+                  variant="outline"
+                  size="sm"
+                  asChild
+                  className="mr-1"
+                  title={t("Buka editor penuh", "Open full editor")}
+                >
+                  <a href="/website/editor">
+                    {t("Buka Editor", "Open Editor")}
+                  </a>
+                </Button>
+                <Button
                   variant="ghost"
                   size="sm"
                   onClick={() => setPreviewSlug(page.slug)}

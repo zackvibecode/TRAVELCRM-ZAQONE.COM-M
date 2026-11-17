@@ -20,6 +20,7 @@ import PublicPackages from "@/pages/PublicPackages";
 import PublicPackageDetail from "@/pages/PublicPackageDetail";
 import PublicContact from "@/pages/PublicContact";
 import WebsiteManager from "@/pages/WebsiteManager";
+import WebsiteContentEditor from "@/pages/WebsiteContentEditor";
 import AiTokens from "@/pages/AiTokens";
 import McpAuditLog from "@/pages/McpAuditLog";
 import StaffRoles from "@/pages/StaffRoles";
@@ -54,6 +55,7 @@ export default function App() {
           <Route path="/billing" element={<RoleRoute path="/billing"><BillingWorkspace /></RoleRoute>} />
           <Route path="/reports" element={<RoleRoute path="/reports"><ReportsPage /></RoleRoute>} />
           <Route path="/website" element={<RoleRoute path="/website"><WebsiteManager /></RoleRoute>} />
+          <Route path="/website/editor" element={<RoleRoute path="/website"><WebsiteContentEditor /></RoleRoute>} />
           <Route path="/ai-tokens" element={<RoleRoute path="/ai-tokens"><AiTokens /></RoleRoute>} />
           <Route path="/mcp-audit" element={<RoleRoute path="/mcp-audit"><McpAuditLog /></RoleRoute>} />
           <Route path="/staff" element={<RoleRoute path="/staff"><StaffRoles /></RoleRoute>} />

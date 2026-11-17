@@ -1,8 +1,11 @@
 import { useState } from "react";
 import {
+  AlertTriangle,
   Bell,
   Building2,
+  CalendarClock,
   Check,
+  FileDigit,
   Globe,
   Languages,
   Save,
@@ -12,12 +15,14 @@ import {
 import { cn } from "@/lib/utils";
 import { useLang } from "@/lib/i18n";
 
-type SettingsTab = "general" | "company" | "notifications" | "security";
+type SettingsTab = "general" | "company" | "documents" | "booking" | "notifications" | "security";
 
 // Mock state — backend settings API menyusul pada fasa backend.
 const TABS: { id: SettingsTab; label: { ms: string; en: string }; icon: typeof Globe }[] = [
   { id: "general", label: { ms: "Am", en: "General" }, icon: SlidersHorizontal },
   { id: "company", label: { ms: "Syarikat", en: "Company" }, icon: Building2 },
+  { id: "documents", label: { ms: "Dokumen", en: "Documents" }, icon: FileDigit },
+  { id: "booking", label: { ms: "Booking", en: "Booking" }, icon: CalendarClock },
   { id: "notifications", label: { ms: "Pemberitahuan", en: "Notifications" }, icon: Bell },
   { id: "security", label: { ms: "Keselamatan", en: "Security" }, icon: ShieldCheck },
 ];
@@ -57,6 +62,30 @@ export default function Settings() {
   const [notifyDeparture, setNotifyDeparture] = useState(true);
   const [notifyNewLead, setNotifyNewLead] = useState(false);
 
+  // Documents (penomboran)
+  const [docs, setDocs] = useState({
+    quotationPrefix: "QUO",
+    quotationNext: "1201",
+    quotationValidity: "14",
+    invoicePrefix: "INV",
+    invoiceNext: "0487",
+    invoiceTerms: "30",
+    receiptPrefix: "RCP",
+    receiptNext: "0234",
+  });
+
+  // Booking defaults
+  const [booking, setBooking] = useState({
+    holdHours: "48",
+    depositPercent: "30",
+    taxRate: "6",
+    currency: "MYR",
+    minPaxGroup: "10",
+    taxInclusive: false,
+    policy:
+      "Pembatalan 14 hari sebelum keberangkatan: bayaran balik 50%. Kurang dari 14 hari: tiada bayaran balik.",
+  });
+
   const handleSave = () => {
     // Validasi borang aktif sebelum simpan (mock backend).
     const errs: Record<string, string> = {};
@@ -68,6 +97,21 @@ export default function Settings() {
     if (tab === "general") {
       const n = Number(seatsThreshold);
       if (!Number.isFinite(n) || n < 1 || n > 100) errs.seatsThreshold = t("Ambang mesti antara 1–100.", "Threshold must be 1–100.");
+    }
+    if (tab === "documents") {
+      if (!docs.quotationPrefix.trim()) errs.quotationPrefix = t("Prefix penawaran wajib.", "Quotation prefix is required.");
+      if (!docs.invoicePrefix.trim()) errs.invoicePrefix = t("Prefix invois wajib.", "Invoice prefix is required.");
+      if (!docs.receiptPrefix.trim()) errs.receiptPrefix = t("Prefix resit wajib.", "Receipt prefix is required.");
+      const terms = Number(docs.invoiceTerms);
+      if (!Number.isFinite(terms) || terms < 1 || terms > 180) errs.invoiceTerms = t("Tempo mesti 1–180 hari.", "Terms must be 1–180 days.");
+    }
+    if (tab === "booking") {
+      const hold = Number(booking.holdHours);
+      const dep = Number(booking.depositPercent);
+      const tax = Number(booking.taxRate);
+      if (!Number.isFinite(hold) || hold < 1 || hold > 720) errs.holdHours = t("Hold mesti 1–720 jam.", "Hold must be 1–720 hours.");
+      if (!Number.isFinite(dep) || dep < 0 || dep > 100) errs.depositPercent = t("DP mesti 0–100%.", "Deposit must be 0–100%.");
+      if (!Number.isFinite(tax) || tax < 0 || tax > 100) errs.taxRate = t("Cukai mesti 0–100%.", "Tax must be 0–100%.");
     }
     setErrors(errs);
     if (Object.keys(errs).length > 0) return;
@@ -254,6 +298,163 @@ export default function Settings() {
         </div>
       )}
 
+      {/* Documents */}
+      {tab === "documents" && (
+        <div className="space-y-4">
+          <section className="rounded-[var(--radius-panel)] border bg-[var(--color-surface)]">
+            <div className="flex items-center justify-between border-b px-5 py-3.5">
+              <h2 className="font-display text-[15px] font-bold">{t("Penomboran Dokumen", "Document Numbering")}</h2>
+              <span className="text-xs text-muted-foreground">{t("Tahun berjalan automatik", "Current year applied automatically")}</span>
+            </div>
+            <div className="flex flex-col gap-5 p-5">
+              {[
+                { key: "quotationPrefix" as const, numKey: "quotationNext" as const, label: t("Prefix Penawaran", "Quotation prefix"), numLabel: t("Nombor Berjalan", "Running number"), hint: t("Penawaran seterusnya guna nombor ini.", "Next quotation uses this number.") },
+                { key: "invoicePrefix" as const, numKey: "invoiceNext" as const, label: t("Prefix Invois", "Invoice prefix"), numLabel: t("Nombor Berjalan", "Running number"), hint: undefined },
+                { key: "receiptPrefix" as const, numKey: "receiptNext" as const, label: t("Prefix Resit", "Receipt prefix"), numLabel: t("Nombor Berjalan", "Running number"), hint: undefined },
+              ].map((row, idx) => (
+                <div key={row.key} className="grid gap-4 md:grid-cols-3">
+                  <div className="space-y-1.5">
+                    <label htmlFor={`doc-${row.key}`} className="text-[12.5px] font-semibold text-muted-foreground">{row.label}</label>
+                    <div className="flex items-center gap-1.5 rounded-md border border-input bg-transparent px-3 shadow-sm focus-within:ring-1 focus-within:ring-ring">
+                      <input
+                        id={`doc-${row.key}`}
+                        value={docs[row.key]}
+                        aria-invalid={!!errors[row.key]}
+                        onChange={(e) => { setDocs((p) => ({ ...p, [row.key]: e.target.value.toUpperCase() })); setErrors((p) => ({ ...p, [row.key]: "" })); }}
+                        className="h-9 min-w-0 flex-1 bg-transparent text-sm uppercase outline-none"
+                      />
+                      <span className="whitespace-nowrap font-mono text-xs text-muted-foreground">/{new Date().getFullYear()}/{String(docs[row.numKey]).padStart(4, "0")}</span>
+                    </div>
+                    {errors[row.key] && <p className="text-xs text-red-600">{errors[row.key]}</p>}
+                  </div>
+                  <div className="space-y-1.5">
+                    <label htmlFor={`doc-${row.numKey}`} className="text-[12.5px] font-semibold text-muted-foreground">{row.numLabel}</label>
+                    <input
+                      id={`doc-${row.numKey}`}
+                      type="number"
+                      inputMode="numeric"
+                      value={docs[row.numKey]}
+                      onChange={(e) => setDocs((p) => ({ ...p, [row.numKey]: e.target.value }))}
+                      className={fieldCls}
+                    />
+                    {row.hint && <p className="text-[11px] text-muted-foreground">{row.hint}</p>}
+                  </div>
+                  {idx === 0 && (
+                    <div className="space-y-1.5">
+                      <label htmlFor="doc-quo-valid" className="text-[12.5px] font-semibold text-muted-foreground">{t("Tempoh Sah Penawaran (hari)", "Quotation validity (days)")}</label>
+                      <input id="doc-quo-valid" type="number" inputMode="numeric" value={docs.quotationValidity} onChange={(e) => setDocs((p) => ({ ...p, quotationValidity: e.target.value }))} className={fieldCls} />
+                    </div>
+                  )}
+                  {idx === 1 && (
+                    <div className="space-y-1.5">
+                      <label htmlFor="doc-inv-terms" className="text-[12.5px] font-semibold text-muted-foreground">{t("Tempo Bayaran (hari)", "Payment terms (days)")}</label>
+                      <input id="doc-inv-terms" type="number" inputMode="numeric" value={docs.invoiceTerms} aria-invalid={!!errors.invoiceTerms} onChange={(e) => { setDocs((p) => ({ ...p, invoiceTerms: e.target.value })); setErrors((p) => ({ ...p, invoiceTerms: "" })); }} className={cn(fieldCls, errors.invoiceTerms && "border-red-400")} />
+                      {errors.invoiceTerms && <p className="text-xs text-red-600">{errors.invoiceTerms}</p>}
+                    </div>
+                  )}
+                </div>
+              ))}
+              <p className="flex items-start gap-1.5 rounded-md bg-amber-50 p-3 text-xs text-amber-800">
+                <AlertTriangle className="mt-0.5 h-3.5 w-3.5 flex-none" />
+                {t("Perubahan prefix dan nombor hanya untuk dokumen baru. Dokumen sudah terbit kekal dengan nombornya.", "Prefix and number changes apply only to new documents. Already-issued documents keep their numbers.")}
+              </p>
+            </div>
+          </section>
+        </div>
+      )}
+
+      {/* Booking */}
+      {tab === "booking" && (
+        <div className="space-y-4">
+          <section className="rounded-[var(--radius-panel)] border bg-[var(--color-surface)]">
+            <div className="border-b px-5 py-3.5">
+              <h2 className="font-display text-[15px] font-bold">{t("Lalai Tempahan", "Booking Defaults")}</h2>
+            </div>
+            <div className="flex flex-col gap-5 p-5">
+              <div className="grid gap-4 md:grid-cols-3">
+                <div className="space-y-1.5">
+                  <label htmlFor="bk-hold" className="text-[12.5px] font-semibold text-muted-foreground">{t("Durasi Hold Kerusi", "Seat hold duration")}</label>
+                  <div className="flex items-center rounded-md border border-input shadow-sm focus-within:ring-1 focus-within:ring-ring">
+                    <input id="bk-hold" type="number" inputMode="numeric" value={booking.holdHours} aria-invalid={!!errors.holdHours} onChange={(e) => { setBooking((p) => ({ ...p, holdHours: e.target.value })); setErrors((p) => ({ ...p, holdHours: "" })); }} className="h-9 min-w-0 flex-1 bg-transparent px-3 text-sm outline-none" />
+                    <span className="whitespace-nowrap pr-3 text-xs text-muted-foreground">{t("jam", "hours")}</span>
+                  </div>
+                  <p className="text-[11px] text-muted-foreground">{t("Kerusi dilepas otomatis bila hold tamat.", "Seats are released when the hold expires.")}</p>
+                  {errors.holdHours && <p className="text-xs text-red-600">{errors.holdHours}</p>}
+                </div>
+                <div className="space-y-1.5">
+                  <label htmlFor="bk-deposit" className="text-[12.5px] font-semibold text-muted-foreground">{t("DP Minimum", "Minimum deposit")}</label>
+                  <div className="flex items-center rounded-md border border-input shadow-sm focus-within:ring-1 focus-within:ring-ring">
+                    <input id="bk-deposit" type="number" inputMode="numeric" value={booking.depositPercent} aria-invalid={!!errors.depositPercent} onChange={(e) => { setBooking((p) => ({ ...p, depositPercent: e.target.value })); setErrors((p) => ({ ...p, depositPercent: "" })); }} className="h-9 min-w-0 flex-1 bg-transparent px-3 text-sm outline-none" />
+                    <span className="whitespace-nowrap pr-3 text-xs text-muted-foreground">%</span>
+                  </div>
+                  {errors.depositPercent && <p className="text-xs text-red-600">{errors.depositPercent}</p>}
+                </div>
+                <div className="space-y-1.5">
+                  <label htmlFor="bk-tax" className="text-[12.5px] font-semibold text-muted-foreground">{t("Tarif Cukai", "Tax rate")}</label>
+                  <div className="flex items-center rounded-md border border-input shadow-sm focus-within:ring-1 focus-within:ring-ring">
+                    <input id="bk-tax" type="number" inputMode="numeric" value={booking.taxRate} aria-invalid={!!errors.taxRate} onChange={(e) => { setBooking((p) => ({ ...p, taxRate: e.target.value })); setErrors((p) => ({ ...p, taxRate: "" })); }} className="h-9 min-w-0 flex-1 bg-transparent px-3 text-sm outline-none" />
+                    <span className="whitespace-nowrap pr-3 text-xs text-muted-foreground">%</span>
+                  </div>
+                  {errors.taxRate && <p className="text-xs text-red-600">{errors.taxRate}</p>}
+                </div>
+              </div>
+              <div className="grid gap-4 md:grid-cols-3">
+                <div className="space-y-1.5">
+                  <label htmlFor="bk-currency" className="text-[12.5px] font-semibold text-muted-foreground">{t("Mata Wang", "Currency")}</label>
+                  <select id="bk-currency" value={booking.currency} onChange={(e) => setBooking((p) => ({ ...p, currency: e.target.value }))} className={cn(fieldCls, "bg-white")}>
+                    <option value="MYR">MYR — Ringgit Malaysia</option>
+                    <option value="USD">USD — US Dollar</option>
+                    <option value="SGD">SGD — Singapore Dollar</option>
+                  </select>
+                </div>
+                <div className="space-y-1.5">
+                  <label htmlFor="bk-group" className="text-[12.5px] font-semibold text-muted-foreground">{t("Minimal Pax Grup", "Minimum group pax")}</label>
+                  <input id="bk-group" type="number" inputMode="numeric" value={booking.minPaxGroup} onChange={(e) => setBooking((p) => ({ ...p, minPaxGroup: e.target.value }))} className={fieldCls} />
+                </div>
+                <div className="space-y-1.5">
+                  <label htmlFor="bk-tax-mode" className="text-[12.5px] font-semibold text-muted-foreground">{t("Perlakuan Cukai", "Tax treatment")}</label>
+                  <select id="bk-tax-mode" value={booking.taxInclusive ? "inclusive" : "exclusive"} onChange={(e) => setBooking((p) => ({ ...p, taxInclusive: e.target.value === "inclusive" }))} className={cn(fieldCls, "bg-white")}>
+                    <option value="exclusive">{t("Ditambah di atas harga", "Added on top of price")}</option>
+                    <option value="inclusive">{t("Sudah termasuk harga", "Already included in price")}</option>
+                  </select>
+                </div>
+              </div>
+              <div className="space-y-1.5">
+                <label htmlFor="bk-policy" className="text-[12.5px] font-semibold text-muted-foreground">{t("Teks Dasar Pembatalan", "Cancellation policy text")}</label>
+                <textarea id="bk-policy" rows={4} value={booking.policy} onChange={(e) => setBooking((p) => ({ ...p, policy: e.target.value }))} className="w-full rounded-md border border-input bg-transparent px-3 py-2 text-sm shadow-sm focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring" />
+                <p className="text-[11px] text-muted-foreground">{t("Tercetak di halaman terakhir penawaran dan invois.", "Printed on the last page of quotations and invoices.")}</p>
+              </div>
+            </div>
+          </section>
+
+          <section className="rounded-[var(--radius-panel)] border bg-[var(--color-surface)]">
+            <div className="border-b px-5 py-3.5">
+              <h2 className="font-display text-[15px] font-bold">{t("Simulasi Tagihan", "Billing Simulation")}</h2>
+            </div>
+            <div className="p-5">
+              <table className="w-full text-sm">
+                <tbody>
+                  {[
+                    { label: t("Contoh harga paket 2 pax dewasa", "Sample package price, 2 adults"), value: `${booking.currency} 24,800` },
+                    { label: `${t("DP minimum", "Minimum deposit")} (${booking.depositPercent}%)`, value: `${booking.currency} ${Math.round((24800 * Number(booking.depositPercent || 0)) / 100).toLocaleString("en-MY")}` },
+                    {
+                      label: `${t("Cukai", "Tax")} (${booking.taxRate}%, ${booking.taxInclusive ? t("termasuk", "included") : t("ditambah", "added")})`,
+                      value: `${booking.currency} ${Math.round(24800 * Number(booking.taxRate || 0) / (booking.taxInclusive ? 100 + Number(booking.taxRate || 0) : 100)).toLocaleString("en-MY")}`,
+                    },
+                    { label: t("Kerusi di-hold selama", "Seats held for"), value: `${booking.holdHours || 0} ${t("jam", "hours")}` },
+                  ].map((r, i) => (
+                    <tr key={i} className="border-b last:border-0">
+                      <td className={cn("py-2.5", i === 3 && "font-semibold")}>{r.label}</td>
+                      <td className={cn("whitespace-nowrap py-2.5 text-right font-mono text-xs [font-variant-numeric:tabular-nums]", i === 3 && "font-semibold")}>{r.value}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </section>
+        </div>
+      )}
+
       {/* Notifications */}
       {tab === "notifications" && (
         <div className="rounded-lg border bg-white p-4">
@@ -328,20 +529,6 @@ export default function Settings() {
           ))}
         </div>
       )}
-      {/* Shortcut cards to settings sub-pages */}
-      <div className="grid grid-cols-2 gap-3 xl:grid-cols-4">
-        {[
-          { href: "/document-numbering", label: { ms: "Dokumen", en: "Documents" }, note: { ms: "Penomboran invois & resit", en: "Invoice & receipt numbering" }, icon: "FileDigit" },
-          { href: "/booking-defaults", label: { ms: "Booking", en: "Booking" }, note: { ms: "Deposit, tempoh & lalai", en: "Deposit, deadlines & defaults" }, icon: "CalendarClock" },
-          { href: "/api-tokens", label: { ms: "Token API", en: "API Tokens" }, note: { ms: "Kunci akses integrasi", en: "Integration access keys" }, icon: "KeyRound" },
-          { href: "/data-maintenance", label: { ms: "Data & Pemeliharaan", en: "Data & Maintenance" }, note: { ms: "Sandaran & pembersihan", en: "Backup & cleanup" }, icon: "Database" },
-        ].map((c) => (
-          <a key={c.href} href={c.href} className="flex min-w-0 flex-col gap-1 rounded-[var(--radius-card)] border border-[var(--color-border)] bg-[var(--color-surface)] p-4 transition-colors hover:bg-[var(--color-surface-muted)]">
-            <span className="text-[12px] font-semibold text-muted-foreground">{t(c.label.ms, c.label.en)}</span>
-            <span className="font-display text-[13.5px] font-bold leading-snug text-[var(--color-primary)]">{t(c.note.ms, c.note.en)}</span>
-          </a>
-        ))}
-      </div>
     </div>
   );
 }
