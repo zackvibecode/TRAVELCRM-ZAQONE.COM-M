@@ -4,6 +4,9 @@ import type { DrizzleD1Database } from "drizzle-orm/d1";
 import type * as schema from "../db/schema";
 
 type Env = {
+  Bindings: {
+    DOCUMENTS: R2Bucket;
+  };
   Variables: {
     db: DrizzleD1Database<typeof schema>;
   };
@@ -706,6 +709,65 @@ websiteRouter.get("/seo/:slug", async (c) => {
   `);
   if (rows.length === 0) return c.json({ error: "SEO metadata not found" }, 404);
   return c.json({ seo: rows[0] });
+});
+
+/**
+ * POST /website/admin/images — upload a site image to R2 (banners/pages).
+ * Multipart form: `file` (image), optional `folder` (default `site`).
+ * Returns the public URL path usable in sitePages.coverImageUrl / siteBanners.
+ */
+websiteRouter.post("/admin/images", async (c) => {
+  const form = await c.req.formData();
+  const file = form.get("file");
+  const folder = ((form.get("folder") as string | null) ?? "site").replace(
+    /[^a-zA-Z0-9_-]/g,
+    "",
+  ) || "site";
+
+  if (!(file instanceof File)) {
+    return c.json({ error: "file field is required" }, 400);
+  }
+  const allowed = ["image/jpeg", "image/png", "image/webp", "image/gif"];
+  if (file.type && !allowed.includes(file.type)) {
+    return c.json({ error: "only JPEG, PNG, WebP or GIF images are allowed" }, 400);
+  }
+  if (file.size > 5 * 1024 * 1024) {
+    return c.json({ error: "image must be 5 MB or smaller" }, 400);
+  }
+
+  const key = `${folder}/${crypto.randomUUID()}-${file.name.replace(/[^a-zA-Z0-9._-]/g, "_")}`;
+  await c.env.DOCUMENTS.put(key, await file.arrayBuffer(), {
+    httpMetadata: { contentType: file.type || "application/octet-stream" },
+  });
+
+  return c.json(
+    {
+      key,
+      url: `/site-images/${key}`,
+      sizeBytes: file.size,
+      mimeType: file.type || null,
+    },
+    201,
+  );
+});
+
+/**
+ * GET /site-images/* — serve a public site image from R2 (cacheable).
+ */
+websiteRouter.get("/site-images/*", async (c) => {
+  const key = c.req.path.replace(/^\/website\/site-images\//, "");
+  if (!key || key.includes("..")) return c.json({ error: "invalid key" }, 400);
+
+  const object = await c.env.DOCUMENTS.get(key);
+  if (!object) return c.json({ error: "image not found" }, 404);
+
+  return new Response(object.body, {
+    headers: {
+      "Content-Type": object.httpMetadata?.contentType || "application/octet-stream",
+      "Cache-Control": "public, max-age=31536000, immutable",
+      "ETag": object.etag,
+    },
+  });
 });
 
 export default websiteRouter;
