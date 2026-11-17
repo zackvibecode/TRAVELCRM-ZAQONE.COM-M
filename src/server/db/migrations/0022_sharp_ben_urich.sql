@@ -31,6 +31,7 @@ INSERT INTO app_settings (`key`, `value`, `updated_by`, `updatedAt`) VALUES
   ('general', '{"defaultLang":"ms","currency":"MYR","timezone":"Asia/Kuala_Lumpur","seatsThreshold":20}', 'seed', strftime('%s','now')),
   ('company', '{"name":"ZAQONE TRAVEL & TOURS","registrationNo":"SA0123456789-KLM","licenseNo":"KPL/LN/000012345","licenseExpiry":"2028-06-30","phone":"+60 3-2168 8888","email":"hello@zaqone.travel","website":"https://zaqone.travel","address":"Lot 12, Jalan Sultan Ismail, 50250 Kuala Lumpur","city":"Kuala Lumpur","state":"Wilayah Persekutuan","postcode":"50250","country":"Malaysia","taxId":"MY-TIN-2026-001"}', 'seed', strftime('%s','now')),
   ('notifications', '{"lowSeats":true,"overdue":true,"departure":true,"newLead":false}', 'seed', strftime('%s','now')),
+  ('terms', '{"defaultDepositPercent":30,"fullPaymentDaysBefore":14,"draftHoldMinutes":60,"paymentMethods":["bank_transfer","credit_card","cash","e_wallet"],"termsText":"Deposit 30% upon confirmation. Full payment 14 days before departure. Prices in MYR.","checkInHours":3,"minPax":2}', 'seed', strftime('%s','now')),
   ('security', '{"require2faSuperAdmin":true,"lockAfterAttempts":5,"idleTimeoutMinutes":30}', 'seed', strftime('%s','now'));
 --> statement-breakpoint
 INSERT INTO bank_accounts (`id`, `bank_name`, `account_no`, `holder`, `is_default`, `created_by`, `createdAt`) VALUES

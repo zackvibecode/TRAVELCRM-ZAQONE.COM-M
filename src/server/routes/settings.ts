@@ -449,4 +449,71 @@ settingsRouter.post(
   },
 );
 
+/**
+ * GET /settings/terms — default commercial terms for quotations, invoices
+ * and booking forms. Readable by sales, operations, management & finance.
+ */
+settingsRouter.get(
+  "/terms",
+  requireRole("super_admin", "management", "sales", "finance", "operations"),
+  async (c) => {
+    const db = c.get("db");
+    const row = await db
+      .select()
+      .from(schema.appSettings)
+      .where(eq(schema.appSettings.key, "terms"))
+      .limit(1);
+    return c.json({ success: true, terms: row[0]?.value ?? null });
+  },
+);
+
+/**
+ * PUT /settings/terms — update default commercial terms (super admin only).
+ */
+settingsRouter.put(
+  "/terms",
+  requireRole("super_admin"),
+  requirePermission("settings:write"),
+  async (c) => {
+    const db = c.get("db");
+    const value = (await c.req.json()) as Record<string, unknown>;
+    const validation = validateSettingPayload("terms", value);
+    if (!validation.valid) {
+      return c.json({ success: false, errors: validation.errors }, 400);
+    }
+    const staff = c.get("staff");
+    const previous = await db
+      .select({ value: schema.appSettings.value })
+      .from(schema.appSettings)
+      .where(eq(schema.appSettings.key, "terms"))
+      .limit(1);
+
+    if (previous.length > 0) {
+      await db
+        .update(schema.appSettings)
+        .set({ value, updatedBy: staff?.email ?? "system", updatedAt: new Date() })
+        .where(eq(schema.appSettings.key, "terms"));
+    } else {
+      await db.insert(schema.appSettings).values({
+        key: "terms",
+        value,
+        updatedBy: staff?.email ?? "system",
+      });
+    }
+
+    await db.insert(schema.settingsAuditLogs).values({
+      id: crypto.randomUUID(),
+      actor: staff?.email ?? "system",
+      role: "super_admin",
+      module: "terms",
+      field: "terms",
+      beforeValue: previous.length > 0 ? JSON.stringify(previous[0]!.value) : null,
+      afterValue: JSON.stringify(value),
+      changeType: "updated",
+    });
+
+    return c.json({ success: true, terms: value });
+  },
+);
+
 export default settingsRouter;

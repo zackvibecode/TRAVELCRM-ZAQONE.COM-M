@@ -106,6 +106,7 @@ const VALIDATORS: Record<
   company: validateCompany,
   notifications: validateNotifications,
   security: validateSecurity,
+  terms: validateTerms,
 };
 
 export function validateSettingPayload(
@@ -187,6 +188,33 @@ export function validateBankAccountPatch(value: {
 
 const NUMBERING_DOCS = ["booking", "invoice", "receipt", "quote", "credit_note"];
 const RESET_ON = ["never", "year", "month"];
+
+/** Default invoice/booking terms payload. */
+export function validateTerms(value: Record<string, unknown>): ValidationResult {
+  const errors: Record<string, string> = {};
+  const deposit = Number(value.defaultDepositPercent ?? 30);
+  if (!Number.isFinite(deposit) || deposit < 0 || deposit > 100) {
+    errors.defaultDepositPercent = "defaultDepositPercent must be 0-100";
+  }
+  const fullDays = Number(value.fullPaymentDaysBefore ?? 14);
+  if (!Number.isInteger(fullDays) || fullDays < 0 || fullDays > 365) {
+    errors.fullPaymentDaysBefore = "fullPaymentDaysBefore must be 0-365";
+  }
+  const holdMinutes = Number(value.draftHoldMinutes ?? 60);
+  if (!Number.isInteger(holdMinutes) || holdMinutes < 5 || holdMinutes > 1440) {
+    errors.draftHoldMinutes = "draftHoldMinutes must be 5-1440";
+  }
+  if (
+    value.paymentMethods !== undefined &&
+    !Array.isArray(value.paymentMethods)
+  ) {
+    errors.paymentMethods = "paymentMethods must be an array";
+  }
+  if (value.termsText !== undefined && typeof value.termsText !== "string") {
+    errors.termsText = "termsText must be a string";
+  }
+  return { valid: Object.keys(errors).length === 0, errors };
+}
 
 /** Validate a numbering rule payload. */
 export function validateNumberingRule(value: {
