@@ -18,6 +18,7 @@ import refundsRouter from "./routes/refunds";
 import paymentRemindersRouter from "./routes/payment-reminders";
 import dashboardRouter from "./routes/dashboard";
 import reportsRouter from "./routes/reports";
+import alertsRouter from "./routes/alerts";
 import { releaseExpiredHolds } from "./lib/seat-availability";
 
 export type Env = {
@@ -69,6 +70,7 @@ app.route("/refunds", refundsRouter);
 app.route("/payment-reminders", paymentRemindersRouter);
 app.route("/dashboard", dashboardRouter);
 app.route("/reports", reportsRouter);
+app.route("/alerts", alertsRouter);
 
 export default app;
 
