@@ -15,6 +15,33 @@ type Env = {
 const websiteRouter = new Hono<Env>();
 
 /**
+ * Purge cached public content after an admin mutation. Cloudflare's Cache API
+ * is scoped to the Worker zone; `delete` on the request URL prefix is
+ * best-effort (cache is revalidated on next request). Failures never block the
+ * write — content is always fresh at the source (D1).
+ */
+async function purgeContentCache(c: { req: { url: string } }): Promise<void> {
+  try {
+    const cache = (globalThis as unknown as { caches?: CacheStorage }).caches?.default;
+    if (!cache) return;
+    const origin = new URL(c.req.url).origin;
+    const paths = [
+      "/website/pages",
+      "/website/banners",
+      "/website/seo",
+      "/website/packages",
+      "/website/featured",
+    ];
+    await Promise.all(
+      paths.map((p) => cache.delete(new Request(`${origin}${p}`)).catch(() => false)),
+    );
+  } catch {
+    // Cache purge is best-effort; never fail the mutation.
+  }
+}
+
+
+/**
  * Public website content endpoints. Only published pages and active banners
  * (within their display window) are exposed — draft content never leaks.
  */
@@ -60,6 +87,7 @@ websiteRouter.patch("/admin/packages/:id/featured", async (c) => {
   const rows = await db.all<{ id: string; featured: number }>(sql`
     SELECT id, featured FROM packages WHERE id = ${c.req.param("id")} LIMIT 1
   `);
+  await purgeContentCache(c);
   return c.json({ package: rows[0] ?? null });
 });
 
@@ -476,6 +504,7 @@ websiteRouter.put("/admin/pages/:id", async (c) => {
   const rows = await db.all<schema.SitePageRow>(sql`
     SELECT * FROM site_pages WHERE id = ${id} LIMIT 1
   `);
+  await purgeContentCache(c);
   return c.json({ page: rows[0] ?? null });
 });
 
@@ -515,6 +544,7 @@ websiteRouter.post("/admin/pages", async (c) => {
   const rows = await db.all<schema.SitePageRow>(sql`
     SELECT * FROM site_pages WHERE id = ${body.id} LIMIT 1
   `);
+  await purgeContentCache(c);
   return c.json({ page: rows[0] ?? null }, 201);
 });
 
@@ -524,6 +554,7 @@ websiteRouter.post("/admin/pages", async (c) => {
 websiteRouter.delete("/admin/pages/:id", async (c) => {
   const db = c.get("db");
   await db.execute(sql`DELETE FROM site_pages WHERE id = ${c.req.param("id")}`);
+  await purgeContentCache(c);
   return c.json({ ok: true });
 });
 
@@ -543,6 +574,7 @@ websiteRouter.patch("/admin/pages/:id/publish", async (c) => {
   const rows = await db.all<schema.SitePageRow>(sql`
     SELECT * FROM site_pages WHERE id = ${c.req.param("id")} LIMIT 1
   `);
+  await purgeContentCache(c);
   return c.json({ page: rows[0] ?? null });
 });
 
@@ -590,6 +622,7 @@ websiteRouter.post("/admin/banners", async (c) => {
   const rows = await db.all<schema.SiteBannerRow>(sql`
     SELECT * FROM site_banners WHERE id = ${id} LIMIT 1
   `);
+  await purgeContentCache(c);
   return c.json({ banner: rows[0] ?? null }, 201);
 });
 
@@ -634,6 +667,7 @@ websiteRouter.put("/admin/banners/:id", async (c) => {
   const rows = await db.all<schema.SiteBannerRow>(sql`
     SELECT * FROM site_banners WHERE id = ${id} LIMIT 1
   `);
+  await purgeContentCache(c);
   return c.json({ banner: rows[0] ?? null });
 });
 
@@ -650,6 +684,7 @@ websiteRouter.patch("/admin/banners/:id/active", async (c) => {
   const rows = await db.all<schema.SiteBannerRow>(sql`
     SELECT * FROM site_banners WHERE id = ${c.req.param("id")} LIMIT 1
   `);
+  await purgeContentCache(c);
   return c.json({ banner: rows[0] ?? null });
 });
 
@@ -659,6 +694,7 @@ websiteRouter.patch("/admin/banners/:id/active", async (c) => {
 websiteRouter.delete("/admin/banners/:id", async (c) => {
   const db = c.get("db");
   await db.execute(sql`DELETE FROM site_banners WHERE id = ${c.req.param("id")}`);
+  await purgeContentCache(c);
   return c.json({ ok: true });
 });
 
@@ -687,6 +723,7 @@ websiteRouter.put("/admin/seo/:slug", async (c) => {
   const rows = await db.all<schema.SiteSeoRow>(sql`
     SELECT * FROM site_seo WHERE slug = ${slug} LIMIT 1
   `);
+  await purgeContentCache(c);
   return c.json({ seo: rows[0] ?? null });
 });
 
@@ -696,6 +733,7 @@ websiteRouter.put("/admin/seo/:slug", async (c) => {
 websiteRouter.delete("/admin/seo/:slug", async (c) => {
   const db = c.get("db");
   await db.execute(sql`DELETE FROM site_seo WHERE slug = ${c.req.param("slug")}`);
+  await purgeContentCache(c);
   return c.json({ ok: true });
 });
 
