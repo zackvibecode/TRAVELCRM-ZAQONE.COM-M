@@ -7,6 +7,7 @@ import {
   EyeOff,
   KeyRound,
   Plus,
+  Server,
   ShieldAlert,
   Trash2,
 } from "lucide-react";
@@ -249,6 +250,52 @@ export default function AiTokens() {
               "Pasport & bukti bayaran dilindungi; tindakan destruktif diluar MCP.",
               "Passports & payment proofs protected; destructive actions excluded from MCP.",
             )}
+          </div>
+        </div>
+      </div>
+
+      {/* MCP endpoint connection info */}
+      <div className="rounded-xl border bg-white p-4">
+        <div className="flex items-center gap-2 text-sm font-semibold">
+          <Server className="h-4 w-4 text-primary" />
+          {t("Sambungan MCP", "MCP Connection")}
+        </div>
+        <p className="mt-1 text-xs text-muted-foreground">
+          {t(
+            "Tambah endpoint ini dalam klien MCP anda (Claude Desktop, IDE, automasi) dan hantar token akses sebagai Bearer.",
+            "Add this endpoint to your MCP client (Claude Desktop, IDE, automations) and send the access token as a Bearer.",
+          )}
+        </p>
+        <div className="mt-3 space-y-2">
+          <div>
+            <div className="text-[11px] font-medium uppercase tracking-wide text-muted-foreground">
+              {t("Endpoint (URL)", "Endpoint (URL)")}
+            </div>
+            <code className="mt-1 block break-all rounded-md border bg-muted/50 px-3 py-2 font-mono text-xs">
+              https://zaqone-travel.example.workers.dev/mcp
+            </code>
+          </div>
+          <div>
+            <div className="text-[11px] font-medium uppercase tracking-wide text-muted-foreground">
+              {t("Pengepala Pengesahan", "Auth Header")}
+            </div>
+            <code className="mt-1 block break-all rounded-md border bg-muted/50 px-3 py-2 font-mono text-xs">
+              Authorization: Bearer zqk_live_…
+            </code>
+          </div>
+        </div>
+        <div className="mt-3 grid gap-2 text-xs text-muted-foreground sm:grid-cols-3">
+          <div className="rounded-md border px-3 py-2">
+            <div className="font-semibold text-foreground">{t("Protokol", "Protocol")}</div>
+            MCP Streamable HTTP
+          </div>
+          <div className="rounded-md border px-3 py-2">
+            <div className="font-semibold text-foreground">{t("Pengesahan", "Auth")}</div>
+            Bearer token (peranan-scoped)
+          </div>
+          <div className="rounded-md border px-3 py-2">
+            <div className="font-semibold text-foreground">{t("Status", "Status")}</div>
+            {t("Aktif selepas backend MCP siap", "Live once MCP backend ships")}
           </div>
         </div>
       </div>
