@@ -162,6 +162,73 @@ websiteRouter.put("/admin/pages/:id", async (c) => {
 });
 
 /**
+ * POST /website/admin/pages — create a new page (id required, unique slug).
+ */
+websiteRouter.post("/admin/pages", async (c) => {
+  const db = c.get("db");
+  const body = await c.req.json<{
+    id: string;
+    slug?: string;
+    title?: string;
+    content?: string;
+    status?: "draft" | "published";
+  }>();
+
+  if (!body.id) return c.json({ error: "id is required" }, 400);
+
+  await db.execute(sql`
+    INSERT INTO site_pages (id, slug, title, content, status, updated_at)
+    VALUES (
+      ${body.id},
+      ${body.slug ?? body.id},
+      ${body.title ?? ""},
+      ${body.content ?? ""},
+      ${body.status ?? "draft"},
+      datetime('now')
+    )
+    ON CONFLICT(id) DO UPDATE SET
+      slug = excluded.slug,
+      title = excluded.title,
+      content = excluded.content,
+      status = excluded.status,
+      updated_at = datetime('now')
+  `);
+
+  const rows = await db.all<schema.SitePageRow>(sql`
+    SELECT * FROM site_pages WHERE id = ${body.id} LIMIT 1
+  `);
+  return c.json({ page: rows[0] ?? null }, 201);
+});
+
+/**
+ * DELETE /website/admin/pages/:id
+ */
+websiteRouter.delete("/admin/pages/:id", async (c) => {
+  const db = c.get("db");
+  await db.execute(sql`DELETE FROM site_pages WHERE id = ${c.req.param("id")}`);
+  return c.json({ ok: true });
+});
+
+/**
+ * PATCH /website/admin/pages/:id/publish — toggle publish status.
+ */
+websiteRouter.patch("/admin/pages/:id/publish", async (c) => {
+  const db = c.get("db");
+  const body = await c.req.json<{ status?: "draft" | "published" }>();
+  const status = body.status ?? "published";
+
+  await db.execute(sql`
+    UPDATE site_pages SET status = ${status}, updated_at = datetime('now')
+    WHERE id = ${c.req.param("id")}
+  `);
+
+  const rows = await db.all<schema.SitePageRow>(sql`
+    SELECT * FROM site_pages WHERE id = ${c.req.param("id")} LIMIT 1
+  `);
+  return c.json({ page: rows[0] ?? null });
+});
+
+/**
  * PUT /website/admin/banners/:id — upsert a banner.
  */
 websiteRouter.put("/admin/banners/:id", async (c) => {
