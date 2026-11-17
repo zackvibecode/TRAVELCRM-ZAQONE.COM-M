@@ -16,6 +16,78 @@ const websiteRouter = new Hono<Env>();
  * (within their display window) are exposed — draft content never leaks.
  */
 
+// ---------------------------------------------------------------------------
+// Public website enquiry → CRM lead capture (PRD req #9).
+// ---------------------------------------------------------------------------
+
+/**
+ * POST /website/enquiries — capture a public enquiry as a new CRM lead.
+ * Body: { name, phone, email?, packageName?, pax?, message? }
+ * Creates/uses the "Website" lead source and records an audit entry.
+ */
+websiteRouter.post("/enquiries", async (c) => {
+  const db = c.get("db");
+  const body = await c.req.json<{
+    name?: string;
+    phone?: string;
+    email?: string;
+    packageName?: string;
+    pax?: number;
+    message?: string;
+  }>();
+
+  const name = (body.name ?? "").trim();
+  const phone = (body.phone ?? "").trim();
+  if (!name || !/\d/.test(phone)) {
+    return c.json(
+      { error: "name and a valid phone number are required" },
+      400,
+    );
+  }
+
+  // Ensure the "Website" lead source exists.
+  const sourceRows = await db.all<{ id: string }>(sql`
+    SELECT id FROM lead_sources WHERE name = 'Website' LIMIT 1
+  `);
+  let sourceId = sourceRows[0]?.id;
+  if (!sourceId) {
+    sourceId = crypto.randomUUID();
+    await db.execute(sql`
+      INSERT INTO lead_sources (id, name, active) VALUES (${sourceId}, 'Website', 1)
+    `);
+  }
+
+  const leadId = crypto.randomUUID();
+  const enquiryNote = [
+    body.packageName ? `Package: ${body.packageName}` : "",
+    body.message ?? "",
+  ]
+    .filter(Boolean)
+    .join("\n");
+
+  await db.insert(schema.leads).values({
+    id: leadId,
+    name,
+    phone,
+    email: body.email ?? null,
+    destination: body.packageName ?? null,
+    pax: body.pax ?? 1,
+    stage: "new",
+    sourceId,
+    notes: enquiryNote || null,
+  }).run();
+
+  await db.execute(sql`
+    INSERT INTO audit_logs (id, actor, role, action, entity_type, entity_id, detail, at)
+    VALUES (${crypto.randomUUID()}, 'website', 'public', 'enquiry_to_lead', 'leads', ${leadId}, ${enquiryNote || null}, datetime('now'))
+  `);
+
+  return c.json(
+    { success: true, leadId, message: "Enquiry received — our team will contact you." },
+    201,
+  );
+});
+
 /**
  * GET /website/pages — all published pages (slug, title, content).
  */
