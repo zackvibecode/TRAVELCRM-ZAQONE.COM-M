@@ -24,6 +24,7 @@ import mcpAdminRouter from "./routes/mcp-admin";
 import mcpRouter from "./routes/mcp";
 import authRouter from "./routes/auth";
 import staffRouter from "./routes/staff";
+import staffAuditRouter from "./routes/staff-audit";
 import { releaseExpiredHolds } from "./lib/seat-availability";
 import { runScheduledContent } from "./lib/scheduled-content";
 
@@ -64,6 +65,7 @@ app.get("/health", (c) => {
 
 app.route("/auth", authRouter);
 app.route("/staff", staffRouter);
+app.route("/staff-audit", staffAuditRouter);
 app.route("/bookings", bookingsRouter);
 app.route("/", passengersRouter);
 app.route("/departures", departuresRouter);
