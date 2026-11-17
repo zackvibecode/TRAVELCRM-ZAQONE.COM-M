@@ -71,6 +71,25 @@ const TOOLS = [
     },
     requiredScope: "departures:read",
   },
+  {
+    name: "list_packages",
+    description: "List published travel packages.",
+    inputSchema: {
+      type: "object",
+      properties: { destination: { type: "string" }, limit: { type: "number" } },
+    },
+    requiredScope: "packages:read",
+  },
+  {
+    name: "get_package",
+    description: "Look up one published package by id, with its departure dates.",
+    inputSchema: {
+      type: "object",
+      properties: { id: { type: "string" } },
+      required: ["id"],
+    },
+    requiredScope: "packages:read",
+  },
 ];
 
 function rpcResult(id: RpcRequest["id"], result: unknown) {
@@ -286,6 +305,55 @@ mcpRouter.post("/", async (c) => {
           ORDER BY departure_date ASC LIMIT ${limit}
         `);
         text = JSON.stringify(rows);
+      } else if (name === "list_packages") {
+        const destination = args.destination ? String(args.destination) : null;
+        const limit = Math.min(Number(args.limit) || 20, 100);
+        const rows = await db.all<{
+          id: string;
+          name: string;
+          destination: string;
+          durationDays: number;
+          adultPrice: number;
+        }>(sql`
+          SELECT id, name, destination, duration_days AS durationDays,
+                 adult_price AS adultPrice
+          FROM packages
+          WHERE publish_status = 'published'
+            ${destination ? sql`AND destination = ${destination}` : sql``}
+          ORDER BY name ASC LIMIT ${limit}
+        `);
+        text = JSON.stringify(rows);
+      } else if (name === "get_package") {
+        const id = String(args.id ?? "");
+        const rows = await db.all<{
+          id: string;
+          name: string;
+          destination: string;
+          durationDays: number;
+          adultPrice: number;
+          childPrice: number;
+        }>(sql`
+          SELECT id, name, destination, duration_days AS durationDays,
+                 adult_price AS adultPrice, child_price AS childPrice
+          FROM packages
+          WHERE id = ${id} AND publish_status = 'published' LIMIT 1
+        `);
+        if (rows.length) {
+          const departures = await db.all<{
+            id: string;
+            departureDate: string;
+            seatsLeft: number;
+          }>(sql`
+            SELECT id, departure_date AS departureDate,
+                   (seat_capacity - seats_booked - seats_held) AS seatsLeft
+            FROM departures
+            WHERE package_id = ${id} AND departure_date >= date('now')
+            ORDER BY departure_date ASC
+          `);
+          text = JSON.stringify({ ...rows[0], departures });
+        } else {
+          text = JSON.stringify({ error: "package not found" });
+        }
       } else {
         text = "[]";
       }
