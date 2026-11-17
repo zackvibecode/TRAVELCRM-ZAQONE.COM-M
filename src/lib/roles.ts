@@ -22,6 +22,7 @@ export const ROUTE_ROLES: Record<string, StaffRole[]> = {
   "/bank-accounts": ["super_admin", "finance"],
   "/document-numbering": ["super_admin", "management"],
   "/booking-defaults": ["super_admin", "management", "sales", "operations"],
+  "/notification-templates": ["super_admin", "management"],
   "/settings": ["super_admin"],
 };
 
