@@ -1,9 +1,8 @@
-import { Link, Outlet } from "react-router-dom";
-import { Plane, Menu, X, Phone, Mail, Instagram, Facebook } from "lucide-react";
+import { Link, Outlet, useNavigate } from "react-router-dom";
+import { Menu, X, MessageCircle, MapPin, Phone, Mail } from "lucide-react";
 import { useEffect, useState } from "react";
 import { cn } from "@/lib/utils";
 import { useLang, type Lang } from "@/lib/i18n";
-import { Button } from "@/components/ui/button";
 
 const SITE_META: Record<
   "home" | "packages" | "promos" | "contact" | "default",
@@ -60,9 +59,12 @@ function metaKeyForPath(path: string): keyof typeof SITE_META {
   return "default";
 }
 
+const WHATSAPP_URL = "https://wa.me/60123880030";
+
 export default function PublicSiteShell() {
   const [mobileOpen, setMobileOpen] = useState(false);
   const { lang, setLang, t, localePath } = useLang();
+  const navigate = useNavigate();
 
   const NAV_ITEMS = [
     { to: localePath("/site"), label: t("Utama", "Home"), end: true },
@@ -85,199 +87,310 @@ export default function PublicSiteShell() {
   }, [lang]);
 
   return (
-    <div className="min-h-screen bg-white text-stone-900">
-      {/* Top bar */}
-      <div className="hidden border-b bg-stone-900 text-stone-300 md:block">
-        <div className="mx-auto flex max-w-6xl items-center justify-between px-4 py-1.5 text-xs">
-          <div className="flex items-center gap-4">
-            <span className="flex items-center gap-1.5">
-              <Phone className="h-3 w-3" /> +60 3 5555 0123
-            </span>
-            <span className="flex items-center gap-1.5">
-              <Mail className="h-3 w-3" /> hello@zaqonetravel.com
-            </span>
-          </div>
-          <span>{t("Isnin–Sabtu, 09.00–18.00", "Mon–Sat, 9am–6pm")}</span>
-        </div>
-      </div>
+    <div className="flex min-h-screen flex-col bg-[var(--color-surface)] text-foreground">
+      <a
+        href="#main-content"
+        className="absolute -left-[9999px] top-0 focus-ring"
+      >
+        {t("Langkau ke kandungan", "Skip to content")}
+      </a>
 
       {/* Header */}
-      <header className="sticky top-0 z-40 border-b bg-white/95 backdrop-blur">
-        <div className="mx-auto flex max-w-6xl items-center justify-between px-4 py-3">
-          <Link to={localePath("/site")} className="flex items-center gap-2">
-            <div className="rounded-lg bg-red-600 p-1.5">
-              <Plane className="h-5 w-5 text-white" />
-            </div>
-            <div>
-              <span className="block text-base font-bold leading-tight tracking-tight">
-                ZAQONE
-                <span className="text-red-600"> TRAVEL</span>
+      <header className="sticky top-0 z-30 border-b border-[var(--color-border)] bg-[var(--color-surface)]">
+        <div className="mx-auto max-w-site px-4">
+          <div className="flex min-h-[68px] flex-wrap items-center gap-4">
+            {/* Brand */}
+            <Link
+              to={localePath("/site")}
+              className="flex flex-none items-center gap-2.5 text-foreground focus-ring rounded-lg"
+            >
+              <span className="grid h-9 w-9 place-items-center rounded-[10px] bg-[var(--color-primary)] font-display text-sm font-extrabold tracking-tight text-white">
+                ZA
               </span>
-              <span className="block text-[10px] font-medium uppercase tracking-widest text-muted-foreground">
-                Tour &amp; Travel
+              <span className="flex flex-col leading-tight">
+                <span className="font-display text-[15px] font-bold tracking-tight">
+                  ZAQONE Travel
+                </span>
+                <span className="mt-0.5 text-[10px] font-semibold uppercase tracking-[0.08em] text-muted-foreground">
+                  Travel agency
+                </span>
               </span>
-            </div>
-          </Link>
+            </Link>
 
-          {/* Desktop nav */}
-          <nav className="hidden items-center gap-6 md:flex">
-            {NAV_ITEMS.map((item) => (
-              <Link
-                key={item.to}
-                to={item.to}
-                className="text-sm font-medium text-stone-700 transition-colors hover:text-red-600"
-              >
-                {item.label}
-              </Link>
-            ))}
-          </nav>
-
-          <div className="hidden items-center gap-2 md:flex">
-            {/* Language switcher — swaps the locale in the URL, choice persists */}
-            <div className="flex items-center rounded-full border p-0.5">
-              {(["ms", "en"] as Lang[]).map((code) => (
-                <button
-                  key={code}
-                  onClick={() => setLang(code)}
-                  className={cn(
-                    "rounded-full px-2 py-0.5 text-xs font-semibold transition-colors",
-                    lang === code
-                      ? "bg-red-600 text-white"
-                      : "text-stone-500 hover:text-stone-900",
-                  )}
-                >
-                  {code === "ms" ? "BM" : "EN"}
-                </button>
-              ))}
-            </div>
-            <Button size="sm" asChild>
-              <Link to={localePath("/site/contact")}>
-                {t("Konsultasi Percuma", "Free Consultation")}
-              </Link>
-            </Button>
-          </div>
-
-          {/* Mobile toggle */}
-          <button
-            className="rounded-lg border p-2 md:hidden"
-            onClick={() => setMobileOpen(!mobileOpen)}
-            aria-label="Toggle menu"
-          >
-            {mobileOpen ? <X className="h-4 w-4" /> : <Menu className="h-4 w-4" />}
-          </button>
-        </div>
-
-        {/* Mobile nav */}
-        {mobileOpen && (
-          <nav className="border-t bg-white px-4 py-3 md:hidden">
-            <div className="flex flex-col gap-1">
+            {/* Desktop nav */}
+            <nav
+              aria-label={t("Navigasi utama", "Main navigation")}
+              className="hidden min-w-0 flex-wrap items-center gap-1 md:flex"
+            >
               {NAV_ITEMS.map((item) => (
                 <Link
                   key={item.to}
                   to={item.to}
-                  onClick={() => setMobileOpen(false)}
-                  className="rounded-lg px-3 py-2 text-sm font-medium text-stone-700 hover:bg-muted"
+                  className={cn(
+                    "rounded-lg px-3 py-2 text-sm font-medium text-[var(--color-text-secondary)] transition-colors hover:bg-[var(--color-surface-muted)] hover:text-foreground focus-ring",
+                    (item.end
+                      ? window.location.pathname === item.to
+                      : window.location.pathname.startsWith(item.to)) &&
+                      "font-semibold text-[var(--color-primary)]",
+                  )}
                 >
                   {item.label}
                 </Link>
               ))}
-              <div className="mt-2 flex items-center gap-2 px-3">
-                <span className="text-xs text-stone-500">
-                  {t("Bahasa", "Language")}:
-                </span>
+            </nav>
+
+            {/* Actions */}
+            <div className="ml-auto flex items-center gap-2">
+              {/* Language switcher */}
+              <div className="hidden items-center rounded-full border border-[var(--color-border-strong)] p-0.5 md:flex">
                 {(["ms", "en"] as Lang[]).map((code) => (
                   <button
                     key={code}
                     onClick={() => setLang(code)}
                     className={cn(
-                      "rounded-full border px-2.5 py-0.5 text-xs font-semibold",
+                      "rounded-full px-2 py-0.5 text-xs font-semibold transition-colors focus-ring",
                       lang === code
-                        ? "border-red-300 bg-red-50 text-red-700"
-                        : "border-stone-200 text-stone-500",
+                        ? "bg-[var(--color-primary)] text-white"
+                        : "text-muted-foreground hover:text-foreground",
                     )}
                   >
                     {code === "ms" ? "BM" : "EN"}
                   </button>
                 ))}
               </div>
+
+              <a
+                href={WHATSAPP_URL}
+                target="_blank"
+                rel="noreferrer"
+                className="hidden items-center gap-2 rounded-lg border border-[var(--color-border-strong)] px-4 py-2 text-[13px] font-medium text-foreground transition-colors hover:border-foreground focus-ring lg:inline-flex"
+              >
+                <MessageCircle className="h-4 w-4" />
+                WhatsApp
+              </a>
+              <button
+                onClick={() => navigate("/login")}
+                className="hidden items-center gap-2 rounded-lg border border-[var(--color-primary)] bg-[var(--color-primary)] px-4 py-2 text-[13px] font-semibold text-white transition-colors hover:bg-[var(--color-primary-hover)] focus-ring lg:inline-flex"
+              >
+                {t("Log Masuk Staf", "Staff login")}
+              </button>
+
+              {/* Mobile toggle */}
+              <button
+                type="button"
+                className="grid h-10 w-10 place-items-center rounded-lg border border-[var(--color-border-strong)] text-foreground md:hidden focus-ring"
+                onClick={() => setMobileOpen((v) => !v)}
+                aria-expanded={mobileOpen}
+                aria-controls="psite-mobile-menu"
+                aria-label={mobileOpen ? t("Tutup menu", "Close menu") : t("Buka menu", "Open menu")}
+              >
+                {mobileOpen ? <X className="h-5 w-5" /> : <Menu className="h-5 w-5" />}
+              </button>
             </div>
-          </nav>
-        )}
+          </div>
+
+          {/* Mobile menu */}
+          <div
+            id="psite-mobile-menu"
+            className={cn(
+              "md:hidden",
+              mobileOpen &&
+                "flex flex-col gap-0.5 border-t border-[var(--color-border)] py-3",
+            )}
+          >
+            {mobileOpen &&
+              NAV_ITEMS.map((item) => (
+                <Link
+                  key={item.to}
+                  to={item.to}
+                  onClick={() => setMobileOpen(false)}
+                  className="rounded-lg px-1 py-3 text-[15px] text-foreground focus-ring"
+                >
+                  {item.label}
+                </Link>
+              ))}
+            {mobileOpen && (
+              <>
+                <a
+                  href={WHATSAPP_URL}
+                  target="_blank"
+                  rel="noreferrer"
+                  onClick={() => setMobileOpen(false)}
+                  className="rounded-lg px-1 py-3 text-[15px] text-foreground focus-ring"
+                >
+                  {t("Chat di WhatsApp", "Chat on WhatsApp")}
+                </a>
+                <button
+                  onClick={() => navigate("/login")}
+                  className="rounded-lg px-1 py-3 text-left text-[15px] text-foreground focus-ring"
+                >
+                  {t("Log Masuk Staf", "Staff login")}
+                </button>
+                <div className="mt-1 flex items-center gap-2 px-1 py-2">
+                  <span className="text-xs text-muted-foreground">
+                    {t("Bahasa", "Language")}:
+                  </span>
+                  {(["ms", "en"] as Lang[]).map((code) => (
+                    <button
+                      key={code}
+                      onClick={() => setLang(code)}
+                      className={cn(
+                        "rounded-full border px-2.5 py-0.5 text-xs font-semibold focus-ring",
+                        lang === code
+                          ? "border-[var(--color-primary)] bg-[var(--color-primary-soft)] text-[var(--color-primary)]"
+                          : "border-[var(--color-border)] text-muted-foreground",
+                      )}
+                    >
+                      {code === "ms" ? "BM" : "EN"}
+                    </button>
+                  ))}
+                </div>
+              </>
+            )}
+          </div>
+        </div>
       </header>
 
       {/* Page content */}
-      <main>
+      <main id="main-content" className="flex min-w-0 flex-1 flex-col">
         <Outlet />
       </main>
 
       {/* Footer */}
-      <footer className="border-t bg-stone-900 text-stone-300">
-        <div className="mx-auto grid max-w-6xl gap-8 px-4 py-10 sm:grid-cols-2 lg:grid-cols-4">
-          <div>
-            <div className="flex items-center gap-2">
-              <div className="rounded-lg bg-red-600 p-1.5">
-                <Plane className="h-4 w-4 text-white" />
-              </div>
-              <span className="text-base font-bold text-white">
-                ZAQONE <span className="text-red-500">TRAVEL</span>
-              </span>
+      <footer className="border-t border-[var(--color-border)] bg-[var(--color-surface-raised)]">
+        <div className="mx-auto max-w-site px-4">
+          <div className="grid grid-cols-1 gap-6 py-10 sm:grid-cols-2 lg:grid-cols-4">
+            <div className="min-w-0 lg:col-span-1">
+              <Link
+                to={localePath("/site")}
+                className="mb-3 flex items-center gap-2.5 text-foreground focus-ring rounded-lg"
+              >
+                <span className="grid h-9 w-9 place-items-center rounded-[10px] bg-[var(--color-primary)] font-display text-sm font-extrabold text-white">
+                  ZA
+                </span>
+                <span className="flex flex-col leading-tight">
+                  <span className="font-display text-[15px] font-bold tracking-tight">
+                    ZAQONE Travel
+                  </span>
+                  <span className="mt-0.5 text-[10px] font-semibold uppercase tracking-[0.08em] text-muted-foreground">
+                    Travel agency
+                  </span>
+                </span>
+              </Link>
+              <p className="m-0 max-w-[34ch] text-sm leading-relaxed text-[var(--color-text-secondary)]">
+                {t(
+                  "Open trip, perjalanan peribadi dan keberangkatan berkumpulan dengan tarikh keberangkatan langsung dan kerusi yang tinggal.",
+                  "Open trips, private journeys and group departures with live departure dates and seats remaining.",
+                )}
+              </p>
+              <p className="mt-3 flex items-center gap-1.5 text-sm text-muted-foreground">
+                <MapPin className="h-4 w-4" />
+                {t("Jalan Ampang 88, 50450 Kuala Lumpur", "Jalan Ampang 88, 50450 Kuala Lumpur")}
+              </p>
             </div>
-            <p className="mt-3 text-xs leading-relaxed text-stone-400">
-              {t(
-                "Agensi pelancongan serba lengkap: pakej pelancongan domestik dan antarabangsa, trip berkumpulan, dan korporat.",
-                "All-in-one travel agency: domestic and international tour packages, group trips, and corporate travel.",
-              )}
-            </p>
-            <div className="mt-4 flex gap-3">
-              <a href="#" aria-label="Instagram" className="rounded-lg border border-stone-700 p-2 hover:border-red-500">
-                <Instagram className="h-4 w-4" />
-              </a>
-              <a href="#" aria-label="Facebook" className="rounded-lg border border-stone-700 p-2 hover:border-red-500">
-                <Facebook className="h-4 w-4" />
-              </a>
-            </div>
-          </div>
 
-          <div>
-            <h3 className="text-sm font-semibold text-white">
-              {t("Navigasi", "Navigation")}
-            </h3>
-            <ul className="mt-3 space-y-2 text-xs">
-              {NAV_ITEMS.map((item) => (
-                <li key={item.to}>
-                  <Link to={item.to} className="hover:text-red-400">
-                    {item.label}
+            <div>
+              <h2 className="mb-3 text-xs font-bold uppercase tracking-[0.08em] text-muted-foreground">
+                {t("Terokai", "Explore")}
+              </h2>
+              <ul className="m-0 flex list-none flex-col gap-2.5 p-0">
+                {NAV_ITEMS.map((item) => (
+                  <li key={item.to}>
+                    <Link
+                      to={item.to}
+                      className="text-sm text-[var(--color-text-secondary)] transition-colors hover:text-[var(--color-primary)] focus-ring rounded"
+                    >
+                      {item.label}
+                    </Link>
+                  </li>
+                ))}
+              </ul>
+            </div>
+
+            <div>
+              <h2 className="mb-3 text-xs font-bold uppercase tracking-[0.08em] text-muted-foreground">
+                {t("Bantuan", "Help")}
+              </h2>
+              <ul className="m-0 flex list-none flex-col gap-2.5 p-0">
+                <li>
+                  <a
+                    href={WHATSAPP_URL}
+                    target="_blank"
+                    rel="noreferrer"
+                    className="text-sm text-[var(--color-text-secondary)] transition-colors hover:text-[var(--color-primary)] focus-ring rounded"
+                  >
+                    WhatsApp
+                  </a>
+                </li>
+                <li>
+                  <Link
+                    to={localePath("/site/contact")}
+                    className="text-sm text-[var(--color-text-secondary)] transition-colors hover:text-[var(--color-primary)] focus-ring rounded"
+                  >
+                    {t("Cara tempahan berfungsi", "How booking works")}
                   </Link>
                 </li>
-              ))}
-            </ul>
+                <li>
+                  <Link
+                    to={localePath("/site/contact")}
+                    className="text-sm text-[var(--color-text-secondary)] transition-colors hover:text-[var(--color-primary)] focus-ring rounded"
+                  >
+                    {t("Polisi pembatalan", "Cancellation policy")}
+                  </Link>
+                </li>
+              </ul>
+            </div>
+
+            <div>
+              <h2 className="mb-3 text-xs font-bold uppercase tracking-[0.08em] text-muted-foreground">
+                {t("Hubungi", "Contact")}
+              </h2>
+              <ul className="m-0 flex list-none flex-col gap-2.5 p-0">
+                <li>
+                  <a
+                    href="tel:+60327118899"
+                    className="flex items-center gap-1.5 text-sm text-[var(--color-text-secondary)] transition-colors hover:text-[var(--color-primary)] focus-ring rounded"
+                  >
+                    <Phone className="h-3.5 w-3.5" /> +60 3 2711 8899
+                  </a>
+                </li>
+                <li>
+                  <a
+                    href="mailto:hello@zaqone.travel"
+                    className="flex items-center gap-1.5 text-sm text-[var(--color-text-secondary)] transition-colors hover:text-[var(--color-primary)] focus-ring rounded"
+                  >
+                    <Mail className="h-3.5 w-3.5" /> hello@zaqone.travel
+                  </a>
+                </li>
+                <li>
+                  <a
+                    href={WHATSAPP_URL}
+                    target="_blank"
+                    rel="noreferrer"
+                    className="flex items-center gap-1.5 text-sm text-[var(--color-text-secondary)] transition-colors hover:text-[var(--color-primary)] focus-ring rounded"
+                  >
+                    <MessageCircle className="h-3.5 w-3.5" /> +60 12 388 0030
+                  </a>
+                </li>
+              </ul>
+            </div>
           </div>
 
-          <div>
-            <h3 className="text-sm font-semibold text-white">
-              {t("Hubungi", "Contact")}
-            </h3>
-            <ul className="mt-3 space-y-2 text-xs text-stone-400">
-              <li>{t("Jalan Sultan Ismail, Kuala Lumpur", "Jalan Sultan Ismail, Kuala Lumpur")}</li>
-              <li>+60 3 5555 0123</li>
-              <li>hello@zaqonetravel.com</li>
-              <li>WA: +60 12 345 6789</li>
-            </ul>
+          <div className="flex flex-wrap items-center justify-between gap-3 border-t border-[var(--color-border)] py-4">
+            <p className="m-0 text-xs text-muted-foreground">
+              © {new Date().getFullYear()} ZAQONE Travel.{" "}
+              {t(
+                "Semua harga dalam Ringgit Malaysia (MYR) dan boleh berubah mengikut ketersediaan kerusi.",
+                "All prices are in Malaysian Ringgit (MYR) and may change with seat availability.",
+              )}
+            </p>
+            <button
+              onClick={() => navigate("/login")}
+              className="text-xs font-medium text-[var(--color-text-secondary)] transition-colors hover:text-[var(--color-primary)] focus-ring rounded"
+            >
+              {t("Kawasan staf", "Staff area")}
+            </button>
           </div>
-
-          <div>
-            <h3 className="text-sm font-semibold text-white">
-              {t("Waktu Operasi", "Operating Hours")}
-            </h3>
-            <ul className="mt-3 space-y-2 text-xs text-stone-400">
-              <li>{t("Isnin–Jumaat: 09.00–18.00", "Mon–Fri: 9am–6pm")}</li>
-              <li>{t("Sabtu: 09.00–15.00", "Sat: 9am–3pm")}</li>
-              <li>{t("Ahad & Cuti: Tutup", "Sun & Holidays: Closed")}</li>
-            </ul>
-          </div>
-        </div>
-        <div className="border-t border-stone-800 py-4 text-center text-[11px] text-stone-500">
-          © {new Date().getFullYear()} ZAQONE TRAVEL CRM. {t("Hak cipta terpelihara.", "All rights reserved.")}
         </div>
       </footer>
     </div>

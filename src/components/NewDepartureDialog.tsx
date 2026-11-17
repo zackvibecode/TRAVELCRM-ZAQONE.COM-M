@@ -1,7 +1,9 @@
 import { useState } from "react";
 import { Plane } from "lucide-react";
 import { useLang } from "@/lib/i18n";
-import { mockPackages } from "@/lib/mock-data";
+import { useEffect } from "react";
+import { apiFetch } from "@/lib/api";
+import { fetchPackages } from "@/lib/live-data";
 import type { Departure } from "@/lib/types";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -44,9 +46,20 @@ export default function NewDepartureDialog({
 }: NewDepartureDialogProps) {
   const { t } = useLang();
 
-  const firstPackage = mockPackages[0]?.id ?? "";
+  const [packages, setPackages] = useState<Awaited<ReturnType<typeof fetchPackages>>["packages"]>([]);
+  const [saving, setSaving] = useState(false);
+
+  // Live packages from D1 (falls back to mock inside the loader).
+  useEffect(() => {
+    (async () => {
+      const res = await fetchPackages();
+      setPackages(res.packages);
+    })();
+  }, []);
+
+  const firstPackage = packages[0]?.id ?? "";
   const [form, setForm] = useState<FormState>({
-    packageId: firstPackage,
+    packageId: "",
     departureDate: nextMonthDate(30),
     returnDate: nextMonthDate(37),
     seatCapacity: "40",
@@ -57,16 +70,21 @@ export default function NewDepartureDialog({
   });
   const [error, setError] = useState<string | null>(null);
 
+  // Isi packageId lalai bila packages dah dimuatkan.
+  useEffect(() => {
+    setForm((prev) => (prev.packageId ? prev : { ...prev, packageId: firstPackage }));
+  }, [firstPackage]);
+
   const set = (patch: Partial<FormState>) =>
     setForm((prev) => ({ ...prev, ...patch }));
 
-  const selectedPackage = mockPackages.find((p) => p.id === form.packageId);
+  const selectedPackage = packages.find((p) => p.id === form.packageId);
 
   const handleOpenChange = (next: boolean) => {
     if (next) {
       // Reset form each time the dialog opens.
       setForm({
-        packageId: mockPackages[0]?.id ?? "",
+        packageId: packages[0]?.id ?? "",
         departureDate: nextMonthDate(30),
         returnDate: nextMonthDate(37),
         seatCapacity: "40",
@@ -121,23 +139,65 @@ export default function NewDepartureDialog({
       return;
     }
 
-    const departure: Departure = {
-      id: `d_${Date.now()}`,
+    const payload = {
       packageId: form.packageId,
       departureDate: form.departureDate,
       returnDate: form.returnDate,
+      seatCapacity: capacity,
+      adultPrice,
+      childPrice,
+      tourLeader: form.tourLeader.trim() || undefined,
+      notes: form.notes.trim() || undefined,
+    };
+
+    setSaving(true);
+    (async () => {
+      try {
+        // Simpan ke D1 melalui API; gagal → masih serahkan objek tempatan
+        // supaya jadual tempatan kekal berfungsi (best-effort).
+        const res = await apiFetch<{ success: boolean; data?: Departure }>(
+          "/departures",
+          { method: "POST", body: JSON.stringify(payload) },
+        );
+        if (res.success && res.data) {
+          onCreate(res.data);
+        } else {
+          onCreate(localDeparture(form.packageId, form.departureDate, form.returnDate, capacity, adultPrice, childPrice, form.tourLeader, form.notes));
+        }
+      } catch {
+        onCreate(localDeparture(form.packageId, form.departureDate, form.returnDate, capacity, adultPrice, childPrice, form.tourLeader, form.notes));
+      } finally {
+        setSaving(false);
+        onOpenChange(false);
+      }
+    })();
+  };
+
+  function localDeparture(
+    packageId: string,
+    departureDate: string,
+    returnDate: string,
+    capacity: number,
+    adultPrice: number,
+    childPrice: number,
+    tourLeader: string,
+    notes: string,
+  ): Departure {
+    return {
+      id: `d_${Date.now()}`,
+      packageId,
+      departureDate,
+      returnDate,
       seatCapacity: capacity,
       seatsBooked: 0,
       seatsHeld: 0,
       adultPrice,
       childPrice,
       status: "open",
-      tourLeader: form.tourLeader.trim() || undefined,
-      notes: form.notes.trim() || undefined,
+      tourLeader: tourLeader.trim() || undefined,
+      notes: notes.trim() || undefined,
     };
-    onCreate(departure);
-    onOpenChange(false);
-  };
+  }
 
   const fieldCls =
     "h-9 w-full rounded-md border border-input bg-transparent px-3 text-sm shadow-sm placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring";
@@ -166,7 +226,7 @@ export default function NewDepartureDialog({
               className={fieldCls}
               value={form.packageId}
               onChange={(e) => {
-                const pkg = mockPackages.find((p) => p.id === e.target.value);
+                const pkg = packages.find((p) => p.id === e.target.value);
                 set({
                   packageId: e.target.value,
                   // Pre-fill prices from the selected package.
@@ -175,7 +235,7 @@ export default function NewDepartureDialog({
                 });
               }}
             >
-              {mockPackages.map((p) => (
+              {packages.map((p) => (
                 <option key={p.id} value={p.id}>
                   {p.name} — {p.destination}
                 </option>
@@ -266,9 +326,11 @@ export default function NewDepartureDialog({
           <Button variant="outline" onClick={() => onOpenChange(false)}>
             {t("Batal", "Cancel")}
           </Button>
-          <Button onClick={handleSubmit}>
+          <Button onClick={handleSubmit} disabled={saving}>
             <Plane className="h-4 w-4" />
-            {t("Cipta Keberangkatan", "Create Departure")}
+            {saving
+              ? t("Menyimpan…", "Saving…")
+              : t("Cipta Keberangkatan", "Create Departure")}
           </Button>
         </DialogFooter>
       </DialogContent>

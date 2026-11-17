@@ -1,4 +1,4 @@
-﻿import { useMemo } from "react";
+﻿import { useEffect, useMemo, useState } from "react";
 import { Link, useParams } from "react-router-dom";
 import {
   MapPin,
@@ -10,7 +10,7 @@ import {
   ArrowRight,
   Users,
 } from "lucide-react";
-import { mockDepartures, mockPackages } from "@/lib/mock-data";
+import { fetchDepartures, fetchPackages } from "@/lib/live-data";
 import { useLang, useLocalePath } from "@/lib/i18n";
 import { formatRinggit } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
@@ -30,17 +30,34 @@ export default function PublicPackageDetail() {
   const { id } = useParams<{ id: string }>();
   const { t, lang } = useLang();
   const lp = useLocalePath();
+  const [packages, setPackages] = useState<Awaited<ReturnType<typeof fetchPackages>>["packages"]>([]);
+  const [allDepartures, setAllDepartures] = useState<Awaited<ReturnType<typeof fetchDepartures>>["departures"]>([]);
+
+  // Live data from D1 (falls back to mock inside loaders).
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      const [p, d] = await Promise.all([fetchPackages(), fetchDepartures()]);
+      if (cancelled) return;
+      setPackages(p.packages);
+      setAllDepartures(d.departures);
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
   const pkg = useMemo(
-    () => mockPackages.find((p) => p.id === id),
-    [id],
+    () => packages.find((p) => p.id === id),
+    [packages, id],
   );
 
   const departures = useMemo(
     () =>
-      mockDepartures
+      allDepartures
         .filter((d) => d.packageId === id && d.status !== "closed")
         .sort((a, b) => a.departureDate.localeCompare(b.departureDate)),
-    [id],
+    [allDepartures, id],
   );
 
   if (!pkg) {

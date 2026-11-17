@@ -24,6 +24,72 @@ const departuresRouter = new Hono<{
   Variables: Variables;
 }>();
 
+// POST /departures — create a new departure for a package.
+departuresRouter.post("/", requireRole("super_admin", "management", "operations"), async (c) => {
+  const db = c.get("db");
+
+  let body: {
+    packageId?: string;
+    departureDate?: string;
+    returnDate?: string;
+    seatCapacity?: number;
+    adultPrice?: number;
+    childPrice?: number;
+    infantPrice?: number;
+    tourLeader?: string;
+    notes?: string;
+  };
+  try {
+    body = await c.req.json();
+  } catch {
+    return c.json({ success: false, error: "Invalid JSON body" }, 400);
+  }
+
+  if (!body.packageId?.trim() || !body.departureDate?.trim()) {
+    return c.json(
+      { success: false, error: "packageId and departureDate are required" },
+      400,
+    );
+  }
+
+  const [pkg] = await db
+    .select({ id: schema.packages.id })
+    .from(schema.packages)
+    .where(eq(schema.packages.id, body.packageId))
+    .all();
+  if (!pkg) {
+    return c.json({ success: false, error: "Package not found" }, 404);
+  }
+
+  const id = crypto.randomUUID();
+  await db
+    .insert(schema.departures)
+    .values({
+      id,
+      packageId: body.packageId,
+      departureDate: body.departureDate,
+      returnDate: body.returnDate ?? body.departureDate,
+      seatCapacity: Number(body.seatCapacity) > 0 ? Number(body.seatCapacity) : 30,
+      seatsBooked: 0,
+      seatsHeld: 0,
+      adultPrice: Number(body.adultPrice) || 0,
+      childPrice: Number(body.childPrice) || 0,
+      infantPrice: Number(body.infantPrice) || 0,
+      status: "open",
+      tourLeader: body.tourLeader?.trim() || null,
+      notes: body.notes?.trim() || null,
+    })
+    .run();
+
+  const [created] = await db
+    .select()
+    .from(schema.departures)
+    .where(eq(schema.departures.id, id))
+    .all();
+
+  return c.json({ success: true, data: created }, 201);
+});
+
 // GET /departures/calendar — departures grouped by month, with occupancy.
 // Optional ?from=YYYY-MM-DD&to=YYYY-MM-DD filters the window.
 departuresRouter.get("/calendar", async (c) => {

@@ -1,5 +1,5 @@
 ﻿import { Link } from "react-router-dom";
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 import {
   Flame,
   Clock,
@@ -7,7 +7,7 @@ import {
   BadgePercent,
   Sparkles,
 } from "lucide-react";
-import { mockPackages, mockDepartures } from "@/lib/mock-data";
+import { fetchDepartures, fetchPackages } from "@/lib/live-data";
 import { cn , formatRinggit } from "@/lib/utils";
 import { applySeo } from "@/lib/site-config";
 import { useLang, useLocalePath } from "@/lib/i18n";
@@ -68,11 +68,28 @@ export default function PublicPromos() {
     };
   }, []);
 
-  const published = mockPackages.filter(
+  const [allPackages, setAllPackages] = useState<Awaited<ReturnType<typeof fetchPackages>>["packages"]>([]);
+  const [allDepartures, setAllDepartures] = useState<Awaited<ReturnType<typeof fetchDepartures>>["departures"]>([]);
+
+  // Live data from D1 (falls back to mock inside loaders).
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      const [p, d] = await Promise.all([fetchPackages(), fetchDepartures()]);
+      if (cancelled) return;
+      setAllPackages(p.packages);
+      setAllDepartures(d.departures);
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
+  const published = allPackages.filter(
     (p) => p.status !== "archived" && p.published !== false,
   );
   const today = new Date().toISOString().slice(0, 10);
-  const upcomingDepartures = mockDepartures
+  const upcomingDepartures = allDepartures
     .filter((d) => d.departureDate >= today)
     .sort((a, b) => a.departureDate.localeCompare(b.departureDate));
 

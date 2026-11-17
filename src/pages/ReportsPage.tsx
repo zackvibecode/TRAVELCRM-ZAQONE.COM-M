@@ -1,4 +1,4 @@
-﻿import { useMemo, useState } from "react";
+﻿import { useEffect, useMemo, useState } from "react";
 import {
   FileText,
   Download,
@@ -8,7 +8,8 @@ import {
   Users,
   BedDouble,
 } from "lucide-react";
-import { mockBookings, mockInvoices, mockLeads } from "@/lib/mock-data";
+import { fetchBookings, fetchInvoices } from "@/lib/live-data";
+import { apiFetch } from "@/lib/api";
 import { cn , formatRinggit } from "@/lib/utils";
 import { useLang } from "@/lib/i18n";
 import { Button } from "@/components/ui/button";
@@ -79,12 +80,38 @@ const REPORTS: Record<
   },
 };
 
+interface BookingLike {
+  status: string;
+  createdAt: string;
+  totalAmount: number;
+  paidAmount: number;
+  packageName: string;
+  departureDate: string;
+  paxAdult: number;
+  paxChild: number;
+}
+interface InvoiceLike {
+  status: string;
+  number: string;
+  customerName: string;
+  total: number;
+  paidAmount: number;
+  balanceDue: number;
+}
+interface LeadLike {
+  assignedTo: string;
+  stage: string;
+}
+
 function buildRows(
   kind: ReportKind,
+  bookings: BookingLike[],
+  invoices: InvoiceLike[],
+  leads: LeadLike[],
 ): { columns: ReportColumn[]; rows: Record<string, string | number>[] } {
   if (kind === "sales") {
     const byMonth = new Map<string, Record<string, string | number>>();
-    for (const b of mockBookings) {
+    for (const b of bookings) {
       if (b.status === "cancelled") continue;
       const month = b.createdAt.slice(0, 7);
       const entry =
@@ -108,7 +135,7 @@ function buildRows(
   }
 
   if (kind === "finance") {
-    const rows = mockInvoices
+    const rows = invoices
       .filter((i) => i.status !== "draft")
       .map((i) => ({
         number: i.number,
@@ -133,7 +160,7 @@ function buildRows(
 
   if (kind === "occupancy") {
     const byPkg = new Map<string, Record<string, string | number>>();
-    for (const b of mockBookings) {
+    for (const b of bookings) {
       if (b.status === "cancelled") continue;
       const entry =
         byPkg.get(b.packageName) ??
@@ -158,7 +185,7 @@ function buildRows(
 
   // staff
   const byAgent = new Map<string, Record<string, string | number>>();
-  for (const l of mockLeads) {
+  for (const l of leads) {
     const entry =
       byAgent.get(l.assignedTo) ??
       { agent: l.assignedTo, leads: 0, won: 0, lost: 0, customers: 0 };
@@ -192,7 +219,31 @@ function toCSV(columns: ReportColumn[], rows: Record<string, string | number>[])
 export default function ReportsPage() {
   const { t } = useLang();
   const [kind, setKind] = useState<ReportKind>("sales");
-  const report = useMemo(() => buildRows(kind), [kind]);
+  const [bookings, setBookings] = useState<BookingLike[]>([]);
+  const [invoices, setInvoices] = useState<InvoiceLike[]>([]);
+  const [leads, setLeads] = useState<LeadLike[]>([]);
+
+  // Live data from D1 (falls back to mock inside loaders).
+  useEffect(() => {
+    (async () => {
+      const [b, i] = await Promise.all([fetchBookings(), fetchInvoices()]);
+      setBookings(b.bookings);
+      setInvoices(i.invoices);
+      try {
+        const l = await apiFetch<{ success: boolean; data?: LeadLike[]; leads?: LeadLike[] }>(
+          "/leads?limit=200",
+        );
+        if (l.success) setLeads(l.data ?? l.leads ?? []);
+      } catch {
+        // leads optional
+      }
+    })();
+  }, []);
+
+  const report = useMemo(
+    () => buildRows(kind, bookings, invoices, leads),
+    [kind, bookings, invoices, leads],
+  );
   const meta = REPORTS[kind];
 
   const handleExport = () => {

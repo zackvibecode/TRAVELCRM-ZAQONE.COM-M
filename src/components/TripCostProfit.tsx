@@ -1,18 +1,40 @@
-import { useMemo } from "react";
+import { useEffect, useState } from "react";
 import { TrendingUp, Wallet, Receipt } from "lucide-react";
-import { mockDepartureCosts } from "@/lib/mock-data";
+import { apiFetch } from "@/lib/api";
 import type { Departure } from "@/lib/types";
 import { formatCurrency } from "@/lib/utils";
+
+interface DepartureCostRow {
+  id: string;
+  departureId: string;
+  category: string;
+  description: string;
+  estimatedAmount: number;
+  actualAmount: number;
+}
 
 export default function TripCostProfit({
   departure,
 }: {
   departure: Departure;
 }) {
-  const costs = useMemo(
-    () => mockDepartureCosts.filter((c) => c.departureId === departure.id),
-    [departure.id],
-  );
+  const [costs, setCosts] = useState<DepartureCostRow[]>([]);
+
+  // Live cost breakdown from D1 via /departures/:id/costs.
+  useEffect(() => {
+    (async () => {
+      try {
+        const res = await apiFetch<{
+          success: boolean;
+          data?: DepartureCostRow[];
+          costs?: DepartureCostRow[];
+        }>(`/departures/${departure.id}/costs`);
+        setCosts(res.success ? res.data ?? res.costs ?? [] : []);
+      } catch {
+        // Kos tiada — papar sifar (endpoint perlukan role operations/finance).
+      }
+    })();
+  }, [departure.id]);
 
   // Revenue estimate: booked seats × adult price (mock simplification).
   const revenue = departure.seatsBooked * departure.adultPrice;

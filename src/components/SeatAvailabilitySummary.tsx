@@ -1,6 +1,6 @@
-import { useMemo } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { Armchair, CheckCircle2, Hourglass, CircleSlash } from "lucide-react";
-import { mockDepartures } from "@/lib/mock-data";
+import { fetchDepartures } from "@/lib/live-data";
 import { departureStatusLabels, type Departure } from "@/lib/types";
 import {
   Card,
@@ -15,23 +15,33 @@ import { Badge } from "@/components/ui/badge";
  * per-status (open / almost_full / full / closed) breakdown.
  */
 export default function SeatAvailabilitySummary() {
+  const [departures, setDepartures] = useState<Departure[]>([]);
+
+  // Live departures from D1 (falls back to mock inside the loader).
+  useEffect(() => {
+    (async () => {
+      const res = await fetchDepartures();
+      setDepartures(res.departures);
+    })();
+  }, []);
+
   const totals = useMemo(() => {
-    const capacity = mockDepartures.reduce(
+    const capacity = departures.reduce(
       (s, d) => s + d.seatCapacity,
       0,
     );
-    const booked = mockDepartures.reduce((s, d) => s + d.seatsBooked, 0);
-    const held = mockDepartures.reduce((s, d) => s + d.seatsHeld, 0);
+    const booked = departures.reduce((s, d) => s + d.seatsBooked, 0);
+    const held = departures.reduce((s, d) => s + d.seatsHeld, 0);
     return { capacity, booked, held, available: capacity - booked - held };
-  }, []);
+  }, [departures]);
 
   const byStatus = useMemo(() => {
     const map = new Map<Departure["status"], number>();
-    for (const d of mockDepartures) {
+    for (const d of departures) {
       map.set(d.status, (map.get(d.status) ?? 0) + 1);
     }
     return map;
-  }, []);
+  }, [departures]);
 
   const statusOrder: Departure["status"][] = [
     "open",

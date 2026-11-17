@@ -1,8 +1,9 @@
-import { mockPackages } from "@/lib/mock-data";
+import { useEffect, useState } from "react";
 import {
   departureStatusLabels,
   type Departure,
 } from "@/lib/types";
+import { fetchPackages } from "@/lib/live-data";
 import { formatCurrency, formatDate } from "@/lib/utils";
 import PassengerManifest from "@/components/PassengerManifest";
 import TripPrepChecklist from "@/components/TripPrepChecklist";
@@ -44,9 +45,19 @@ export default function DepartureDetail({
   open,
   onOpenChange,
 }: DepartureDetailProps) {
+  const [packages, setPackages] = useState<Awaited<ReturnType<typeof fetchPackages>>["packages"]>([]);
+
+  // Live packages from D1 for name lookup (falls back to mock in loader).
+  useEffect(() => {
+    (async () => {
+      const res = await fetchPackages();
+      setPackages(res.packages);
+    })();
+  }, []);
+
   if (!departure) return null;
 
-  const pkg = mockPackages.find((p) => p.id === departure.packageId);
+  const pkg = packages.find((p) => p.id === departure.packageId);
   const booked = departure.seatsBooked;
   const held = departure.seatsHeld;
   const available = Math.max(

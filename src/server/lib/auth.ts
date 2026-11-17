@@ -24,6 +24,18 @@ export function createAuth(db: DrizzleD1Database<typeof schema>, env: Env) {
   return betterAuth({
     secret: env.BETTER_AUTH_SECRET ?? "dev-secret-change-in-production",
     basePath: "/auth",
+    // Better Auth validates the request Origin for cookie/CSRF security.
+    // Without this, credentialed requests from the Pages frontend are 403'd
+    // (curl works because it sends no Origin header).
+    trustedOrigins: [
+      "https://travelos-suite-web.pages.dev",
+      "https://*.travelos-suite-web.pages.dev",
+      "https://travelos-suite-api.zarulzaqwan1234.workers.dev",
+      "http://localhost:5173",
+      "http://localhost:5174",
+      "http://localhost:5175",
+      "http://127.0.0.1:5173",
+    ],
     database: drizzleAdapter(db, {
       provider: "sqlite",
     }),

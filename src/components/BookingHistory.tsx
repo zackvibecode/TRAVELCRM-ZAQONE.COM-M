@@ -1,4 +1,5 @@
-import { mockBookingHistory } from "@/lib/mock-data";
+import { useEffect, useState } from "react";
+import { apiFetch } from "@/lib/api";
 import type { BookingHistoryEvent } from "@/lib/types";
 import { formatDate } from "@/lib/utils";
 import {
@@ -63,11 +64,37 @@ export default function BookingHistory({
 }: {
   bookingId: string;
 }) {
-  const events = mockBookingHistory
-    .filter((e) => e.bookingId === bookingId)
-    .sort((a, b) => b.at.localeCompare(a.at));
+  const [events, setEvents] = useState<BookingHistoryEvent[]>([]);
 
-  if (events.length === 0) {
+  // Live history from D1 via GET /bookings/:id.
+  useEffect(() => {
+    (async () => {
+      try {
+        const res = await apiFetch<{
+          success: boolean;
+          history?: Record<string, unknown>[];
+        }>(`/bookings/${bookingId}`);
+        if (res.success && Array.isArray(res.history)) {
+          setEvents(
+            res.history.map((h) => ({
+              id: String(h.id),
+              bookingId: String(h.bookingId ?? bookingId),
+              action: String(h.action),
+              detail: String(h.detail ?? ""),
+              user: String(h.user ?? h.actor ?? "—"),
+              at: String(h.at ?? ""),
+            })) as BookingHistoryEvent[],
+          );
+        }
+      } catch {
+        // riwayat pilihan
+      }
+    })();
+  }, [bookingId]);
+
+  const sorted = [...events].sort((a, b) => b.at.localeCompare(a.at));
+
+  if (sorted.length === 0) {
     return (
       <p className="rounded-md border border-dashed p-4 text-center text-xs text-muted-foreground">
         No history recorded yet.
@@ -77,7 +104,7 @@ export default function BookingHistory({
 
   return (
     <div className="grid gap-0">
-      {events.map((event, i) => (
+      {sorted.map((event, i) => (
         <TimelineItem
           key={event.id}
           event={event}

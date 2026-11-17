@@ -15,4 +15,22 @@ authRouter.all("*", async (c) => {
   return auth.handler(c.req.raw);
 });
 
+/**
+ * Compatibility alias for the Better Auth JS client default (/api/auth/*).
+ * The client's default basePath is /api/auth, but this server configures
+ * Better Auth with basePath /auth — rewrite the URL before handing the
+ * request to the handler so route resolution matches.
+ */
+const apiAuthRouter = new Hono<AuthEnv>();
+
+apiAuthRouter.all("*", async (c) => {
+  const auth = getAuth(c);
+  const raw = c.req.raw;
+  const url = new URL(raw.url);
+  url.pathname = url.pathname.replace(/^\/api\/auth/, "/auth");
+  const rewritten = new Request(url.toString(), raw);
+  return auth.handler(rewritten);
+});
+
+export { apiAuthRouter };
 export default authRouter;

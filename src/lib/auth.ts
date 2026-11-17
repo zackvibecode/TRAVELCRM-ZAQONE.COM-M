@@ -31,6 +31,10 @@ export const API_BASE_URL =
  */
 export const authClient = createAuthClient({
   baseURL: API_BASE_URL,
+  // The Worker mounts Better Auth under /auth (see src/server/index.ts).
+  // Without this the client calls /api/auth/* by default and gets a 404,
+  // which the UI misreports as "invalid email or password".
+  basePath: "/auth",
 });
 
 const SESSION_KEY = "zaqone_staff_session";

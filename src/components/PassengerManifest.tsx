@@ -1,6 +1,6 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { Download, Users } from "lucide-react";
-import { mockBookings } from "@/lib/mock-data";
+import { apiFetch } from "@/lib/api";
 import type { Departure, Passenger } from "@/lib/types";
 import { formatDate } from "@/lib/utils";
 import PassengerDetails from "@/components/PassengerDetails";
@@ -73,23 +73,28 @@ export default function PassengerManifest({
   departure: Departure;
 }) {
   const [selected, setSelected] = useState<Passenger | null>(null);
+  const [rows, setRows] = useState<ManifestRow[]>([]);
 
-  const rows = useMemo<ManifestRow[]>(() => {
-    return mockBookings
-      .filter(
-        (b) =>
-          b.departureDate === departure.departureDate &&
-          b.status !== "cancelled" &&
-          b.status !== "draft",
-      )
-      .flatMap((b) =>
-        b.passengers.map((p) => ({
-          ...p,
-          bookingReference: b.reference,
-          customerName: b.customerName,
-        })),
-      );
-  }, [departure]);
+  // Live manifest from D1 via /departures/:id/manifest.
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      try {
+        const res = await apiFetch<{
+          success: boolean;
+          manifest?: ManifestRow[];
+        }>(`/departures/${departure.id}/manifest`);
+        if (!cancelled && res.success && Array.isArray(res.manifest)) {
+          setRows(res.manifest);
+        }
+      } catch {
+        // manifest mungkin terhad kepada role tertentu
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [departure.id]);
 
   const counts = useMemo(() => {
     const adult = rows.filter((r) => r.type === "adult").length;

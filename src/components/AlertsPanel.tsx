@@ -1,4 +1,4 @@
-﻿import { useMemo } from "react";
+﻿import { useEffect, useMemo, useState } from "react";
 import {
   AlertCircle,
   Clock,
@@ -6,11 +6,8 @@ import {
   FileWarning,
   CheckCircle2,
 } from "lucide-react";
-import {
-  mockInvoices,
-  mockLeads,
-  mockPayments,
-} from "@/lib/mock-data";
+import { fetchInvoices, fetchPayments } from "@/lib/live-data";
+import { apiFetch } from "@/lib/api";
 import { cn , formatRinggit } from "@/lib/utils";
 import { useLang } from "@/lib/i18n";
 import {
@@ -53,15 +50,49 @@ const KIND_STYLES = {
   },
 } as const;
 
+interface LeadLike {
+  id: string;
+  name: string;
+  assignedTo?: string;
+  stage: string;
+  nextFollowUp?: string;
+  destination?: string;
+}
+
 export default function AlertsPanel() {
   const { t } = useLang();
+  const [invoices, setInvoices] = useState<Awaited<ReturnType<typeof fetchInvoices>>["invoices"]>([]);
+  const [payments, setPayments] = useState<Awaited<ReturnType<typeof fetchPayments>>["payments"]>([]);
+  const [leads, setLeads] = useState<LeadLike[]>([]);
+
+  // Live data from D1 (falls back to mock inside loaders).
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      const [inv, pay] = await Promise.all([fetchInvoices(), fetchPayments()]);
+      if (cancelled) return;
+      setInvoices(inv.invoices);
+      setPayments(pay.payments);
+      try {
+        const res = await apiFetch<{ success: boolean; data?: LeadLike[]; leads?: LeadLike[] }>(
+          "/leads?limit=200",
+        );
+        if (res.success) setLeads(res.data ?? res.leads ?? []);
+      } catch {
+        // leads adalah pilihan untuk panel ini
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, []);
 
   const alerts = useMemo<AlertItem[]>(() => {
     const items: AlertItem[] = [];
     const today = new Date().toISOString().slice(0, 10);
 
     // 1. Overdue invoices with outstanding balance.
-    for (const inv of mockInvoices) {
+    for (const inv of invoices) {
       if (
         inv.balanceDue > 0 &&
         inv.status !== "void" &&
@@ -79,9 +110,9 @@ export default function AlertsPanel() {
     }
 
     // 2. Payments pending verification.
-    for (const p of mockPayments) {
+    for (const p of payments) {
       if (p.status === "pending_verification") {
-        const inv = mockInvoices.find((i) => i.id === p.invoiceId);
+        const inv = invoices.find((i) => i.id === p.invoiceId);
         items.push({
           id: `pending-${p.id}`,
           kind: "pending_payment",
@@ -93,7 +124,7 @@ export default function AlertsPanel() {
     }
 
     // 3. Lead follow-ups due today or overdue.
-    for (const lead of mockLeads) {
+    for (const lead of leads) {
       if (
         !["won", "lost"].includes(lead.stage) &&
         lead.nextFollowUp &&
@@ -102,7 +133,7 @@ export default function AlertsPanel() {
         items.push({
           id: `followup-${lead.id}`,
           kind: "follow_up",
-          title: `${lead.name} — ${lead.assignedTo}`,
+          title: `${lead.name} — ${lead.assignedTo ?? "—"}`,
           detail: `Follow-up ${lead.nextFollowUp === today ? "hari ini" : `terlambat (${lead.nextFollowUp})`}`,
           meta: lead.destination || "Lead",
         });
@@ -112,7 +143,7 @@ export default function AlertsPanel() {
     // Overdue first, then pending payments, then follow-ups.
     const order = { overdue: 0, pending_payment: 1, follow_up: 2 };
     return items.sort((a, b) => order[a.kind] - order[b.kind]);
-  }, []);
+  }, [invoices, payments, leads]);
 
   const overdueCount = alerts.filter((a) => a.kind === "overdue").length;
   const pendingCount = alerts.filter((a) => a.kind === "pending_payment").length;

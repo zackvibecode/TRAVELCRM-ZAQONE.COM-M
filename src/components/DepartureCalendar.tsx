@@ -1,6 +1,6 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { ChevronLeft, ChevronRight } from "lucide-react";
-import { mockDepartures, mockPackages } from "@/lib/mock-data";
+import { fetchDepartures, fetchPackages } from "@/lib/live-data";
 import { departureStatusLabels, type Departure } from "@/lib/types";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
@@ -38,24 +38,35 @@ function departureBadgeVariant(
   }
 }
 
-function packageName(packageId: string) {
-  return mockPackages.find((p) => p.id === packageId)?.name ?? "Unknown";
+function packageName(packageId: string, packages: { id: string; name: string }[]) {
+  return packages.find((p) => p.id === packageId)?.name ?? "Unknown";
 }
 
 export default function DepartureCalendar() {
   const today = new Date();
   const [year, setYear] = useState(today.getFullYear());
   const [month, setMonth] = useState(today.getMonth());
+  const [allDepartures, setAllDepartures] = useState<Departure[]>([]);
+  const [packages, setPackages] = useState<{ id: string; name: string }[]>([]);
+
+  // Live departures + packages from D1 (falls back to mock inside loaders).
+  useEffect(() => {
+    (async () => {
+      const [d, p] = await Promise.all([fetchDepartures(), fetchPackages()]);
+      setAllDepartures(d.departures);
+      setPackages(p.packages.map((item) => ({ id: item.id, name: item.name })));
+    })();
+  }, []);
 
   // Departures grouped by date string (YYYY-MM-DD)
   const departuresByDate = useMemo(() => {
     const map = new Map<string, Departure[]>();
-    for (const d of mockDepartures) {
+    for (const d of allDepartures) {
       const key = d.departureDate;
       map.set(key, [...(map.get(key) ?? []), d]);
     }
     return map;
-  }, []);
+  }, [allDepartures]);
 
   const days = useMemo(() => {
     const firstDay = new Date(year, month, 1).getDay();
@@ -161,10 +172,10 @@ export default function DepartureCalendar() {
                   <div
                     key={d.id}
                     className="rounded bg-primary/10 px-1.5 py-1"
-                    title={`${packageName(d.packageId)} — ${departureStatusLabels[d.status]}`}
+                    title={`${packageName(d.packageId, packages)} — ${departureStatusLabels[d.status]}`}
                   >
                     <div className="truncate text-[10px] font-medium leading-tight text-primary">
-                      {packageName(d.packageId)}
+                      {packageName(d.packageId, packages)}
                     </div>
                     <div className="text-[9px] text-muted-foreground">
                       {d.seatsBooked + d.seatsHeld}/{d.seatCapacity} seats

@@ -1,6 +1,6 @@
-import { useMemo } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { BedDouble, Plane } from "lucide-react";
-import { mockBookings } from "@/lib/mock-data";
+import { apiFetch } from "@/lib/api";
 import type { Departure, Passenger } from "@/lib/types";
 
 interface RoomingFlightProps {
@@ -10,16 +10,21 @@ interface RoomingFlightProps {
 export default function RoomingFlightInfo({
   departure,
 }: RoomingFlightProps) {
-  const passengers = useMemo<Passenger[]>(() => {
-    return mockBookings
-      .filter(
-        (b) =>
-          b.departureDate === departure.departureDate &&
-          b.status !== "cancelled" &&
-          b.status !== "draft",
-      )
-      .flatMap((b) => b.passengers);
-  }, [departure]);
+  const [passengers, setPassengers] = useState<Passenger[]>([]);
+
+  // Live manifest from D1 via /departures/:id/manifest.
+  useEffect(() => {
+    (async () => {
+      try {
+        const res = await apiFetch<{ success: boolean; manifest?: Passenger[] }>(
+          `/departures/${departure.id}/manifest`,
+        );
+        if (res.success && Array.isArray(res.manifest)) setPassengers(res.manifest);
+      } catch {
+        // manifest mungkin terhad kepada role tertentu
+      }
+    })();
+  }, [departure.id]);
 
   // Group passengers by room type
   const rooming = useMemo(() => {

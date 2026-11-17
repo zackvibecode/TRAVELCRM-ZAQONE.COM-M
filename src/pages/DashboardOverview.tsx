@@ -1,10 +1,11 @@
-﻿import { useMemo } from "react";
+﻿import { useEffect, useMemo, useState } from "react";
 import {
   Users,
   UserPlus,
   CalendarCheck,
   Wallet,
   AlertCircle,
+  Hourglass,
   TrendingUp,
   Package,
   ArrowUpRight,
@@ -17,7 +18,7 @@ import {
   mockLeads,
 } from "@/lib/mock-data";
 import type { Booking } from "@/lib/types";
-import { cn , formatRinggit } from "@/lib/utils";
+import { cn, formatRinggit } from "@/lib/utils";
 import { useLang } from "@/lib/i18n";
 import { useDashboardKpi } from "@/lib/useDashboardKpi";
 import { Badge } from "@/components/ui/badge";
@@ -57,8 +58,8 @@ const MONTH_LABELS = [
   "Des",
 ];
 
-/** Deterministic monthly revenue from mock bookings — the real chart swaps
- *  this for the /reports endpoints in the backend phase. */
+/** Deterministic monthly revenue from bookings — derived from live D1 data
+ *  with mock fallback so the chart always renders. */
 function buildMonthlyRevenue(bookings: Booking[]): {
   month: string;
   revenue: number;
@@ -93,6 +94,21 @@ function buildMonthlyRevenue(bookings: Booking[]): {
 export default function DashboardOverview() {
   const { t, lang } = useLang();
   const { kpi } = useDashboardKpi();
+  const [liveBookings, setLiveBookings] = useState<Booking[]>([]);
+
+  // Live bookings from D1 (falls back to mock inside the loader) — used for
+  // the monthly revenue chart, top packages, and upcoming departures.
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      const { fetchBookings } = await import("@/lib/live-data");
+      const res = await fetchBookings();
+      if (!cancelled) setLiveBookings(res.bookings);
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, []);
 
   const mockStats = useMemo(() => {
     const activeLeads = mockLeads.filter(
@@ -151,7 +167,7 @@ export default function DashboardOverview() {
     };
   }, [kpi, mockStats]);
 
-  const monthly = useMemo(() => buildMonthlyRevenue(mockBookings), []);
+  const monthly = useMemo(() => buildMonthlyRevenue(liveBookings), [liveBookings]);
   const maxRevenue = Math.max(...monthly.map((m) => m.revenue), 1);
 
   const topPackages = useMemo(() => {
@@ -159,7 +175,7 @@ export default function DashboardOverview() {
       string,
       { name: string; bookings: number; revenue: number }
     >();
-    for (const b of mockBookings) {
+    for (const b of liveBookings) {
       if (b.status === "cancelled") continue;
       const entry = byPkg.get(b.packageName) ?? {
         name: b.packageName,
@@ -171,11 +187,11 @@ export default function DashboardOverview() {
       byPkg.set(b.packageName, entry);
     }
     return [...byPkg.values()].sort((a, b) => b.revenue - a.revenue).slice(0, 5);
-  }, []);
+  }, [liveBookings]);
 
   const upcomingDepartures = useMemo(() => {
     const today = new Date().toISOString().slice(0, 10);
-    return mockBookings
+    return liveBookings
       .filter(
         (b) =>
           b.status === "confirmed" &&
@@ -184,94 +200,124 @@ export default function DashboardOverview() {
       )
       .sort((a, b) => (a.departureDate ?? "").localeCompare(b.departureDate ?? ""))
       .slice(0, 5);
-  }, []);
+  }, [liveBookings]);
 
+  // KPI cards following the prototype business-dashboard: small muted label,
+  // soft-tone 30px icon chip, big tabular value, delta + note line.
   const kpis = [
     {
-      label: t("Leads Aktif", "Active Leads"),
+      label: t("Leads Aktif", "Total Leads"),
       value: String(stats.openLeads),
-      sub: `${stats.totalLeads} total • win rate ${stats.winRate}%`,
+      sub: `${stats.totalLeads} total · win rate ${stats.winRate}%`,
       icon: UserPlus,
-      accent: "text-blue-600 bg-blue-50",
+      chip: "bg-[var(--color-info-soft)] text-[var(--color-info)]",
     },
     {
       label: t("Pelanggan", "Customers"),
       value: String(stats.totalCustomers),
       sub: t("Sepanjang masa", "All time"),
       icon: Users,
-      accent: "text-violet-600 bg-violet-50",
+      chip: "bg-[var(--color-success-soft)] text-[var(--color-success)]",
     },
     {
-      label: t("Tempahan Aktif", "Active Bookings"),
+      label: t("Tempahan Aktif", "Bookings"),
       value: String(stats.bookingCount),
       sub: `${stats.confirmedCount} confirmed`,
       icon: CalendarCheck,
-      accent: "text-emerald-600 bg-emerald-50",
+      chip: "bg-[var(--color-primary-soft)] text-[var(--color-primary)]",
     },
     {
-      label: t("Jualan Terkumpul", "Collected Sales"),
+      label: t("Jualan Terkumpul", "Total Sales"),
       value: formatCompact(stats.collected),
       sub: formatRupiah(stats.collected),
       icon: Wallet,
-      accent: "text-teal-600 bg-teal-50",
+      chip: "bg-[var(--color-warning-soft)] text-[var(--color-warning)]",
     },
     {
       label: t("Baki Tertunggak", "Outstanding"),
       value: formatCompact(stats.outstanding),
       sub: formatRupiah(stats.outstanding),
-      icon: AlertCircle,
-      accent: "text-red-600 bg-red-50",
+      icon: Hourglass,
+      chip: "bg-[var(--color-danger-soft)] text-[var(--color-danger)]",
     },
   ];
 
   const locale = lang === "ms" ? "ms-MY" : "en-GB";
 
   return (
-    <div className="space-y-6">
-      <div>
-        <h1 className="text-2xl font-bold tracking-tight">
-          {t("Papan Pemuka", "Dashboard")}
-        </h1>
-        <p className="text-sm text-muted-foreground">
-          {t(
-            "Ringkasan prestasi perniagaan hari ini",
-            "Today's business performance summary",
-          )}{" "}
-          — {new Date().toLocaleDateString(locale, { weekday: "long", day: "numeric", month: "long", year: "numeric" })}
-        </p>
+    <div className="flex min-w-0 flex-col gap-4">
+      {/* Page head — tvl-pagehead per prototype */}
+      <div className="flex flex-wrap items-start justify-between gap-4">
+        <div className="min-w-0">
+          <h1 className="m-0 font-display text-2xl font-bold leading-tight tracking-tight">
+            {t("Papan Pemuka Perniagaan", "Business Dashboard")}
+          </h1>
+          <p className="mt-1.5 text-[13.5px] text-muted-foreground">
+            {t(
+              "Jualan, okupansi dan bayaran sekali pandang — sehingga",
+              "Sales, occupancy and payments at a glance — as of",
+            )}{" "}
+            {new Date().toLocaleDateString(locale, { weekday: "long", day: "numeric", month: "long", year: "numeric" })}
+          </p>
+        </div>
+        <div className="flex flex-wrap items-center gap-2">
+          <span className="inline-flex items-center gap-1.5 rounded-lg border border-[var(--color-border)] bg-[var(--color-surface)] px-3 py-1.5 text-[12.5px] text-[var(--color-text-secondary)]">
+            <Clock className="h-3.5 w-3.5" />
+            {new Date().toLocaleDateString(locale, { month: "short", year: "numeric" })}
+          </span>
+          <a
+            href="/bookings"
+            className="inline-flex items-center gap-1.5 rounded-lg bg-[var(--color-primary)] px-3.5 py-1.5 text-[12.5px] font-semibold text-white transition-colors hover:bg-[var(--color-primary-hover)]"
+          >
+            <ArrowUpRight className="h-3.5 w-3.5" />
+            {t("Tempahan Baharu", "New booking")}
+          </a>
+        </div>
       </div>
 
-      {/* KPI cards */}
-      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-5">
-        {kpis.map((kpi) => (
-          <Card key={kpi.label}>
-            <CardContent className="flex items-start justify-between p-4">
-              <div className="space-y-1">
-                <p className="text-xs font-medium text-muted-foreground">
-                  {kpi.label}
-                </p>
-                <p className="text-2xl font-bold tracking-tight">{kpi.value}</p>
-                <p className="text-[11px] text-muted-foreground">{kpi.sub}</p>
-              </div>
-              <div className={cn("rounded-lg p-2", kpi.accent)}>
-                <kpi.icon className="h-4 w-4" />
-              </div>
-            </CardContent>
-          </Card>
+      {/* KPI cards — dash-kpis per prototype */}
+      <div className="grid grid-cols-2 gap-4 md:grid-cols-3 xl:grid-cols-5">
+        {kpis.map((kpiItem) => (
+          <article
+            key={kpiItem.label}
+            className="flex min-w-0 flex-col gap-2.5 rounded-[var(--radius-panel)] border border-[var(--color-border)] bg-[var(--color-surface)] p-4"
+          >
+            <div className="flex items-center justify-between gap-2">
+              <span className="truncate text-[12.5px] font-medium text-muted-foreground">
+                {kpiItem.label}
+              </span>
+              <span
+                className={cn(
+                  "grid h-[30px] w-[30px] flex-none place-items-center rounded-[9px]",
+                  kpiItem.chip,
+                )}
+              >
+                <kpiItem.icon className="h-[15px] w-[15px]" />
+              </span>
+            </div>
+            <strong className="whitespace-nowrap text-[23px] font-bold leading-tight tracking-tight text-foreground [font-variant-numeric:tabular-nums]">
+              {kpiItem.value}
+            </strong>
+            <div className="flex flex-wrap items-center gap-1.5 text-[11.5px] text-muted-foreground">
+              <span className="font-semibold text-[var(--color-success)]">
+                {kpiItem.sub}
+              </span>
+            </div>
+          </article>
         ))}
       </div>
 
       {/* Alerts strip */}
       {stats.overdueInvoices.length > 0 && (
-        <Card className="border-red-200 bg-red-50/50">
+        <Card className="border-[var(--color-danger-soft)] bg-[var(--color-danger-soft)]/50">
           <CardContent className="flex flex-wrap items-center gap-3 p-4">
-            <AlertCircle className="h-5 w-5 text-red-600" />
+            <AlertCircle className="h-5 w-5 text-[var(--color-danger)]" />
             <div className="flex-1">
-              <p className="text-sm font-semibold text-red-900">
+              <p className="text-sm font-semibold text-[var(--color-danger)]">
                 {stats.overdueInvoices.length} {t("invois tertunggak", "overdue invoices")} —{" "}
                 {t("jumlah", "total")} {formatRupiah(stats.overdueAmount)}
               </p>
-              <p className="text-xs text-red-700">
+              <p className="text-xs text-[var(--color-danger)]">
                 {stats.overdueInvoices
                   .slice(0, 3)
                   .map((i) => i.number)
@@ -279,7 +325,7 @@ export default function DashboardOverview() {
                 {stats.overdueInvoices.length > 3 && " …"}
               </p>
             </div>
-            <Badge variant="outline" className="border-red-300 bg-white text-red-700">
+            <Badge variant="outline" className="border-[var(--color-danger)] bg-white text-[var(--color-danger)]">
               {t("Perlu tindakan", "Action needed")}
             </Badge>
           </CardContent>
@@ -288,13 +334,20 @@ export default function DashboardOverview() {
 
       <AlertsPanel />
 
-      <div className="grid gap-4 lg:grid-cols-3">
+      {/* Main grid: revenue chart (1.62fr) + top packages (1fr) — per prototype */}
+      <div className="grid min-w-0 grid-cols-1 gap-4 lg:grid-cols-[1.62fr_1fr]">
         {/* Monthly revenue chart */}
-        <Card className="lg:col-span-2">
+        <Card className="min-w-0">
           <CardHeader className="flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-base">
-              {t("Jualan Bulanan (12 bulan)", "Monthly Revenue (12 months)")}
-            </CardTitle>
+            <div className="min-w-0">
+              <CardTitle className="text-[14.5px] font-semibold">
+                {t("Jualan & Tempahan Bulanan", "Revenue & Bookings")}
+              </CardTitle>
+              <p className="mt-0.5 text-xs text-muted-foreground">
+                {t("Purata", "Average")} {formatCompact(stats.collected / 12)} /{" "}
+                {t("bulan · 12 bulan terakhir", "month · last 12 months")}
+              </p>
+            </div>
             <TrendingUp className="h-4 w-4 text-muted-foreground" />
           </CardHeader>
           <CardContent>
@@ -314,8 +367,8 @@ export default function DashboardOverview() {
                       className={cn(
                         "w-full rounded-t-md transition-colors",
                         isLatest
-                          ? "bg-red-500"
-                          : "bg-red-200 group-hover:bg-red-400",
+                          ? "bg-[var(--color-primary)]"
+                          : "bg-[var(--color-primary-soft)] group-hover:bg-[var(--color-primary-hover)]",
                       )}
                       style={{ height: `${Math.max(pct, m.revenue > 0 ? 6 : 2)}%` }}
                       title={`${m.month}: ${formatRupiah(m.revenue)} • ${m.count} ${t("tempahan", "bookings")}`}
@@ -336,36 +389,54 @@ export default function DashboardOverview() {
           </CardContent>
         </Card>
 
-        {/* Top packages */}
-        <Card>
+        {/* Top packages — dash-top-pkg per prototype with progress bars */}
+        <Card className="min-w-0">
           <CardHeader className="flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-base">
+            <CardTitle className="text-[14.5px] font-semibold">
               {t("Pakej Terlaris", "Top Packages")}
             </CardTitle>
-            <Package className="h-4 w-4 text-muted-foreground" />
+            <a href="/packages" className="text-[12.5px] font-semibold text-[var(--color-primary)] hover:underline">
+              {t("Lihat katalog", "View catalogue")}
+            </a>
           </CardHeader>
-          <CardContent className="space-y-3">
+          <CardContent className="space-y-0 p-0">
             {topPackages.length === 0 && (
-              <p className="text-sm text-muted-foreground">
+              <p className="px-5 pb-5 pt-2 text-sm text-muted-foreground">
                 {t("Belum ada tempahan.", "No bookings yet.")}
               </p>
             )}
-            {topPackages.map((p, idx) => (
-              <div key={p.name} className="flex items-center gap-3">
-                <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-muted text-xs font-bold">
-                  {idx + 1}
-                </span>
-                <div className="min-w-0 flex-1">
-                  <p className="truncate text-sm font-medium">{p.name}</p>
-                  <p className="text-xs text-muted-foreground">
-                    {p.bookings} {t("tempahan", "bookings")}
-                  </p>
+            {topPackages.map((p, idx) => {
+              const maxBookings = topPackages[0]?.bookings || 1;
+              const pct = Math.round((p.bookings / maxBookings) * 100);
+              return (
+                <div
+                  key={p.name}
+                  className={cn(
+                    "flex items-center gap-3 px-5 py-3",
+                    idx > 0 && "border-t border-[var(--color-border)]",
+                  )}
+                >
+                  <span className="grid h-[34px] w-[34px] flex-none place-items-center rounded-[9px] bg-[var(--color-primary-soft)] text-[var(--color-primary)]">
+                    <Package className="h-4 w-4" />
+                  </span>
+                  <div className="min-w-0 flex-1">
+                    <p className="truncate text-[13px] font-semibold">{p.name}</p>
+                    <div
+                      className="mt-1 h-1.5 overflow-hidden rounded-full bg-[var(--color-surface-muted)]"
+                      aria-hidden="true"
+                    >
+                      <span
+                        className="block h-full rounded-full bg-[var(--color-primary)]"
+                        style={{ width: `${pct}%` }}
+                      />
+                    </div>
+                  </div>
+                  <strong className="flex-none whitespace-nowrap text-[12.5px] font-semibold [font-variant-numeric:tabular-nums]">
+                    {formatCompact(p.revenue)}
+                  </strong>
                 </div>
-                <span className="text-sm font-semibold tabular-nums">
-                  {formatCompact(p.revenue)}
-                </span>
-              </div>
-            ))}
+              );
+            })}
           </CardContent>
         </Card>
       </div>
@@ -373,14 +444,17 @@ export default function DashboardOverview() {
       {/* Sales agent performance */}
       <SalesPerformanceTable />
 
-      <div className="grid gap-4 lg:grid-cols-2">
+      {/* Bottom grid: departures + quick actions */}
+      <div className="grid min-w-0 grid-cols-1 gap-4 lg:grid-cols-2">
         {/* Upcoming departures */}
-        <Card>
+        <Card className="min-w-0">
           <CardHeader className="flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-base">
+            <CardTitle className="text-[14.5px] font-semibold">
               {t("Keberangkatan Terdekat", "Upcoming Departures")}
             </CardTitle>
-            <Clock className="h-4 w-4 text-muted-foreground" />
+            <a href="/trips" className="text-[12.5px] font-semibold text-[var(--color-primary)] hover:underline">
+              {t("Semua keberangkatan", "All departures")}
+            </a>
           </CardHeader>
           <CardContent className="space-y-2">
             {upcomingDepartures.length === 0 && (
@@ -394,19 +468,19 @@ export default function DashboardOverview() {
             {upcomingDepartures.map((b) => (
               <div
                 key={b.id}
-                className="flex items-center justify-between rounded-lg border p-3"
+                className="flex items-center justify-between rounded-xl border border-[var(--color-border)] p-3 transition-colors hover:bg-[var(--color-surface-raised)]"
               >
                 <div className="min-w-0">
-                  <p className="truncate text-sm font-medium">
-                    {b.customerName}
+                  <p className="truncate text-[13px] font-semibold">
+                    {b.packageName}
                   </p>
-                  <p className="text-xs text-muted-foreground">
-                    {b.packageName} •{" "}
+                  <p className="truncate text-[11.5px] text-muted-foreground">
+                    {b.customerName} ·{" "}
                     {(b.paxAdult + b.paxChild).toString()} pax
                   </p>
                 </div>
                 <div className="text-right">
-                  <p className="text-sm font-semibold">
+                  <p className="text-[12.5px] font-semibold [font-variant-numeric:tabular-nums]">
                     {b.departureDate &&
                       new Date(b.departureDate).toLocaleDateString(locale, {
                         day: "numeric",
@@ -423,9 +497,9 @@ export default function DashboardOverview() {
         </Card>
 
         {/* Quick links */}
-        <Card>
+        <Card className="min-w-0">
           <CardHeader className="flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-base">
+            <CardTitle className="text-[14.5px] font-semibold">
               {t("Tindakan Pantas", "Quick Actions")}
             </CardTitle>
             <ArrowUpRight className="h-4 w-4 text-muted-foreground" />
@@ -440,7 +514,7 @@ export default function DashboardOverview() {
               <a
                 key={link.href}
                 href={link.href}
-                className="flex items-center justify-between rounded-lg border p-3 text-sm font-medium transition-colors hover:bg-muted/50"
+                className="flex items-center justify-between rounded-xl border border-[var(--color-border)] p-3 text-sm font-medium transition-colors hover:bg-[var(--color-surface-muted)]"
               >
                 {link.label}
                 <ArrowUpRight className="h-4 w-4 text-muted-foreground" />

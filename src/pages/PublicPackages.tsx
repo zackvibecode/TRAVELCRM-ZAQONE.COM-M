@@ -1,7 +1,7 @@
 ﻿import { useEffect, useMemo, useState } from "react";
 import { Link } from "react-router-dom";
 import { MapPin, Search, Clock, ArrowRight, CalendarDays, Flame } from "lucide-react";
-import { mockDepartures, mockPackages } from "@/lib/mock-data";
+import { fetchDepartures, fetchPackages } from "@/lib/live-data";
 import { cn , formatRinggit } from "@/lib/utils";
 import { applySeo } from "@/lib/site-config";
 import { useLang, useLocalePath } from "@/lib/i18n";
@@ -22,6 +22,8 @@ export default function PublicPackages() {
   const lp = useLocalePath();
   const [search, setSearch] = useState("");
   const [destination, setDestination] = useState<string>("all");
+  const [allPackages, setAllPackages] = useState<Awaited<ReturnType<typeof fetchPackages>>["packages"]>([]);
+  const [allDepartures, setAllDepartures] = useState<Awaited<ReturnType<typeof fetchDepartures>>["departures"]>([]);
 
   useEffect(() => {
     applySeo("packages", lang);
@@ -30,18 +32,32 @@ export default function PublicPackages() {
     };
   }, []);
 
+  // Live packages + departures from D1 (falls back to mock inside loaders).
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      const [p, d] = await Promise.all([fetchPackages(), fetchDepartures()]);
+      if (cancelled) return;
+      setAllPackages(p.packages);
+      setAllDepartures(d.departures);
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
   const destinations = useMemo(() => {
     const set = new Set(
-      mockPackages
+      allPackages
         .filter((p) => p.status !== "archived")
         .map((p) => p.destination),
     );
     return ["all", ...[...set].sort()];
-  }, []);
+  }, [allPackages]);
 
   const packages = useMemo(() => {
     const q = search.trim().toLowerCase();
-    return mockPackages.filter((p) => {
+    return allPackages.filter((p) => {
       if (p.status === "archived") return false;
       if (p.published === false) return false;
       if (destination !== "all" && p.destination !== destination) return false;
@@ -53,19 +69,19 @@ export default function PublicPackages() {
         return false;
       return true;
     });
-  }, [search, destination]);
+  }, [allPackages, search, destination]);
 
   const today = new Date().toISOString().slice(0, 10);
   const nextDeparture = (packageId: string) =>
-    mockDepartures
+    allDepartures
       .filter((d) => d.packageId === packageId && d.status !== "closed")
       .sort((a, b) => a.departureDate.localeCompare(b.departureDate))
       .find((d) => d.departureDate >= today) ??
-    mockDepartures
+    allDepartures
       .filter((d) => d.packageId === packageId && d.status !== "closed")
       .sort((a, b) => b.departureDate.localeCompare(a.departureDate))[0];
 
-  const seatsLeft = (d: (typeof mockDepartures)[number]) =>
+  const seatsLeft = (d: (typeof allDepartures)[number]) =>
     d.seatCapacity - d.seatsBooked - d.seatsHeld;
 
   return (

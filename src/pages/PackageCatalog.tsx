@@ -1,295 +1,347 @@
-﻿import { useMemo, useState } from "react";
+﻿import { useEffect, useMemo, useState } from "react";
 import {
-  Package,
   Search,
-  MapPin,
-  Clock,
-  Copy,
-  Archive,
-  ArchiveRestore,
+  CalendarDays,
+  UsersRound,
+  ArrowRight,
+  Pencil,
+  Plus,
 } from "lucide-react";
-import { mockPackages } from "@/lib/mock-data";
+import { fetchPackages } from "@/lib/live-data";
 import type { TravelPackage } from "@/lib/types";
 import { cn } from "@/lib/utils";
 import { useLang } from "@/lib/i18n";
 import PackageForm from "@/components/PackageForm";
-import PricingTiers from "@/components/PricingTiers";
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Badge } from "@/components/ui/badge";
-import {
-  Card,
-  CardContent,
-  CardHeader,
-  CardTitle,
-} from "@/components/ui/card";
 
-const DESTINATIONS = Array.from(
-  new Set(mockPackages.map((p) => p.destination.split(",")[0].trim())),
-).sort();
+type PkgStatus = "published" | "draft" | "archived";
+
+function statusOf(p: TravelPackage): PkgStatus {
+  if (p.status === "archived") return "archived";
+  if (p.published === false) return "draft";
+  return "published";
+}
+
+const STATUS_PILL: Record<
+  PkgStatus,
+  { label: string; bg: string; fg: string }
+> = {
+  published: {
+    label: "Published",
+    bg: "var(--color-success-soft)",
+    fg: "var(--color-success)",
+  },
+  draft: {
+    label: "Draft",
+    bg: "var(--color-warning-soft)",
+    fg: "var(--color-warning)",
+  },
+  archived: {
+    label: "Archived",
+    bg: "var(--color-neutral-soft)",
+    fg: "var(--color-text-secondary)",
+  },
+};
+
+const CATEGORIES = ["All", "Beach", "Islands", "Culture", "Mountains", "Nature"];
+
+function categoryOf(p: TravelPackage): string {
+  // The live schema has no category field; derive one from the destination for filtering.
+  const d = p.destination.toLowerCase();
+  if (/langkawi|penang|bali|beach|pantai/.test(d)) return "Beach";
+  if (/perhentian|redang|tioman|island|pulau|maldives/.test(d)) return "Islands";
+  if (/japan|korea|turkey|istanbul|heritage|kota|city/.test(d)) return "Culture";
+  if (/bromo|mount|gunung|alpine/.test(d)) return "Mountains";
+  if (/borneo|rainforest|safari|nature|hutan/.test(d)) return "Nature";
+  return "Culture";
+}
+
+function StatusPill({ status }: { status: PkgStatus }) {
+  const tone = STATUS_PILL[status];
+  return (
+    <span
+      className="inline-flex items-center whitespace-nowrap rounded-full px-2 py-0.5 text-[11px] font-semibold"
+      style={{ background: tone.bg, color: tone.fg }}
+    >
+      {tone.label}
+    </span>
+  );
+}
 
 export default function PackageCatalog() {
   const { t } = useLang();
-  const [allPackages, setAllPackages] = useState<TravelPackage[]>(
-    () => mockPackages.map((p) => ({ ...p, status: "active", published: true })),
-  );
+  const [allPackages, setAllPackages] = useState<TravelPackage[]>([]);
+  const [category, setCategory] = useState("All");
   const [search, setSearch] = useState("");
-  const [destination, setDestination] = useState<string>("all");
-  const [maxDuration, setMaxDuration] = useState<number>(0);
+  const [selectedId, setSelectedId] = useState<string | null>(null);
   const [formOpen, setFormOpen] = useState(false);
   const [editing, setEditing] = useState<TravelPackage | null>(null);
 
-  const packages = useMemo(() => {
-    return allPackages.filter((p) => {
-      if (search) {
-        const q = search.toLowerCase();
-        if (
-          !p.name.toLowerCase().includes(q) &&
-          !p.destination.toLowerCase().includes(q)
-        ) {
-          return false;
-        }
-      }
-      if (destination !== "all") {
-        const primary = p.destination.split(",")[0].trim();
-        if (primary !== destination) return false;
-      }
-      if (maxDuration > 0 && p.durationDays > maxDuration) return false;
-      return true;
-    });
-  }, [allPackages, search, destination, maxDuration]);
-
-  function duplicate(pkg: TravelPackage) {
-    const copy: TravelPackage = {
-      ...pkg,
-      id: `${pkg.id}-copy-${Date.now()}`,
-      name: `${pkg.name} (Copy)`,
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      const res = await fetchPackages();
+      if (cancelled) return;
+      setAllPackages(res.packages);
+    })();
+    return () => {
+      cancelled = true;
     };
-    setAllPackages((prev) => [copy, ...prev]);
-  }
+  }, []);
 
-  function toggleArchive(pkg: TravelPackage) {
+  const overview = useMemo(() => {
+    const published = allPackages.filter((p) => statusOf(p) === "published").length;
+    const draft = allPackages.filter((p) => statusOf(p) === "draft").length;
+    return { published, draft, total: allPackages.length };
+  }, [allPackages]);
+
+  const filtered = useMemo(() => {
+    const term = search.trim().toLowerCase();
+    return allPackages.filter((p) => {
+      const matchCategory = category === "All" || categoryOf(p) === category;
+      const matchTerm =
+        !term ||
+        p.name.toLowerCase().includes(term) ||
+        p.destination.toLowerCase().includes(term);
+      return matchCategory && matchTerm;
+    });
+  }, [allPackages, category, search]);
+
+  const selected =
+    allPackages.find((p) => p.id === selectedId) ?? filtered[0] ?? null;
+
+  const ringgit = (v: number) => `RM ${v.toLocaleString("en-MY")}`;
+
+  function setStatus(pkg: TravelPackage, status: PkgStatus) {
     setAllPackages((prev) =>
       prev.map((p) =>
         p.id === pkg.id
           ? {
               ...p,
-              status: p.status === "archived" ? "active" : "archived",
+              status: status === "archived" ? "archived" : "active",
+              published: status === "published",
             }
           : p,
       ),
     );
   }
 
-  function togglePublish(pkg: TravelPackage) {
-    setAllPackages((prev) =>
-      prev.map((p) =>
-        p.id === pkg.id ? { ...p, published: !p.published } : p,
-      ),
-    );
-  }
-
   return (
-    <div className="space-y-6">
-      <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-        <div>
-          <h1 className="font-display text-2xl font-bold tracking-tight">
-            {t("Katalog Pakej", "Package Catalog")}
-          </h1>
-          <p className="text-sm text-muted-foreground">
-            {t(
-              "Urus pakej pelancongan, harga, dan itinerary.",
-              "Manage travel packages, pricing, and itineraries.",
-            )}
-          </p>
+    <div className="flex min-w-0 flex-col gap-5 pb-8">
+      {/* Toolbar */}
+      <section className="flex flex-wrap items-center gap-3">
+        <div className="flex min-w-0 flex-wrap gap-2" role="group" aria-label={t("Tapis pakej mengikut kategori", "Filter packages by category")}>
+          {CATEGORIES.map((item) => (
+            <button
+              key={item}
+              type="button"
+              aria-pressed={category === item}
+              onClick={() => setCategory(item)}
+              className={cn(
+                "rounded-full border border-[var(--color-border)] bg-[var(--color-surface)] px-3 py-1.5 text-[12.5px] font-medium text-[var(--color-text-secondary)] transition-colors hover:border-[var(--color-border-strong)] hover:text-foreground",
+                category === item &&
+                  "border-[var(--color-text)] bg-[var(--color-text)] text-[var(--color-surface)]",
+              )}
+            >
+              {item}
+            </button>
+          ))}
         </div>
-        <Button
+        <label className="ml-auto flex h-9 min-w-0 flex-1 items-center gap-2 rounded-lg border border-[var(--color-border-strong)] bg-[var(--color-surface)] px-3 sm:max-w-[280px]">
+          <Search className="h-4 w-4 text-muted-foreground" />
+          <input
+            type="search"
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+            placeholder={t("Cari pakej", "Search packages")}
+            aria-label={t("Cari pakej", "Search packages")}
+            className="min-w-0 flex-1 border-0 bg-transparent p-0 font-inherit text-[13px] text-foreground outline-none focus:outline-none"
+          />
+        </label>
+        <button
+          type="button"
           onClick={() => {
             setEditing(null);
             setFormOpen(true);
           }}
+          className="inline-flex items-center gap-1.5 rounded-lg bg-[var(--color-primary)] px-3.5 py-2 text-[12.5px] font-semibold text-white hover:bg-[var(--color-primary-hover)]"
         >
-          <Package className="h-4 w-4" />
+          <Plus className="h-3.5 w-3.5" />
           {t("Pakej Baharu", "New Package")}
-        </Button>
-      </div>
+        </button>
+      </section>
 
-      {/* Filters */}
-      <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
-        <div className="relative w-full sm:max-w-xs">
-          <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
-          <Input
-            placeholder={t("Cari nama atau destinasi...", "Search name or destination...")}
-            value={search}
-            onChange={(e) => setSearch(e.target.value)}
-            className="pl-8"
-          />
-        </div>
-        <div className="flex flex-wrap gap-2">
-          <Button
-            variant={destination === "all" ? "default" : "outline"}
-            size="sm"
-            onClick={() => setDestination("all")}
-          >
-            {t("Semua", "All")}
-          </Button>
-          {DESTINATIONS.map((d) => (
-            <Button
-              key={d}
-              variant={destination === d ? "default" : "outline"}
-              size="sm"
-              onClick={() => setDestination(d)}
-            >
-              {d}
-            </Button>
-          ))}
-        </div>
-      </div>
+      <div className="grid min-w-0 grid-cols-1 gap-5 lg:grid-cols-[minmax(0,1fr)_320px]">
+        {/* Cards */}
+        <section className="min-w-0">
+          {filtered.length === 0 ? (
+            <div className="rounded-[var(--radius-panel)] border border-[var(--color-border)] bg-[var(--color-surface)] px-4 py-12 text-center text-muted-foreground">
+              <p className="m-0 text-[13.5px]">
+                {t("Tiada pakej sepadan dengan carian ini.", "No packages match this search.")}
+              </p>
+              <button
+                type="button"
+                onClick={() => {
+                  setSearch("");
+                  setCategory("All");
+                }}
+                className="mt-3 rounded-lg border border-[var(--color-border)] px-4 py-2 text-[12.5px] font-medium hover:bg-[var(--color-surface-muted)]"
+              >
+                {t("Set semula penapis", "Reset filters")}
+              </button>
+            </div>
+          ) : (
+            <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-3">
+              {filtered.map((p) => {
+                const price = p.adultPrice;
+                return (
+                  <button
+                    key={p.id}
+                    type="button"
+                    aria-pressed={selected?.id === p.id}
+                    onClick={() => setSelectedId(p.id)}
+                    className={cn(
+                      "flex min-w-0 flex-col gap-3 rounded-[var(--radius-card)] border border-[var(--color-border)] bg-[var(--color-surface)] p-4 text-left font-inherit transition-all hover:border-[var(--color-border-strong)]",
+                      selected?.id === p.id &&
+                        "border-[var(--color-primary)] shadow-[0_0_0_1px_var(--color-primary)]",
+                    )}
+                  >
+                    <div className="flex w-full items-start justify-between gap-2">
+                      <span className="min-w-0">
+                        <span className="block text-[11.5px] text-muted-foreground">
+                          {categoryOf(p)} · {p.durationDays}{t(" hari", " days")}
+                        </span>
+                        <span className="mt-0.5 block text-[14px] font-semibold leading-tight">
+                          {p.name}
+                        </span>
+                      </span>
+                      <StatusPill status={statusOf(p)} />
+                    </div>
+                    <p className="m-0 line-clamp-2 text-[12.5px] text-[var(--color-text-secondary)]">
+                      {p.destination}
+                    </p>
+                    <div className="flex w-full items-baseline justify-between gap-2 border-t border-[var(--color-border)] pt-3">
+                      <span className="whitespace-nowrap text-[13.5px] font-semibold [font-variant-numeric:tabular-nums]">
+                        {ringgit(price)}
+                      </span>
+                      <span className="whitespace-nowrap text-[11.5px] text-muted-foreground">
+                        {t("seorang", "per pax")}
+                      </span>
+                    </div>
+                    <div className="flex w-full flex-wrap gap-2">
+                      {p.inclusions.slice(0, 2).map((inc) => (
+                        <span
+                          key={inc}
+                          className="rounded-full bg-[var(--color-surface-muted)] px-2 py-0.5 text-[10.5px] text-[var(--color-text-secondary)]"
+                        >
+                          {inc}
+                        </span>
+                      ))}
+                    </div>
+                  </button>
+                );
+              })}
+            </div>
+          )}
+        </section>
 
-      {/* Duration filter */}
-      <div className="flex flex-wrap items-center gap-2 text-sm">
-        <span className="text-muted-foreground">{t("Tempoh maksimum:", "Max duration:")}</span>
-        {[
-          { label: t("Semua", "Any"), value: 0 },
-          { label: t("≤ 5 hari", "≤ 5 days"), value: 5 },
-          { label: t("≤ 7 hari", "≤ 7 days"), value: 7 },
-          { label: t("≤ 14 hari", "≤ 14 days"), value: 14 },
-        ].map((opt) => (
-          <button
-            key={opt.value}
-            onClick={() => setMaxDuration(opt.value)}
-            className={cn(
-              "rounded-full border px-3 py-1 text-xs font-medium transition-colors",
-              maxDuration === opt.value
-                ? "border-primary bg-primary text-primary-foreground"
-                : "text-muted-foreground hover:bg-muted",
-            )}
-          >
-            {opt.label}
-          </button>
-        ))}
-      </div>
+        {/* Detail / summary */}
+        <aside className="flex min-w-0 flex-col gap-4 rounded-[var(--radius-panel)] border border-[var(--color-border)] bg-[var(--color-surface)] p-5">
+          <div>
+            <h2 className="m-0 text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
+              {t("Ringkasan Katalog", "Catalog summary")}
+            </h2>
+            <dl className="m-0 mt-3 grid grid-cols-2 gap-3">
+              <div className="min-w-0">
+                <dt className="text-[11.5px] text-muted-foreground">Published</dt>
+                <dd className="m-0 text-[18px] font-semibold [font-variant-numeric:tabular-nums]">
+                  {overview.published}
+                </dd>
+              </div>
+              <div className="min-w-0">
+                <dt className="text-[11.5px] text-muted-foreground">Draft</dt>
+                <dd className="m-0 text-[18px] font-semibold [font-variant-numeric:tabular-nums]">
+                  {overview.draft}
+                </dd>
+              </div>
+              <div className="col-span-2 min-w-0">
+                <dt className="text-[11.5px] text-muted-foreground">
+                  {t("Jumlah Pakej", "Total packages")}
+                </dt>
+                <dd className="m-0 text-[18px] font-semibold [font-variant-numeric:tabular-nums]">
+                  {overview.total}
+                </dd>
+              </div>
+            </dl>
+          </div>
 
-      {/* Package cards */}
-      {packages.length === 0 ? (
-        <Card>
-          <CardContent className="flex h-40 items-center justify-center text-muted-foreground">
-            <p className="text-sm">{t("Tiada pakej sepadan dengan penapis anda.", "No packages match your filters.")}</p>
-          </CardContent>
-        </Card>
-      ) : (
-        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
-          {packages.map((p) => (
-            <Card
-              key={p.id}
-              className={cn(
-                "flex flex-col transition-shadow hover:shadow-md",
-                p.status === "archived" && "opacity-60",
-              )}
-            >
-              <CardHeader className="pb-2">
+          <div className="border-t border-[var(--color-border)] pt-4">
+            {selected ? (
+              <div className="flex flex-col gap-3">
                 <div className="flex items-start justify-between gap-2">
-                  <CardTitle className="text-base font-semibold">
-                    {p.name}
-                  </CardTitle>
-                  <div className="flex shrink-0 gap-1">
-                    {p.published && (
-                      <Badge variant="default">{t("Diterbitkan", "Published")}</Badge>
-                    )}
-                    {p.status === "archived" && (
-                      <Badge variant="outline">{t("Diarkibkan", "Archived")}</Badge>
-                    )}
-                  </div>
+                  <h3 className="m-0 min-w-0 text-[14px] font-semibold">
+                    {selected.name}
+                  </h3>
+                  <StatusPill status={statusOf(selected)} />
                 </div>
-                <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
-                  <MapPin className="h-3.5 w-3.5" />
-                  {p.destination}
+                <p className="m-0 text-[12.5px] text-[var(--color-text-secondary)]">
+                  {selected.destination}
+                </p>
+                <div className="flex flex-wrap gap-2">
+                  <span className="inline-flex items-center gap-1 rounded-full bg-[var(--color-surface-muted)] px-2 py-1 text-[11.5px] text-[var(--color-text-secondary)]">
+                    <CalendarDays className="h-3 w-3" /> {selected.durationDays}{t(" hari", " days")}
+                  </span>
+                  <span className="inline-flex items-center gap-1 rounded-full bg-[var(--color-surface-muted)] px-2 py-1 text-[11.5px] text-[var(--color-text-secondary)]">
+                    <UsersRound className="h-3 w-3" /> {ringgit(selected.adultPrice)}
+                  </span>
                 </div>
-              </CardHeader>
-              <CardContent className="flex flex-1 flex-col gap-3">
-                <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
-                  <Clock className="h-3.5 w-3.5" />
-                  {p.durationDays} {t("hari", "days")}
-                </div>
-                <div className="text-sm">
-                  <div className="mb-1 text-muted-foreground">{t("Harga", "Pricing")}</div>
-                  <PricingTiers pkg={p} />
-                </div>
-                <div className="flex flex-wrap gap-1">
-                  {p.inclusions.slice(0, 3).map((inc) => (
-                    <Badge key={inc} variant="secondary">
-                      {inc}
-                    </Badge>
-                  ))}
-                  {p.inclusions.length > 3 && (
-                    <Badge variant="outline">
-                      +{p.inclusions.length - 3}
-                    </Badge>
-                  )}
-                </div>
-                {p.exclusions && p.exclusions.length > 0 && (
-                  <div className="flex flex-wrap gap-1">
-                    {p.exclusions.slice(0, 2).map((exc) => (
-                      <Badge key={exc} variant="outline" className="text-red-500">
-                        {exc}
-                      </Badge>
-                    ))}
-                    {p.exclusions.length > 2 && (
-                      <Badge variant="outline">
-                        +{p.exclusions.length - 2} {t("ekskl.", "excl.")}
-                      </Badge>
-                    )}
-                  </div>
-                )}
-
-                {/* Actions */}
-                <div className="mt-auto flex gap-2 border-t pt-3">
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    className="flex-1"
-                    onClick={() => {
-                      setEditing(p);
-                      setFormOpen(true);
-                    }}
-                  >
-                    {t("Sunting", "Edit")}
-                  </Button>
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    className="flex-1"
-                    onClick={() => duplicate(p)}
-                  >
-                    <Copy className="h-3.5 w-3.5" />
-                    {t("Duplikasi", "Duplicate")}
-                  </Button>
-                  <Button
-                    variant={p.published ? "default" : "outline"}
-                    size="sm"
-                    onClick={() => togglePublish(p)}
-                    title={p.published ? t("Tarik Terbit", "Unpublish") : t("Terbitkan", "Publish")}
-                  >
-                    {p.published ? t("Tarik Terbit", "Unpublish") : t("Terbitkan", "Publish")}
-                  </Button>
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    onClick={() => toggleArchive(p)}
-                    title={p.status === "archived" ? t("Pulihkan", "Restore") : t("Arkibkan", "Archive")}
-                  >
-                    {p.status === "archived" ? (
-                      <ArchiveRestore className="h-3.5 w-3.5" />
+                <div className="flex flex-col gap-2">
+                  <div className="flex gap-2">
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setEditing(selected);
+                        setFormOpen(true);
+                      }}
+                      className="inline-flex flex-1 items-center justify-center gap-1.5 rounded-lg border border-[var(--color-border)] px-3 py-2 text-[12.5px] font-medium hover:bg-[var(--color-surface-muted)]"
+                    >
+                      <Pencil className="h-3.5 w-3.5" />
+                      {t("Sunting", "Edit")}
+                    </button>
+                    {statusOf(selected) === "published" ? (
+                      <button
+                        type="button"
+                        onClick={() => setStatus(selected, "draft")}
+                        className="flex-1 rounded-lg border border-[var(--color-border)] px-3 py-2 text-[12.5px] font-medium hover:bg-[var(--color-surface-muted)]"
+                      >
+                        {t("Tarik Terbit", "Unpublish")}
+                      </button>
                     ) : (
-                      <Archive className="h-3.5 w-3.5" />
+                      <button
+                        type="button"
+                        onClick={() => setStatus(selected, "published")}
+                        className="flex-1 rounded-lg bg-[var(--color-primary)] px-3 py-2 text-[12.5px] font-semibold text-white hover:bg-[var(--color-primary-hover)]"
+                      >
+                        {t("Terbitkan", "Publish")}
+                      </button>
                     )}
-                  </Button>
+                  </div>
+                  <a
+                    href="#/trips-seats"
+                    className="inline-flex items-center gap-1 text-[12.5px] font-medium text-[var(--color-primary)] no-underline"
+                  >
+                    {t("Lihat jadual keberangkatan", "View departure schedule")}
+                    <ArrowRight className="h-3.5 w-3.5" />
+                  </a>
                 </div>
-              </CardContent>
-            </Card>
-          ))}
-        </div>
-      )}
+              </div>
+            ) : (
+              <p className="m-0 text-[12.5px] text-muted-foreground">
+                {t("Pilih pakej untuk melihat butiran.", "Select a package to see its details.")}
+              </p>
+            )}
+          </div>
+        </aside>
+      </div>
 
       <PackageForm
         open={formOpen}

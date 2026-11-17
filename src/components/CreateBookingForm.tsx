@@ -1,11 +1,12 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { Plus, Trash2 } from "lucide-react";
+import { apiFetch } from "@/lib/api";
 import {
-  mockCustomers,
-  mockDepartures,
-  mockPackages,
-} from "@/lib/mock-data";
-import type { BookingType, Passenger } from "@/lib/types";
+  fetchCustomers,
+  fetchDepartures,
+  fetchPackages,
+} from "@/lib/live-data";
+import type { BookingType, Customer, Departure, Passenger, TravelPackage } from "@/lib/types";
 import { cn, formatCurrency, formatDate } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -49,14 +50,33 @@ export default function CreateBookingForm({
   const [discount, setDiscount] = useState(0);
   const [deposit, setDeposit] = useState(0);
   const [passengers, setPassengers] = useState<Passenger[]>([]);
+  const [customers, setCustomers] = useState<Customer[]>([]);
+  const [packages, setPackages] = useState<TravelPackage[]>([]);
+  const [departures, setDepartures] = useState<Departure[]>([]);
+  const [saving, setSaving] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
-  const selectedPackage = mockPackages.find((p) => p.id === packageId);
-  const selectedDeparture = mockDepartures.find(
+  // Live data from D1 (falls back to mock inside loaders).
+  useEffect(() => {
+    (async () => {
+      const [c, p, d] = await Promise.all([
+        fetchCustomers(),
+        fetchPackages(),
+        fetchDepartures(),
+      ]);
+      setCustomers(c.customers);
+      setPackages(p.packages);
+      setDepartures(d.departures);
+    })();
+  }, []);
+
+  const selectedPackage = packages.find((p) => p.id === packageId);
+  const selectedDeparture = departures.find(
     (d) => d.id === departureId,
   );
   const availableDepartures = useMemo(
-    () => mockDepartures.filter((d) => d.packageId === packageId),
-    [packageId],
+    () => departures.filter((d) => d.packageId === packageId),
+    [departures, packageId],
   );
 
   const totalPax = pax.adult + pax.child + pax.infant;
@@ -123,20 +143,53 @@ export default function CreateBookingForm({
   }
 
   function handleSubmit() {
-    onSubmit?.({
-      bookingType,
-      customerId,
-      packageId,
-      departureId,
-      pax,
-      discount,
-      deposit,
-      totalAmount,
-      balanceDue,
-      passengers,
-    });
-    resetForm();
-    onOpenChange(false);
+    setSaving(true);
+    setError(null);
+    (async () => {
+      try {
+        // Simpan ke D1 melalui POST /bookings (server jana reference & audit).
+        const res = await apiFetch<{ success: boolean; data?: Record<string, unknown> }>(
+          "/bookings",
+          {
+            method: "POST",
+            body: JSON.stringify({
+              customerId,
+              packageId,
+              departureId,
+              type: bookingType,
+              paxAdult: pax.adult,
+              paxChild: pax.child,
+              paxInfant: pax.infant,
+              discount,
+              depositAmount: deposit,
+              totalAmount,
+              passengers: passengers
+                .filter((p) => p.fullName.trim())
+                .map((p) => ({
+                  fullName: p.fullName,
+                  type: p.type,
+                  passportNumber: p.passportNumber || undefined,
+                })),
+            }),
+          },
+        );
+        if (!res.success) {
+          setError(
+            (res as { error?: string }).error ??
+              "Gagal mencipta tempahan. Sila cuba lagi.",
+          );
+          setSaving(false);
+          return;
+        }
+        onSubmit?.(res.data);
+        resetForm();
+        setSaving(false);
+        onOpenChange(false);
+      } catch (err) {
+        setError(err instanceof Error ? err.message : "Gagal mencipta tempahan.");
+        setSaving(false);
+      }
+    })();
   }
 
   return (
@@ -180,7 +233,7 @@ export default function CreateBookingForm({
                 <SelectValue placeholder="Select customer" />
               </SelectTrigger>
               <SelectContent>
-                {mockCustomers.map((c) => (
+                {customers.map((c) => (
                   <SelectItem key={c.id} value={c.id}>
                     {c.name} — {c.phone}
                   </SelectItem>
@@ -203,7 +256,7 @@ export default function CreateBookingForm({
                 <SelectValue placeholder="Select package" />
               </SelectTrigger>
               <SelectContent>
-                {mockPackages.map((p) => (
+                {packages.map((p) => (
                   <SelectItem key={p.id} value={p.id}>
                     {p.name}
                   </SelectItem>
@@ -441,12 +494,16 @@ export default function CreateBookingForm({
         </div>
 
         <DialogFooter>
+          {error && (
+            <p className="mr-auto text-xs font-medium text-red-600">{error}</p>
+          )}
           <Button variant="outline" onClick={() => onOpenChange(false)}>
             Cancel
           </Button>
           <Button
             onClick={handleSubmit}
             disabled={
+              saving ||
               !customerId ||
               !packageId ||
               !departureId ||
@@ -454,7 +511,7 @@ export default function CreateBookingForm({
               seatsExceeded
             }
           >
-            Create Booking
+            {saving ? "Saving…" : "Create Booking"}
           </Button>
         </DialogFooter>
       </DialogContent>

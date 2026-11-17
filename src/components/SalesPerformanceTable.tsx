@@ -1,6 +1,7 @@
-﻿import { useMemo } from "react";
+﻿import { useEffect, useMemo, useState } from "react";
 import { Trophy, Target, TrendingUp } from "lucide-react";
-import { mockBookings, mockLeads } from "@/lib/mock-data";
+import { fetchBookings } from "@/lib/live-data";
+import { apiFetch } from "@/lib/api";
 import { cn , formatRinggit } from "@/lib/utils";
 import { useLang } from "@/lib/i18n";
 import {
@@ -32,8 +33,37 @@ const AGENT_TARGETS: Record<string, number> = {
 
 const DEFAULT_TARGET = 100_000_000;
 
+interface LeadLike {
+  id: string;
+  name: string;
+  assignedTo: string;
+  stage: string;
+  budget: number;
+}
+
 export default function SalesPerformanceTable() {
   const { t } = useLang();
+  const [leads, setLeads] = useState<LeadLike[]>([]);
+  const [bookings, setBookings] = useState<Awaited<ReturnType<typeof fetchBookings>>["bookings"]>([]);
+
+  // Live leads + bookings from D1 (falls back to mock inside loaders).
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      const [b, l] = await Promise.all([
+        fetchBookings(),
+        apiFetch<{ success: boolean; data?: LeadLike[]; leads?: LeadLike[] }>(
+          "/leads?limit=200",
+        ).catch(() => null),
+      ]);
+      if (cancelled) return;
+      setBookings(b.bookings);
+      if (l?.success) setLeads(l.data ?? l.leads ?? []);
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, []);
 
   const agents = useMemo(() => {
     const byAgent = new Map<
@@ -49,7 +79,7 @@ export default function SalesPerformanceTable() {
       }
     >();
 
-    for (const lead of mockLeads) {
+    for (const lead of leads) {
       const entry = byAgent.get(lead.assignedTo) ?? {
         name: lead.assignedTo,
         leads: 0,
@@ -74,7 +104,7 @@ export default function SalesPerformanceTable() {
 
     // Booking revenue attributed by createdBy.
     const revenueByAgent = new Map<string, number>();
-    for (const b of mockBookings) {
+    for (const b of bookings) {
       if (b.status === "cancelled") continue;
       const agent = b.createdBy ?? "Lainnya";
       revenueByAgent.set(agent, (revenueByAgent.get(agent) ?? 0) + b.paidAmount);
@@ -87,7 +117,7 @@ export default function SalesPerformanceTable() {
         target: AGENT_TARGETS[a.name] ?? DEFAULT_TARGET,
       }))
       .sort((a, b) => b.revenue - a.revenue);
-  }, []);
+  }, [leads, bookings]);
 
   const best = agents[0];
 

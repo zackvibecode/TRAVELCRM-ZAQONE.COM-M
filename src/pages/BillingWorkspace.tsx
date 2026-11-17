@@ -1,8 +1,6 @@
-﻿import { useMemo, useState } from "react";
+﻿import { useEffect, useMemo, useState } from "react";
 import {
-  Wallet,
   Banknote,
-  AlertTriangle,
   Receipt,
   Search,
   Plus,
@@ -19,7 +17,13 @@ import {
   Ban,
   Bell,
 } from "lucide-react";
-import { mockInvoices, mockPayments, mockRefunds, mockQuotations } from "@/lib/mock-data";
+import { apiFetch } from "@/lib/api";
+import {
+  fetchInvoices,
+  fetchPayments,
+  fetchQuotations,
+  fetchRefunds,
+} from "@/lib/live-data";
 import QuotationBuilder from "@/components/QuotationBuilder";
 import InvoiceBuilder from "@/components/InvoiceBuilder";
 import PaymentProofForm from "@/components/PaymentProofForm";
@@ -57,6 +61,35 @@ import {
 
 function formatRupiah(value: number): string {
   return formatRinggit(value);
+}
+
+function Metric({
+  label,
+  value,
+  note,
+  tone,
+}: {
+  label: string;
+  value: string;
+  note: string;
+  tone?: string;
+}) {
+  return (
+    <article
+      className="flex min-w-0 flex-col gap-1 rounded-[var(--radius-card)] border border-[var(--color-border)] bg-[var(--color-surface)] p-4"
+    >
+      <span className="text-[12px] font-medium text-muted-foreground">
+        {label}
+      </span>
+      <span
+        className="whitespace-nowrap text-[22px] font-semibold leading-tight tracking-tight [font-variant-numeric:tabular-nums]"
+        style={{ color: tone || "var(--color-text)" }}
+      >
+        {value}
+      </span>
+      <span className="text-[11.5px] text-muted-foreground">{note}</span>
+    </article>
+  );
 }
 
 const INVOICE_STATUS_CLASS: Record<InvoiceStatus, string> = {
@@ -100,11 +133,33 @@ type Tab =
 
 export default function BillingWorkspace() {
   const { t } = useLang();
-  const [invoices, setInvoices] = useState<Invoice[]>(mockInvoices);
-  const [quotations, setQuotations] = useState<Quotation[]>(mockQuotations);
-  const [payments, setPayments] = useState<Payment[]>(mockPayments);
-  const [refunds, setRefunds] = useState<Refund[]>(mockRefunds);
+  const [invoices, setInvoices] = useState<Invoice[]>([]);
+  const [quotations, setQuotations] = useState<Quotation[]>([]);
+  const [payments, setPayments] = useState<Payment[]>([]);
+  const [refunds, setRefunds] = useState<Refund[]>([]);
   const [reminders, setReminders] = useState<PaymentReminder[]>([]);
+
+  // Load all billing data from the live API (falls back to mock inside
+  // live-data loaders when the API is unreachable).
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      const [inv, pay, qt, ref] = await Promise.all([
+        fetchInvoices(),
+        fetchPayments(),
+        fetchQuotations(),
+        fetchRefunds(),
+      ]);
+      if (cancelled) return;
+      setInvoices(inv.invoices);
+      setPayments(pay.payments);
+      setQuotations(qt.quotations);
+      setRefunds(ref.refunds);
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, []);
   const [tab, setTab] = useState<Tab>("invoices");
   const [search, setSearch] = useState("");
   const [statusFilter, setStatusFilter] = useState<"all" | InvoiceStatus>("all");
@@ -217,6 +272,10 @@ export default function BillingWorkspace() {
     setQuotations((prev) =>
       prev.map((qt) => (qt.id === quotationId ? { ...qt, status } : qt)),
     );
+    void apiFetch(`/quotations/${quotationId}`, {
+      method: "PATCH",
+      body: JSON.stringify({ status }),
+    }).catch(() => {});
   }
 
   function issueInvoice(invoiceId: string) {
@@ -226,6 +285,9 @@ export default function BillingWorkspace() {
           ? { ...inv, status: "issued" }
           : inv,
       ),
+    );
+    void apiFetch(`/invoices/${invoiceId}/issue`, { method: "POST" }).catch(
+      () => {},
     );
   }
 
@@ -238,23 +300,41 @@ export default function BillingWorkspace() {
       ),
     );
     setSelectedInvoice(null);
+    void apiFetch(`/invoices/${invoiceId}/void`, { method: "POST" }).catch(
+      () => {},
+    );
   }
 
   function duplicateInvoice(invoiceId: string) {
     const source = invoices.find((inv) => inv.id === invoiceId);
     if (!source) return;
-    const seq = invoices.length + 1;
-    const copy: Invoice = {
-      ...source,
-      id: crypto.randomUUID(),
-      number: `INV-2026-${String(seq).padStart(4, "0")}`,
-      status: "draft",
-      paidAmount: 0,
-      balanceDue: source.total,
-      createdAt: new Date().toISOString(),
-      notes: `Duplikat dari ${source.number}.`,
-    };
-    setInvoices((prev) => [copy, ...prev]);
+    void apiFetch<{ success: boolean; data: Invoice }>(
+      `/invoices/${invoiceId}/duplicate`,
+      { method: "POST" },
+    )
+      .then((res) => {
+        if (res?.data) {
+          setInvoices((prev) => [
+            { ...res.data, items: source.items },
+            ...prev,
+          ]);
+        }
+      })
+      .catch(() => {
+        // Fallback lokal jika API gagal.
+        const seq = invoices.length + 1;
+        const copy: Invoice = {
+          ...source,
+          id: crypto.randomUUID(),
+          number: `INV-2026-${String(seq).padStart(4, "0")}`,
+          status: "draft",
+          paidAmount: 0,
+          balanceDue: source.total,
+          createdAt: new Date().toISOString(),
+          notes: `Duplikat dari ${source.number}.`,
+        };
+        setInvoices((prev) => [copy, ...prev]);
+      });
   }
 
   function handlePaymentRecorded(
@@ -290,6 +370,20 @@ export default function BillingWorkspace() {
       );
     }
     setRecordPaymentFor(null);
+    // Kirim payment ke API (best-effort; UI sudah optimistic).
+    void apiFetch("/payments", {
+      method: "POST",
+      body: JSON.stringify({
+        invoiceId: invoice.id,
+        amount: payment.amount,
+        method: payment.method,
+        status: payment.status,
+        paidAt: payment.paidAt,
+        reference: payment.reference,
+        notes: payment.notes,
+        proofUploaded: payment.proofUploaded,
+      }),
+    }).catch(() => {});
     setSelectedInvoice((prev) =>
       prev && prev.id === invoice.id
         ? {
@@ -310,6 +404,9 @@ export default function BillingWorkspace() {
   function verifyPayment(paymentId: string, accepted: boolean) {
     const payment = payments.find((p) => p.id === paymentId);
     if (!payment || payment.status !== "pending_verification") return;
+    void apiFetch(`/payments/${paymentId}/${accepted ? "verify" : "reject"}`, {
+      method: "POST",
+    }).catch(() => {});
     setPayments((prev) =>
       prev.map((p) =>
         p.id === paymentId
@@ -359,6 +456,14 @@ export default function BillingWorkspace() {
       requestedAt: new Date().toISOString(),
     };
     setRefunds((prev) => [refund, ...prev]);
+    void apiFetch("/refunds", {
+      method: "POST",
+      body: JSON.stringify({
+        invoiceId: invoice.id,
+        amount,
+        reason,
+      }),
+    }).catch(() => {});
     setRefundInvoiceFor(null);
     setTab("refunds");
   }
@@ -377,6 +482,15 @@ export default function BillingWorkspace() {
             }
           : r,
       ),
+    );
+    const endpoint =
+      status === "processing"
+        ? "process"
+        : status === "completed"
+          ? "complete"
+          : "reject";
+    void apiFetch(`/refunds/${refundId}/${endpoint}`, { method: "POST" }).catch(
+      () => {},
     );
   }
 
@@ -464,54 +578,36 @@ export default function BillingWorkspace() {
         <>
           {/* KPI */}
       <div className="grid grid-cols-2 gap-4 lg:grid-cols-4">
-        <Card>
-          <CardHeader className="pb-2">
-            <CardTitle className="flex items-center gap-2 text-xs font-medium text-muted-foreground">
-              <FileText className="h-4 w-4" /> {t("Jumlah Ditagih", "Total Billed")}
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            <p className="font-display text-2xl font-bold">
-              {formatRupiah(kpi.totalBilled)}
-            </p>
-          </CardContent>
-        </Card>
-        <Card>
-          <CardHeader className="pb-2">
-            <CardTitle className="flex items-center gap-2 text-xs font-medium text-muted-foreground">
-              <Wallet className="h-4 w-4" /> {t("Terkumpul", "Collected")}
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            <p className="font-display text-2xl font-bold text-green-600">
-              {formatRupiah(kpi.collected)}
-            </p>
-          </CardContent>
-        </Card>
-        <Card>
-          <CardHeader className="pb-2">
-            <CardTitle className="flex items-center gap-2 text-xs font-medium text-muted-foreground">
-              <Banknote className="h-4 w-4" /> {t("Baki Tertunggak", "Outstanding")}
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            <p className="font-display text-2xl font-bold text-amber-600">
-              {formatRupiah(kpi.outstanding)}
-            </p>
-          </CardContent>
-        </Card>
-        <Card>
-          <CardHeader className="pb-2">
-            <CardTitle className="flex items-center gap-2 text-xs font-medium text-muted-foreground">
-              <AlertTriangle className="h-4 w-4" /> {t("Tertunggak", "Overdue")}
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            <p className="font-display text-2xl font-bold text-red-600">
-              {formatRupiah(kpi.overdue)}
-            </p>
-          </CardContent>
-        </Card>
+        <Metric
+          label={t("Jumlah Ditagih", "Total Billed")}
+          value={formatRupiah(kpi.totalBilled)}
+          note={`${invoices.length} ${t("invois", "invoices")}`}
+        />
+        <Metric
+          label={t("Terkumpul", "Collected")}
+          value={formatRupiah(kpi.collected)}
+          note={
+            kpi.totalBilled > 0
+              ? `${Math.round((kpi.collected / kpi.totalBilled) * 100)}% ${t("daripada ditagih", "of billed")}`
+              : "—"
+          }
+          tone="var(--color-success)"
+        />
+        <Metric
+          label={t("Baki Tertunggak", "Outstanding")}
+          value={formatRupiah(kpi.outstanding)}
+          note={t("Belum diterima", "Not yet received")}
+        />
+        <Metric
+          label={t("Perlu Pengesahan", "Needs verification")}
+          value={formatRupiah(
+            payments
+              .filter((p) => p.status === "pending_verification")
+              .reduce((s, p) => s + p.amount, 0),
+          )}
+          note={t("Bukti bayaran menunggu", "Proof of payment waiting")}
+          tone="var(--color-warning)"
+        />
       </div>
 
       {/* Tabs + search */}

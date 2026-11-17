@@ -1,9 +1,9 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { Plus, Trash2, Pencil, Check, X, ArrowRight, Ban } from "lucide-react";
 import type { Booking, BookingStatus, Passenger } from "@/lib/types";
 import { bookingTransitions } from "@/lib/types";
 import { formatDate } from "@/lib/utils";
-import { mockPackages } from "@/lib/mock-data";
+import { fetchPackages } from "@/lib/live-data";
 import PriceSummaryPanel from "@/components/PriceSummaryPanel";
 import BookingHistory from "@/components/BookingHistory";
 import CancellationDialog from "@/components/CancellationDialog";
@@ -49,6 +49,15 @@ export default function BookingDetail({
   const [draft, setDraft] = useState<Passenger | null>(null);
   const [status, setStatus] = useState<BookingStatus | null>(null);
   const [cancelOpen, setCancelOpen] = useState(false);
+  const [packages, setPackages] = useState<Awaited<ReturnType<typeof fetchPackages>>["packages"]>([]);
+
+  // Live packages from D1 for unit-price lookup (falls back to mock in loader).
+  useEffect(() => {
+    (async () => {
+      const res = await fetchPackages();
+      setPackages(res.packages);
+    })();
+  }, []);
 
   // Sync local passenger list + status whenever a booking is opened.
   const [syncedBookingId, setSyncedBookingId] = useState<string | null>(null);
@@ -126,7 +135,7 @@ export default function BookingDetail({
         <PriceSummaryPanel
           booking={booking}
           unitPrices={(() => {
-            const pkg = mockPackages.find(
+            const pkg = packages.find(
               (p) => p.name === booking.packageName,
             );
             return pkg

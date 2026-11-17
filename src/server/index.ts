@@ -22,7 +22,7 @@ import alertsRouter from "./routes/alerts";
 import websiteRouter from "./routes/website";
 import mcpAdminRouter from "./routes/mcp-admin";
 import mcpRouter from "./routes/mcp";
-import authRouter from "./routes/auth";
+import authRouter, { apiAuthRouter } from "./routes/auth";
 import staffRouter from "./routes/staff";
 import staffAuditRouter from "./routes/staff-audit";
 import settingsRouter from "./routes/settings";
@@ -30,6 +30,7 @@ import templatesRouter from "./routes/notification-templates";
 import apiTokensRouter from "./routes/api-tokens";
 import maintenanceRouter from "./routes/data-maintenance";
 import bootstrapRouter from "./routes/bootstrap";
+import publicEnquiryRouter from "./routes/public-enquiry";
 import { releaseExpiredHolds } from "./lib/seat-availability";
 import { runScheduledContent } from "./lib/scheduled-content";
 import { cors } from "hono/cors";
@@ -94,7 +95,11 @@ app.get("/health", (c) => {
 });
 
 app.route("/auth", authRouter);
+// Compatibility alias: the Better Auth JS client calls /api/auth/* by
+// default. Rewrite the path to /auth/* before the Better Auth handler.
+app.route("/api/auth", apiAuthRouter);
 app.route("/bootstrap", bootstrapRouter);
+app.route("/public", publicEnquiryRouter);
 app.route("/staff", staffRouter);
 app.route("/staff-audit", staffAuditRouter);
 app.route("/settings", settingsRouter);

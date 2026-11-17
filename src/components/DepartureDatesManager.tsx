@@ -1,6 +1,6 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { CalendarPlus, X } from "lucide-react";
-import { mockDepartures } from "@/lib/mock-data";
+import { fetchDepartures } from "@/lib/live-data";
 import { formatDate } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -27,11 +27,21 @@ export default function DepartureDatesManager({
   const [departureDate, setDepartureDate] = useState("");
   const [returnDate, setReturnDate] = useState("");
   const [seatCapacity, setSeatCapacity] = useState(30);
+  const [allDepartures, setAllDepartures] = useState<
+    { id: string; packageId: string; departureDate: string; returnDate: string; seatCapacity: number }[]
+  >([]);
 
-  // Existing departures for this package (from mock data) for reference
+  // Existing departures for this package (live from D1) for reference.
+  useEffect(() => {
+    (async () => {
+      const res = await fetchDepartures();
+      setAllDepartures(res.departures);
+    })();
+  }, []);
+
   const existing = useMemo(
-    () => mockDepartures.filter((d) => d.packageId === packageId),
-    [packageId],
+    () => allDepartures.filter((d) => d.packageId === packageId),
+    [allDepartures, packageId],
   );
 
   function addDate() {

@@ -1,6 +1,6 @@
-import { useMemo } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { Scale } from "lucide-react";
-import { mockDepartureCosts } from "@/lib/mock-data";
+import { apiFetch } from "@/lib/api";
 import type { Departure } from "@/lib/types";
 import { cn, formatCurrency } from "@/lib/utils";
 import {
@@ -12,15 +12,37 @@ import {
   TableCell,
 } from "@/components/ui/table";
 
+interface DepartureCostRow {
+  id: string;
+  departureId: string;
+  category: string;
+  description: string;
+  estimatedAmount: number;
+  actualAmount: number;
+}
+
 export default function SupplierCostComparison({
   departure,
 }: {
   departure: Departure;
 }) {
-  const costs = useMemo(
-    () => mockDepartureCosts.filter((c) => c.departureId === departure.id),
-    [departure.id],
-  );
+  const [costs, setCosts] = useState<DepartureCostRow[]>([]);
+
+  // Live supplier costs from D1 via /departures/:id/costs.
+  useEffect(() => {
+    (async () => {
+      try {
+        const res = await apiFetch<{
+          success: boolean;
+          data?: DepartureCostRow[];
+          costs?: DepartureCostRow[];
+        }>(`/departures/${departure.id}/costs`);
+        setCosts(res.success ? res.data ?? res.costs ?? [] : []);
+      } catch {
+        // tiada kos
+      }
+    })();
+  }, [departure.id]);
 
   const totals = useMemo(() => {
     const estimated = costs.reduce((s, c) => s + c.estimatedAmount, 0);

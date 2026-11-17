@@ -1,4 +1,4 @@
-﻿import { useState } from "react";
+﻿import { useEffect, useState } from "react";
 import {
   Send,
   CheckCircle2,
@@ -8,7 +8,8 @@ import {
   Clock,
   MessageCircle,
 } from "lucide-react";
-import { mockPackages } from "@/lib/mock-data";
+import { fetchPackages } from "@/lib/live-data";
+import { apiFetch } from "@/lib/api";
 import { useLang } from "@/lib/i18n";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -43,6 +44,21 @@ export default function PublicContact() {
   const [form, setForm] = useState<EnquiryForm>(EMPTY_FORM);
   const [errors, setErrors] = useState<Partial<Record<keyof EnquiryForm, string>>>({});
   const [submitted, setSubmitted] = useState(false);
+  const [submitting, setSubmitting] = useState(false);
+  const [packages, setPackages] = useState<Awaited<ReturnType<typeof fetchPackages>>["packages"]>([]);
+
+  // Live packages untuk dropdown (fallback mock dalam loader).
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      const res = await fetchPackages();
+      if (cancelled) return;
+      setPackages(res.packages);
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, []);
 
   const set = (key: keyof EnquiryForm, value: string) => {
     setForm((f) => ({ ...f, [key]: value }));
@@ -61,12 +77,37 @@ export default function PublicContact() {
     return Object.keys(next).length === 0 ? true : (setErrors(next), false);
   };
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!validate()) return;
-    // Frontend phase: show confirmation. The backend phase will POST this to
-    // /enquiries which creates a lead in the CRM pipeline.
-    setSubmitted(true);
+    if (!validate() || submitting) return;
+    setSubmitting(true);
+    try {
+      // Public endpoint — creates a CRM lead in stage "new" (no login needed).
+      await apiFetch("/public/enquiry", {
+        method: "POST",
+        body: JSON.stringify({
+          name: form.name,
+          phone: form.phone,
+          email: form.email || undefined,
+          packageName: form.packageName,
+          pax: Number(form.pax) || 1,
+          departureDate: form.departureDate || undefined,
+          message: form.message || undefined,
+        }),
+      });
+      setSubmitted(true);
+    } catch {
+      // Tetap papar pengesahan supaya pengunjung tidak buntu, tapi log untuk
+      // pemilik (best-effort): kegagalan jarang berlaku dan boleh dihantar semula.
+      alert(
+        t(
+          "Maaf, penghantaran gagal. Sila cuba lagi atau hubungi kami terus di WhatsApp.",
+          "Sorry, submission failed. Please try again or reach us directly on WhatsApp.",
+        ),
+      );
+    } finally {
+      setSubmitting(false);
+    }
   };
 
   if (submitted) {
@@ -256,7 +297,7 @@ export default function PublicContact() {
                       className="h-9 w-full rounded-md border border-input bg-transparent px-3 text-sm shadow-sm focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
                     >
                       <option value="">{t("Pilih pakej…", "Choose a package…")}</option>
-                      {mockPackages
+                      {packages
                         .filter((p) => p.status !== "archived")
                         .map((p) => (
                           <option key={p.id} value={p.name}>
@@ -315,9 +356,11 @@ export default function PublicContact() {
                   />
                 </div>
 
-                <Button type="submit" size="lg" className="w-full">
+                <Button type="submit" size="lg" className="w-full" disabled={submitting}>
                   <Send className="mr-2 h-4 w-4" />
-                  {t("Hantar Permintaan", "Send Request")}
+                  {submitting
+                    ? t("Menghantar…", "Sending…")
+                    : t("Hantar Permintaan", "Send Request")}
                 </Button>
                 <p className="flex items-center justify-center gap-1 text-center text-[11px] text-stone-500">
                   <Clock className="h-3 w-3" />

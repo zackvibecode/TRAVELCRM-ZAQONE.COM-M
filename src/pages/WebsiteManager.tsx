@@ -1,4 +1,4 @@
-﻿import { useMemo, useState } from "react";
+﻿import { useEffect, useMemo, useState } from "react";
 import {
   Globe,
   Plus,
@@ -16,7 +16,7 @@ import {
   Search,
   Megaphone,
 } from "lucide-react";
-import { mockPackages } from "@/lib/mock-data";
+import { fetchPackages } from "@/lib/live-data";
 import { cn, waLink } from "@/lib/utils";
 import { useLang } from "@/lib/i18n";
 import { Button } from "@/components/ui/button";
@@ -226,12 +226,22 @@ export default function WebsiteManager() {
 
   const publishedCount = pages.filter((p) => p.status === "published").length;
 
+  const [allPackages, setAllPackages] = useState<Awaited<ReturnType<typeof fetchPackages>>["packages"]>([]);
+
+  // Live packages from D1 (falls back to mock inside the loader).
+  useEffect(() => {
+    (async () => {
+      const res = await fetchPackages();
+      setAllPackages(res.packages);
+    })();
+  }, []);
+
   const publishedPackages = useMemo(
     () =>
-      mockPackages.filter(
+      allPackages.filter(
         (p) => p.status !== "archived" && p.published !== false,
       ),
-    [],
+    [allPackages],
   );
 
   const handleSave = () => {

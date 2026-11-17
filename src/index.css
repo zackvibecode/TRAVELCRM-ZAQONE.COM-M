@@ -2,35 +2,145 @@
 @tailwind components;
 @tailwind utilities;
 
+/* --------------------------------------------------------------------------
+   Design tokens — diselaraskan dengan Design System DesainPakeAI (TravelOS).
+   Token shadcn (HSL) dikekalkan untuk komponen ui/*, dan token prototaip
+   (hex) ditambah untuk gaya baharu. Keduanya menunjuk warna yang sama.
+   -------------------------------------------------------------------------- */
 @layer base {
   :root {
-    --background: 0 0% 100%;
-    --foreground: 240 10% 3.9%;
+    /* shadcn / Radix tokens (HSL) */
+    --background: 220 14% 96%; /* #f6f7f9 */
+    --foreground: 222 20% 10%; /* #14171f */
     --card: 0 0% 100%;
-    --card-foreground: 240 10% 3.9%;
+    --card-foreground: 222 20% 10%;
     --popover: 0 0% 100%;
-    --popover-foreground: 240 10% 3.9%;
-    --primary: 0 72% 51%;
+    --popover-foreground: 222 20% 10%;
+    --primary: 358 71% 48%; /* #d1232a */
     --primary-foreground: 0 0% 100%;
-    --secondary: 240 4.8% 95.9%;
-    --secondary-foreground: 240 5.9% 10%;
-    --muted: 240 4.8% 95.9%;
-    --muted-foreground: 240 3.8% 46.1%;
-    --accent: 240 4.8% 95.9%;
-    --accent-foreground: 240 5.9% 10%;
-    --destructive: 0 84.2% 60.2%;
+    --secondary: 220 14% 95%; /* #f1f2f5 */
+    --secondary-foreground: 222 16% 30%;
+    --muted: 220 14% 95%;
+    --muted-foreground: 220 6% 42%; /* #6b7280 */
+    --accent: 220 14% 95%;
+    --accent-foreground: 222 16% 30%;
+    --destructive: 4 69% 43%; /* #b3261e */
     --destructive-foreground: 0 0% 98%;
-    --border: 240 5.9% 90%;
-    --input: 240 5.9% 90%;
-    --ring: 0 72% 51%;
-    --radius: 0.5rem;
+    --border: 220 13% 89%; /* #e3e5ea */
+    --input: 220 13% 89%;
+    --ring: 358 71% 48%;
+    --radius: 0.75rem;
+
+    /* Prototype tokens (hex) — sumber: DESIGN.md DesainPakeAI */
+    --font-body: Inter, ui-sans-serif, system-ui, -apple-system, "Segoe UI", sans-serif;
+    --font-display: Montserrat, Inter, ui-sans-serif, system-ui, sans-serif;
+    --font-mono: "JetBrains Mono", ui-monospace, SFMono-Regular, Menlo, monospace;
+
+    --color-background: #f6f7f9;
+    --color-surface: #ffffff;
+    --color-surface-raised: #fafafa;
+    --color-surface-muted: #f1f2f5;
+    --color-text: #14171f;
+    --color-text-secondary: #464b57;
+    --color-text-muted: #6b7280;
+    --color-border: #e3e5ea;
+    --color-border-strong: #cdd1d9;
+    --color-primary: #d1232a;
+    --color-primary-hover: #b31b22;
+    --color-primary-soft: #fdecec;
+    --color-on-primary: #ffffff;
+    --color-success: #1a7f4b;
+    --color-success-soft: #e6f6ed;
+    --color-warning: #a35a00;
+    --color-warning-soft: #fdf1de;
+    --color-info: #1d5bb5;
+    --color-info-soft: #e8f0fc;
+    --color-danger: #b3261e;
+    --color-danger-soft: #fbe9e7;
+    --color-neutral-soft: #eef0f4;
+    --color-focus-ring: #d1232a;
+
+    --space-1: 4px;
+    --space-2: 8px;
+    --space-3: 12px;
+    --space-4: 16px;
+    --space-5: 20px;
+    --space-6: 24px;
+    --space-7: 32px;
+    --space-8: 40px;
+    --space-9: 56px;
+
+    --radius-control: 8px;
+    --radius-card: 12px;
+    --radius-panel: 16px;
+    --radius-pill: 999px;
   }
 
   * {
     @apply border-border;
   }
 
-  body {
-    @apply bg-background text-foreground font-sans antialiased;
+  html {
+    font-family: var(--font-body);
   }
+
+  body {
+    @apply bg-background text-foreground antialiased;
+    color: var(--color-text);
+  }
+
+  button,
+  input,
+  select,
+  textarea {
+    font: inherit;
+  }
+
+  :focus-visible {
+    outline-color: var(--color-focus-ring);
+  }
+}
+
+/* --------------------------------------------------------------------------
+   Text roles from the prototype scale, exposed as plain utilities so existing
+   Tailwind classes keep working alongside them.
+   -------------------------------------------------------------------------- */
+.text-caption {
+  font-size: 12px;
+}
+.text-label-md {
+  font-size: 13px;
+}
+.text-body-sm {
+  font-size: 14px;
+}
+.text-body-md {
+  font-size: 15px;
+}
+.text-body-lg {
+  font-size: 17px;
+}
+.text-heading-sm {
+  font-size: 20px;
+}
+.text-heading-md {
+  font-size: 26px;
+}
+.text-heading-lg {
+  font-size: 32px;
+}
+.text-display {
+  font-size: 40px;
+}
+
+/* reusable surface + focus affordances used by the prototype shells */
+.surface-card {
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-panel);
+}
+
+.focus-ring:focus-visible {
+  outline: 2px solid var(--color-focus-ring);
+  outline-offset: 2px;
 }

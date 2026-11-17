@@ -6,8 +6,15 @@ export default {
   theme: {
     extend: {
       fontFamily: {
-        sans: ["Inter", "Montserrat", "system-ui", "sans-serif"],
-        display: ["Montserrat", "Inter", "system-ui", "sans-serif"],
+        sans: ["Inter", "ui-sans-serif", "system-ui", "sans-serif"],
+        display: ["Montserrat", "Inter", "ui-sans-serif", "system-ui", "sans-serif"],
+        mono: ["'JetBrains Mono'", "ui-monospace", "SFMono-Regular", "Menlo", "monospace"],
+      },
+      maxWidth: {
+        site: "1200px",
+      },
+      boxShadow: {
+        panel: "0 12px 40px rgb(20 23 31 / 0.18)",
       },
       colors: {
         border: "hsl(var(--border))",
