@@ -53,18 +53,30 @@ export const siteSeo: Record<string, SeoSettings> = {
     metaDescription:
       "Agensi pelancongan serba lengkap: open trip, private tour, dan korporat dengan itinerary terkurasi dan harga telus. Tempahan mudah, sokongan penuh.",
     keywords: "pakej pelancongan, open trip, agensi travel malaysia, travel murah",
+    metaTitleEn: "ZAQONE TRAVEL — Domestic & International Tour Packages",
+    metaDescriptionEn:
+      "All-in-one travel agency: open trips, private tours, and corporate travel with curated itineraries and transparent pricing. Easy booking, full support.",
+    keywordsEn: "tour packages malaysia, open trip, travel agency kuala lumpur, cheap travel",
   },
   promos: {
     metaTitle: "Promosi & Tawaran Istimewa — ZAQONE TRAVEL",
     metaDescription:
       "Diskaun flash sale, harga early bird, dan tawaran kumpulan untuk pakej pelancongan pilihan. Kuota terhad!",
     keywords: "promosi pelancongan, diskaun tiket tour, flash sale travel",
+    metaTitleEn: "Promos & Special Offers — ZAQONE TRAVEL",
+    metaDescriptionEn:
+      "Flash sale discounts, early bird pricing, and group deals on selected tour packages. Limited quota!",
+    keywordsEn: "travel promotions, tour discounts, flash sale travel deals",
   },
   packages: {
     metaTitle: "Pakej Pelancongan Lengkap — ZAQONE TRAVEL",
     metaDescription:
       "Terokai semua pakej pelancongan ZAQONE TRAVEL: Jepun, Korea, Bali, Lombok, Singapura, hingga Eropah. Harga per pax jelas, keberangkatan berjadual.",
     keywords: "pakej tour jepang, wisata bali, tour korea, pakej eropah",
+    metaTitleEn: "Complete Tour Packages — ZAQONE TRAVEL",
+    metaDescriptionEn:
+      "Explore all ZAQONE TRAVEL packages: Japan, Korea, Bali, Lombok, Singapore, and Europe. Clear per-pax pricing, scheduled departures.",
+    keywordsEn: "japan tour package, bali holiday, korea tour, europe package",
   },
 };
 
