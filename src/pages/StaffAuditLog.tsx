@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { useMemo, useRef, useState } from "react";
 import {
   Clock,
   FileText,
@@ -11,15 +11,7 @@ import {
   ShieldCheck,
   UserPlus,
 } from "lucide-react";
-import { cn } from "@/lib/utils";
 import { useLang } from "@/lib/i18n";
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogHeader,
-  DialogTitle,
-} from "@/components/ui/dialog";
 
 type StaffAction =
   | "login"
@@ -64,6 +56,10 @@ const STUB_ENTRIES: StaffAuditEntry[] = [
   { id: "sa_08", timestamp: "2026-11-14 08:30", actor: "Unknown", actorEmail: "sales@zaqone.travel", action: "login", detail: "Failed sign-in — account temporarily locked", ip: "45.132.90.77", outcome: "failed" },
 ];
 
+const PANEL = "rounded-[var(--radius-panel)] border border-[var(--color-border)] bg-[var(--color-surface)]";
+const FIELD =
+  "w-full rounded-[var(--radius-control)] border border-[var(--color-border-strong)] bg-[var(--color-surface)] px-3 py-2 text-[13px] text-[var(--color-text)] placeholder:text-[var(--color-text-muted)] focus-visible:outline-2 focus-visible:outline-[var(--color-focus-ring)]";
+
 export default function StaffAuditLog() {
   const { t } = useLang();
   const [actionFilter, setActionFilter] = useState<"all" | StaffAction>("all");
@@ -72,6 +68,17 @@ export default function StaffAuditLog() {
   const [dateFilter, setDateFilter] = useState("");
   const [search, setSearch] = useState("");
   const [selected, setSelected] = useState<StaffAuditEntry | null>(null);
+  const dialogRef = useRef<HTMLDialogElement>(null);
+
+  const openDetail = (e: StaffAuditEntry) => {
+    setSelected(e);
+    dialogRef.current?.showModal();
+  };
+
+  const closeDetail = () => {
+    dialogRef.current?.close();
+    setSelected(null);
+  };
 
   const actors = useMemo(
     () => Array.from(new Set(STUB_ENTRIES.map((e) => e.actorEmail))),
@@ -98,54 +105,57 @@ export default function StaffAuditLog() {
   const successCount = STUB_ENTRIES.filter((e) => e.outcome === "success").length;
   const failedCount = STUB_ENTRIES.filter((e) => e.outcome === "failed").length;
 
+  const th =
+    "border-b border-[var(--color-border)] bg-[var(--color-surface-raised)] px-4 py-2.5 text-left text-[11px] font-bold uppercase tracking-wide text-[var(--color-text-muted)]";
+
   return (
-    <div className="space-y-6">
-      {/* Header */}
-      <div>
-        <h1 className="font-display text-2xl font-bold tracking-tight">
-          {t("Log Audit Staf", "Staff Audit Log")}
-        </h1>
-        <p className="text-sm text-muted-foreground">
-          {t(
-            "Jejak aktiviti akaun staf: log masuk, perubahan peranan dan tetapan.",
-            "Trail of staff account activity: sign-ins, role changes and settings.",
-          )}
-        </p>
+    <div className="space-y-5">
+      {/* Page head */}
+      <div className="tvl-pagehead">
+        <div className="min-w-0">
+          <h1 className="tvl-title">{t("Log Audit Staf", "Staff Audit Log")}</h1>
+          <p className="tvl-subtitle">
+            {t(
+              "Jejak aktiviti akaun staf: log masuk, perubahan peranan dan tetapan.",
+              "Trail of staff account activity: sign-ins, role changes and settings.",
+            )}
+          </p>
+        </div>
       </div>
 
       {/* Summary cards */}
       <div className="grid grid-cols-3 gap-3">
-        <div className="rounded-lg border bg-white p-3">
-          <p className="text-xs text-muted-foreground">{t("Jumlah Rekod", "Total Events")}</p>
-          <p className="mt-1 font-display text-xl font-bold">{STUB_ENTRIES.length}</p>
+        <div className={`${PANEL} p-3`}>
+          <p className="text-xs text-[var(--color-text-muted)]">{t("Jumlah Rekod", "Total Events")}</p>
+          <p className="mt-1 font-display text-xl font-bold tabular-nums text-[var(--color-text)]">{STUB_ENTRIES.length}</p>
         </div>
-        <div className="rounded-lg border bg-white p-3">
-          <p className="text-xs text-muted-foreground">{t("Berjaya", "Successful")}</p>
-          <p className="mt-1 font-display text-xl font-bold text-emerald-600">{successCount}</p>
+        <div className={`${PANEL} p-3`}>
+          <p className="text-xs text-[var(--color-text-muted)]">{t("Berjaya", "Successful")}</p>
+          <p className="mt-1 font-display text-xl font-bold tabular-nums text-[var(--color-success)]">{successCount}</p>
         </div>
-        <div className="rounded-lg border bg-white p-3">
-          <p className="text-xs text-muted-foreground">{t("Gagal", "Failed")}</p>
-          <p className="mt-1 font-display text-xl font-bold text-red-600">{failedCount}</p>
+        <div className={`${PANEL} p-3`}>
+          <p className="text-xs text-[var(--color-text-muted)]">{t("Gagal", "Failed")}</p>
+          <p className="mt-1 font-display text-xl font-bold tabular-nums text-[var(--color-danger)]">{failedCount}</p>
         </div>
       </div>
 
       {/* Filters */}
-      <div className="rounded-lg border bg-white p-3">
-        <div className="mb-3 flex items-center gap-1.5 text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+      <div className={PANEL}>
+        <div className="flex items-center gap-1.5 border-b border-[var(--color-border)] px-5 py-3 text-[11px] font-bold uppercase tracking-wide text-[var(--color-text-muted)]">
           <ListFilter className="h-3.5 w-3.5" />
           {t("Penapis", "Filters")}
         </div>
-        <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-5">
+        <div className="grid gap-2 p-4 sm:grid-cols-2 lg:grid-cols-5">
           <input
             value={search}
             onChange={(e) => setSearch(e.target.value)}
             placeholder={t("Cari staf / IP…", "Search staff / IP…")}
-            className="h-9 rounded-md border border-input bg-transparent px-3 text-sm shadow-sm placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
+            className={FIELD}
           />
           <select
             value={actionFilter}
             onChange={(e) => setActionFilter(e.target.value as "all" | StaffAction)}
-            className="h-9 rounded-md border border-input bg-white px-2 text-sm shadow-sm focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
+            className={FIELD}
           >
             <option value="all">{t("Semua tindakan", "All actions")}</option>
             {(Object.keys(ACTION_META) as StaffAction[]).map((a) => (
@@ -157,7 +167,7 @@ export default function StaffAuditLog() {
           <select
             value={actorFilter}
             onChange={(e) => setActorFilter(e.target.value)}
-            className="h-9 rounded-md border border-input bg-white px-2 text-sm shadow-sm focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
+            className={FIELD}
           >
             <option value="all">{t("Semua staf", "All staff")}</option>
             {actors.map((a) => (
@@ -167,7 +177,7 @@ export default function StaffAuditLog() {
           <select
             value={outcomeFilter}
             onChange={(e) => setOutcomeFilter(e.target.value as "all" | AuditOutcome)}
-            className="h-9 rounded-md border border-input bg-white px-2 text-sm shadow-sm focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
+            className={FIELD}
           >
             <option value="all">{t("Semua hasil", "All outcomes")}</option>
             <option value="success">{t("Berjaya", "Successful")}</option>
@@ -177,111 +187,119 @@ export default function StaffAuditLog() {
             type="date"
             value={dateFilter}
             onChange={(e) => setDateFilter(e.target.value)}
-            className="h-9 rounded-md border border-input bg-transparent px-2 text-sm shadow-sm focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
+            className={FIELD}
           />
         </div>
       </div>
 
       {/* Table */}
-      <div className="overflow-hidden rounded-lg border bg-white">
-        <table className="w-full text-sm">
-          <thead>
-            <tr className="border-b bg-muted/40 text-left text-xs uppercase tracking-wide text-muted-foreground">
-              <th className="px-4 py-2.5 font-semibold">{t("Masa", "Time")}</th>
-              <th className="px-4 py-2.5 font-semibold">{t("Staf", "Staff")}</th>
-              <th className="px-4 py-2.5 font-semibold">{t("Tindakan", "Action")}</th>
-              <th className="hidden px-4 py-2.5 font-semibold md:table-cell">{t("Butiran", "Detail")}</th>
-              <th className="px-4 py-2.5 font-semibold">{t("Hasil", "Outcome")}</th>
-              <th className="px-4 py-2.5" />
-            </tr>
-          </thead>
-          <tbody>
-            {entries.map((e) => {
-              const Icon = ACTION_META[e.action].icon;
-              return (
-                <tr key={e.id} className="border-b last:border-b-0">
-                  <td className="whitespace-nowrap px-4 py-3 text-xs text-muted-foreground">
-                    {e.timestamp}
-                  </td>
-                  <td className="px-4 py-3">
-                    <div className="font-medium">{e.actor}</div>
-                    <div className="text-xs text-muted-foreground">{e.actorEmail}</div>
-                  </td>
-                  <td className="px-4 py-3">
-                    <span className="inline-flex items-center gap-1.5 rounded-full border px-2 py-0.5 text-xs font-medium">
-                      <Icon className="h-3.5 w-3.5" />
-                      {t(ACTION_META[e.action].label.ms, ACTION_META[e.action].label.en)}
-                    </span>
-                  </td>
-                  <td className="hidden max-w-xs truncate px-4 py-3 text-xs text-muted-foreground md:table-cell">
-                    {e.detail}
-                  </td>
-                  <td className="px-4 py-3">
-                    <span
-                      className={cn(
-                        "inline-flex items-center gap-1 rounded-full border px-2 py-0.5 text-xs font-semibold",
-                        e.outcome === "success"
-                          ? "bg-emerald-50 text-emerald-700 border-emerald-200"
-                          : "bg-red-50 text-red-700 border-red-200",
-                      )}
-                    >
-                      {e.outcome === "success" ? (
-                        <ShieldCheck className="h-3 w-3" />
-                      ) : (
-                        <ShieldAlert className="h-3 w-3" />
-                      )}
-                      {e.outcome === "success"
-                        ? t("Berjaya", "Success")
-                        : t("Gagal", "Failed")}
-                    </span>
-                  </td>
-                  <td className="px-4 py-3 text-right">
-                    <button
-                      onClick={() => setSelected(e)}
-                      className="inline-flex items-center gap-1 rounded-md border px-2 py-1 text-xs font-medium hover:bg-muted/50"
-                    >
-                      <FileText className="h-3.5 w-3.5" />
-                      {t("Butiran", "View")}
-                    </button>
+      <div className="overflow-hidden rounded-[var(--radius-panel)] border border-[var(--color-border)] bg-[var(--color-surface)]">
+        <div className="overflow-x-auto">
+          <table className="w-full border-collapse text-[13px]">
+            <thead>
+              <tr>
+                <th scope="col" className={th}>{t("Masa", "Time")}</th>
+                <th scope="col" className={th}>{t("Staf", "Staff")}</th>
+                <th scope="col" className={th}>{t("Tindakan", "Action")}</th>
+                <th scope="col" className={`${th} hidden md:table-cell`}>{t("Butiran", "Detail")}</th>
+                <th scope="col" className={th}>{t("Hasil", "Outcome")}</th>
+                <th scope="col" className={`${th} text-right`} />
+              </tr>
+            </thead>
+            <tbody>
+              {entries.map((e) => {
+                const Icon = ACTION_META[e.action].icon;
+                return (
+                  <tr key={e.id} className="transition-colors hover:bg-[var(--color-surface-raised)]">
+                    <td className="whitespace-nowrap border-b border-[var(--color-border)] px-4 py-3 font-mono text-xs tabular-nums text-[var(--color-text-secondary)] last:border-b-0">
+                      {e.timestamp}
+                    </td>
+                    <td className="border-b border-[var(--color-border)] px-4 py-3 last:border-b-0">
+                      <div className="font-semibold text-[var(--color-text)]">{e.actor}</div>
+                      <div className="font-mono text-[11px] text-[var(--color-text-muted)]">{e.actorEmail}</div>
+                    </td>
+                    <td className="border-b border-[var(--color-border)] px-4 py-3 last:border-b-0">
+                      <span className="inline-flex items-center gap-1.5 rounded-full bg-[var(--color-neutral-soft)] px-2 py-0.5 text-[11.5px] font-semibold text-[var(--color-text-secondary)]">
+                        <Icon className="h-3.5 w-3.5" />
+                        {t(ACTION_META[e.action].label.ms, ACTION_META[e.action].label.en)}
+                      </span>
+                    </td>
+                    <td className="hidden max-w-xs truncate border-b border-[var(--color-border)] px-4 py-3 text-xs text-[var(--color-text-muted)] last:border-b-0 md:table-cell">
+                      {e.detail}
+                    </td>
+                    <td className="border-b border-[var(--color-border)] px-4 py-3 last:border-b-0">
+                      <span
+                        className={`inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[11.5px] font-semibold ${
+                          e.outcome === "success"
+                            ? "bg-[var(--color-success-soft)] text-[var(--color-success)]"
+                            : "bg-[var(--color-danger-soft)] text-[var(--color-danger)]"
+                        }`}
+                      >
+                        {e.outcome === "success" ? (
+                          <ShieldCheck className="h-3 w-3" />
+                        ) : (
+                          <ShieldAlert className="h-3 w-3" />
+                        )}
+                        {e.outcome === "success" ? t("Berjaya", "Success") : t("Gagal", "Failed")}
+                      </span>
+                    </td>
+                    <td className="border-b border-[var(--color-border)] px-4 py-3 text-right last:border-b-0">
+                      <button
+                        onClick={() => openDetail(e)}
+                        className="inline-flex items-center gap-1 rounded-[var(--radius-control)] border border-[var(--color-border)] bg-[var(--color-surface)] px-2.5 py-1.5 text-xs font-semibold text-[var(--color-text)] transition-colors hover:bg-[var(--color-surface-muted)]"
+                      >
+                        <FileText className="h-3.5 w-3.5" />
+                        {t("Butiran", "View")}
+                      </button>
+                    </td>
+                  </tr>
+                );
+              })}
+              {entries.length === 0 && (
+                <tr>
+                  <td colSpan={6} className="px-4 py-10 text-center text-[13px] text-[var(--color-text-muted)]">
+                    {t("Tiada rekod sepadan.", "No matching records.")}
                   </td>
                 </tr>
-              );
-            })}
-            {entries.length === 0 && (
-              <tr>
-                <td colSpan={6} className="px-4 py-10 text-center text-sm text-muted-foreground">
-                  {t("Tiada rekod sepadan.", "No matching records.")}
-                </td>
-              </tr>
-            )}
-          </tbody>
-        </table>
+              )}
+            </tbody>
+          </table>
+        </div>
       </div>
 
       {/* Detail dialog */}
-      <Dialog open={selected !== null} onOpenChange={(o) => !o && setSelected(null)}>
-        <DialogContent className="sm:max-w-md">
-          <DialogHeader>
-            <DialogTitle>{t("Butiran Audit", "Audit Detail")}</DialogTitle>
-            <DialogDescription>{selected?.id}</DialogDescription>
-          </DialogHeader>
+      <dialog
+        ref={dialogRef}
+        open={selected !== null}
+        onClose={() => setSelected(null)}
+        onCancel={() => setSelected(null)}
+        className="m-auto w-[min(460px,calc(100vw-32px))] rounded-[var(--radius-panel)] border-0 bg-[var(--color-surface)] p-0 text-[var(--color-text)] shadow-[0_24px_60px_rgba(0,0,0,0.28)]"
+        aria-labelledby="saudit-staff-dialog-title"
+      >
+        <div className="space-y-4 p-5">
+          <div>
+            <h2 id="saudit-staff-dialog-title" className="font-display text-[16px] font-bold">
+              {t("Butiran Audit", "Audit Detail")}
+            </h2>
+            <p className="mt-1 font-mono text-[11.5px] text-[var(--color-text-muted)]">{selected?.id}</p>
+          </div>
           {selected && (
-            <div className="space-y-3 text-sm">
-              <div className="flex justify-between border-b pb-2">
-                <span className="text-muted-foreground">{t("Masa", "Time")}</span>
-                <span className="font-medium">{selected.timestamp}</span>
+            <div className="space-y-3 text-[13px]">
+              <div className="flex justify-between border-b border-[var(--color-border)] pb-2">
+                <span className="text-[var(--color-text-muted)]">{t("Masa", "Time")}</span>
+                <span className="font-mono text-xs tabular-nums font-semibold text-[var(--color-text)]">{selected.timestamp}</span>
               </div>
-              <div className="flex justify-between border-b pb-2">
-                <span className="text-muted-foreground">{t("Staf", "Staff")}</span>
-                <span className="font-medium">{selected.actor}</span>
+              <div className="flex justify-between border-b border-[var(--color-border)] pb-2">
+                <span className="text-[var(--color-text-muted)]">{t("Staf", "Staff")}</span>
+                <span className="font-semibold text-[var(--color-text)]">{selected.actor}</span>
               </div>
-              <div className="flex justify-between border-b pb-2">
-                <span className="text-muted-foreground">{t("Emel", "Email")}</span>
-                <span className="font-medium">{selected.actorEmail}</span>
+              <div className="flex justify-between border-b border-[var(--color-border)] pb-2">
+                <span className="text-[var(--color-text-muted)]">{t("Emel", "Email")}</span>
+                <span className="font-mono text-xs text-[var(--color-text)]">{selected.actorEmail}</span>
               </div>
-              <div className="flex justify-between border-b pb-2">
-                <span className="text-muted-foreground">{t("Tindakan", "Action")}</span>
-                <span className="font-medium">
+              <div className="flex justify-between border-b border-[var(--color-border)] pb-2">
+                <span className="text-[var(--color-text-muted)]">{t("Tindakan", "Action")}</span>
+                <span className="font-semibold text-[var(--color-text)]">
                   {t(
                     ACTION_META[selected.action].label.ms,
                     ACTION_META[selected.action].label.en,
@@ -289,23 +307,33 @@ export default function StaffAuditLog() {
                 </span>
               </div>
               <div>
-                <span className="text-muted-foreground">{t("Butiran", "Detail")}</span>
-                <p className="mt-1 rounded-md bg-muted/50 p-2 text-sm">{selected.detail}</p>
+                <span className="text-[var(--color-text-muted)]">{t("Butiran", "Detail")}</span>
+                <p className="mt-1 rounded-[var(--radius-card)] bg-[var(--color-surface-muted)] p-2.5 text-[13px] text-[var(--color-text-secondary)]">
+                  {selected.detail}
+                </p>
               </div>
-              <div className="flex justify-between border-t pt-2">
-                <span className="text-muted-foreground">IP</span>
-                <span className="font-mono text-xs">{selected.ip}</span>
+              <div className="flex justify-between border-t border-[var(--color-border)] pt-2">
+                <span className="text-[var(--color-text-muted)]">IP</span>
+                <span className="font-mono text-xs tabular-nums text-[var(--color-text)]">{selected.ip}</span>
               </div>
-              <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
+              <p className="flex items-center gap-1.5 text-xs text-[var(--color-text-muted)]">
                 <Clock className="h-3.5 w-3.5" />
                 {t("Rekod audit tidak boleh dipadam.", "Audit records are immutable.")}
-              </div>
+              </p>
             </div>
           )}
-        </DialogContent>
-      </Dialog>
+        </div>
+        <div className="flex justify-end border-t border-[var(--color-border)] bg-[var(--color-surface-raised)] px-5 py-4">
+          <button
+            onClick={closeDetail}
+            className="inline-flex items-center gap-1.5 rounded-[var(--radius-control)] border border-[var(--color-primary)] bg-[var(--color-primary)] px-3.5 py-2 text-[13px] font-semibold text-[var(--color-on-primary)] transition-colors hover:bg-[var(--color-primary-hover)]"
+          >
+            {t("Tutup", "Close")}
+          </button>
+        </div>
+      </dialog>
 
-      <p className="flex items-center gap-1.5 text-xs text-muted-foreground">
+      <p className="flex items-center gap-1.5 text-xs text-[var(--color-text-muted)]">
         <ScrollText className="h-3.5 w-3.5" />
         {t(
           "Data olok-olok — log audit sebenar akan didayakan pada fasa backend.",

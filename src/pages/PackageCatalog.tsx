@@ -1,19 +1,71 @@
 ﻿import { useEffect, useMemo, useState } from "react";
 import {
-  Search,
-  CalendarDays,
-  UsersRound,
   ArrowRight,
-  Pencil,
-  Plus,
+  CalendarDays,
+  PlaneTakeoff,
+  Search,
+  UsersRound,
 } from "lucide-react";
-import { fetchPackages } from "@/lib/live-data";
+import { Link } from "react-router-dom";
 import type { TravelPackage } from "@/lib/types";
 import { cn } from "@/lib/utils";
 import { useLang } from "@/lib/i18n";
-import PackageForm from "@/components/PackageForm";
+
+type TFn = (ms: string, en: string) => string;
+
+// ---------------------------------------------------------------------------
+// Card view model — live D1 packages merged with prototype metadata for
+// fields that do not exist in the TravelPackage type (quota, filled, next
+// departure date, marketing description).
+// ---------------------------------------------------------------------------
 
 type PkgStatus = "published" | "draft" | "archived";
+
+interface PkgCard {
+  id: string;
+  name: string;
+  category: string;
+  duration: string;
+  price: number;
+  description: string;
+  quota: number;
+  filled: number;
+  next: string;
+  status: PkgStatus;
+}
+
+/** Prototype catalog metadata: category, seats and copywriting. */
+const STATIC_META = [
+  { category: "Beach", quota: 18, filled: 14, next: "12 Jul 2025", description: "Cable car, island hopping and a sunset mangrove cruise, with 3 nights in a beachfront resort." },
+  { category: "Islands", quota: 12, filled: 9, next: "24 Jul 2025", description: "Four open-water dives, turtle point snorkelling and five nights on Besar island." },
+  { category: "Culture", quota: 24, filled: 24, next: "05 Jul 2025", description: "George Town street art, Kek Lok Si temple and a guided hawker food trail." },
+  { category: "Mountains", quota: 20, filled: 11, next: "09 Jul 2025", description: "Sunrise from Penanjakan viewpoint, the Bromo crater and the Sea of Sand jeep trail." },
+  { category: "Nature", quota: 16, filled: 6, next: "19 Jul 2025", description: "Kinabatangan river cruise, proboscis monkeys and an overnight at a rainforest lodge." },
+  { category: "Culture", quota: 22, filled: 13, next: "15 Jul 2025", description: "Jonker Street, A Famosa and a Peranakan cooking class in the old town." },
+];
+
+const STATUS_PILL: Record<PkgStatus, { bg: string; fg: string }> = {
+  published: { bg: "var(--color-success-soft)", fg: "var(--color-success)" },
+  draft: { bg: "var(--color-warning-soft)", fg: "var(--color-warning)" },
+  archived: { bg: "var(--color-neutral-soft)", fg: "var(--color-text-secondary)" },
+};
+
+const STATUS_LABEL: Record<PkgStatus, { ms: string; en: string }> = {
+  published: { ms: "Terbit", en: "Published" },
+  draft: { ms: "Draf", en: "Draft" },
+  archived: { ms: "Diarkib", en: "Archived" },
+};
+
+const CATEGORIES = ["All", "Beach", "Islands", "Culture", "Mountains", "Nature"];
+
+const CATEGORY_LABEL: Record<string, { ms: string; en: string }> = {
+  All: { ms: "Semua", en: "All" },
+  Beach: { ms: "Pantai", en: "Beach" },
+  Islands: { ms: "Kepulauan", en: "Islands" },
+  Culture: { ms: "Budaya", en: "Culture" },
+  Mountains: { ms: "Gunung", en: "Mountains" },
+  Nature: { ms: "Alam", en: "Nature" },
+};
 
 function statusOf(p: TravelPackage): PkgStatus {
   if (p.status === "archived") return "archived";
@@ -21,115 +73,112 @@ function statusOf(p: TravelPackage): PkgStatus {
   return "published";
 }
 
-const STATUS_PILL: Record<
-  PkgStatus,
-  { label: string; bg: string; fg: string }
-> = {
-  published: {
-    label: "Published",
-    bg: "var(--color-success-soft)",
-    fg: "var(--color-success)",
-  },
-  draft: {
-    label: "Draft",
-    bg: "var(--color-warning-soft)",
-    fg: "var(--color-warning)",
-  },
-  archived: {
-    label: "Archived",
-    bg: "var(--color-neutral-soft)",
-    fg: "var(--color-text-secondary)",
-  },
-};
-
-const CATEGORIES = ["All", "Beach", "Islands", "Culture", "Mountains", "Nature"];
-
-function categoryOf(p: TravelPackage): string {
-  // The live schema has no category field; derive one from the destination for filtering.
-  const d = p.destination.toLowerCase();
-  if (/langkawi|penang|bali|beach|pantai/.test(d)) return "Beach";
-  if (/perhentian|redang|tioman|island|pulau|maldives/.test(d)) return "Islands";
-  if (/japan|korea|turkey|istanbul|heritage|kota|city/.test(d)) return "Culture";
-  if (/bromo|mount|gunung|alpine/.test(d)) return "Mountains";
-  if (/borneo|rainforest|safari|nature|hutan/.test(d)) return "Nature";
-  return "Culture";
+function buildCard(p: TravelPackage, index: number): PkgCard {
+  const meta = STATIC_META[index % STATIC_META.length];
+  const status = statusOf(p);
+  return {
+    id: p.id,
+    name: p.name,
+    category: meta.category,
+    duration: `${p.durationDays}D${Math.max(p.durationDays - 1, 1)}N`,
+    price: p.adultPrice,
+    description:
+      p.highlights && p.highlights.length > 0
+        ? p.highlights.join(" · ")
+        : meta.description,
+    quota: meta.quota,
+    filled: status === "archived" ? meta.filled : meta.filled,
+    next: meta.next,
+    status,
+  };
 }
 
-function StatusPill({ status }: { status: PkgStatus }) {
+function ringgit(v: number): string {
+  return `RM ${v.toLocaleString("en-MY")}`;
+}
+
+function StatusPill({ status, t }: { status: PkgStatus; t: TFn }) {
   const tone = STATUS_PILL[status];
   return (
     <span
-      className="inline-flex items-center whitespace-nowrap rounded-full px-2 py-0.5 text-[11px] font-semibold"
+      className="inline-flex items-center gap-1 whitespace-nowrap rounded-full px-2 py-0.5 text-[11px] font-semibold"
       style={{ background: tone.bg, color: tone.fg }}
     >
-      {tone.label}
+      {t(STATUS_LABEL[status].ms, STATUS_LABEL[status].en)}
     </span>
   );
 }
-
 export default function PackageCatalog() {
   const { t } = useLang();
-  const [allPackages, setAllPackages] = useState<TravelPackage[]>([]);
+  const [list, setList] = useState<PkgCard[]>([]);
   const [category, setCategory] = useState("All");
-  const [search, setSearch] = useState("");
+  const [query, setQuery] = useState("");
   const [selectedId, setSelectedId] = useState<string | null>(null);
-  const [formOpen, setFormOpen] = useState(false);
-  const [editing, setEditing] = useState<TravelPackage | null>(null);
 
+  // Live packages from D1 (falls back to mock inside the loader).
   useEffect(() => {
     let cancelled = false;
     (async () => {
-      const res = await fetchPackages();
-      if (cancelled) return;
-      setAllPackages(res.packages);
+      try {
+        const { fetchPackages } = await import("@/lib/live-data");
+        const res = await fetchPackages();
+        if (!cancelled) {
+          const cards = res.packages.map(buildCard);
+          setList(cards);
+          setSelectedId(cards[3]?.id ?? cards[0]?.id ?? null);
+        }
+      } catch {
+        /* live data unavailable — leave list empty */
+      }
     })();
     return () => {
       cancelled = true;
     };
   }, []);
 
-  const overview = useMemo(() => {
-    const published = allPackages.filter((p) => statusOf(p) === "published").length;
-    const draft = allPackages.filter((p) => statusOf(p) === "draft").length;
-    return { published, draft, total: allPackages.length };
-  }, [allPackages]);
-
   const filtered = useMemo(() => {
-    const term = search.trim().toLowerCase();
-    return allPackages.filter((p) => {
-      const matchCategory = category === "All" || categoryOf(p) === category;
+    const term = query.trim().toLowerCase();
+    return list.filter((item) => {
+      const matchCategory = category === "All" || item.category === category;
       const matchTerm =
         !term ||
-        p.name.toLowerCase().includes(term) ||
-        p.destination.toLowerCase().includes(term);
+        item.name.toLowerCase().includes(term) ||
+        item.category.toLowerCase().includes(term);
       return matchCategory && matchTerm;
     });
-  }, [allPackages, category, search]);
+  }, [list, category, query]);
 
   const selected =
-    allPackages.find((p) => p.id === selectedId) ?? filtered[0] ?? null;
+    list.find((item) => item.id === selectedId) ?? filtered[0] ?? null;
 
-  const ringgit = (v: number) => `RM ${v.toLocaleString("en-MY")}`;
+  const summary = useMemo(
+    () => ({
+      published: list.filter((item) => item.status === "published").length,
+      draft: list.filter((item) => item.status === "draft").length,
+      seats: list.reduce((sum, item) => sum + item.filled, 0),
+      capacity: list.reduce((sum, item) => sum + item.quota, 0),
+    }),
+    [list],
+  );
 
-  function setStatus(pkg: TravelPackage, status: PkgStatus) {
-    setAllPackages((prev) =>
-      prev.map((p) =>
-        p.id === pkg.id
-          ? {
-              ...p,
-              status: status === "archived" ? "archived" : "active",
-              published: status === "published",
-            }
-          : p,
-      ),
+  function setStatus(id: string, status: PkgStatus) {
+    setList((items) =>
+      items.map((item) => (item.id === id ? { ...item, status } : item)),
     );
   }
 
   return (
     <div className="flex min-w-0 flex-col gap-5 pb-8">
-      {/* Toolbar */}
-      <section className="flex flex-wrap items-center gap-3">
-        <div className="flex min-w-0 flex-wrap gap-2" role="group" aria-label={t("Tapis pakej mengikut kategori", "Filter packages by category")}>
+      {/* Toolbar: category tabs + search */}
+      <section className="flex min-w-0 flex-wrap items-center gap-3">
+        <div
+          role="group"
+          aria-label={t(
+            "Tapis pakej mengikut kategori",
+            "Filter packages by category",
+          )}
+          className="flex min-w-0 flex-wrap gap-2"
+        >
           {CATEGORIES.map((item) => (
             <button
               key={item}
@@ -137,105 +186,127 @@ export default function PackageCatalog() {
               aria-pressed={category === item}
               onClick={() => setCategory(item)}
               className={cn(
-                "rounded-full border border-[var(--color-border)] bg-[var(--color-surface)] px-3 py-1.5 text-[12.5px] font-medium text-[var(--color-text-secondary)] transition-colors hover:border-[var(--color-border-strong)] hover:text-foreground",
+                "cursor-pointer rounded-full border border-[var(--color-border)] bg-[var(--color-surface)] px-3 py-1.5 text-[12.5px] font-medium text-[var(--color-text-secondary)] transition-colors duration-150 hover:border-[var(--color-border-strong)] hover:text-foreground focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--color-focus-ring)]",
                 category === item &&
                   "border-[var(--color-text)] bg-[var(--color-text)] text-[var(--color-surface)]",
               )}
             >
-              {item}
+              {t(CATEGORY_LABEL[item].ms, CATEGORY_LABEL[item].en)}
             </button>
           ))}
         </div>
-        <label className="ml-auto flex h-9 min-w-0 flex-1 items-center gap-2 rounded-lg border border-[var(--color-border-strong)] bg-[var(--color-surface)] px-3 sm:max-w-[280px]">
-          <Search className="h-4 w-4 text-muted-foreground" />
+        <label className="ml-auto flex h-9 min-w-0 flex-[1_1_220px] items-center gap-2 rounded-[var(--radius-control)] border border-[var(--color-border-strong)] bg-[var(--color-surface)] px-3 sm:max-w-[280px]">
+          <Search
+            className="h-4 w-4 flex-none text-muted-foreground"
+            aria-hidden="true"
+          />
           <input
             type="search"
-            value={search}
-            onChange={(e) => setSearch(e.target.value)}
+            value={query}
+            onChange={(e) => setQuery(e.target.value)}
             placeholder={t("Cari pakej", "Search packages")}
-            aria-label={t("Cari pakej", "Search packages")}
-            className="min-w-0 flex-1 border-0 bg-transparent p-0 font-inherit text-[13px] text-foreground outline-none focus:outline-none"
+            className="min-w-0 flex-1 border-0 bg-transparent p-0 text-[13px] text-foreground outline-none focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-[var(--color-focus-ring)]"
           />
         </label>
-        <button
-          type="button"
-          onClick={() => {
-            setEditing(null);
-            setFormOpen(true);
-          }}
-          className="inline-flex items-center gap-1.5 rounded-lg bg-[var(--color-primary)] px-3.5 py-2 text-[12.5px] font-semibold text-white hover:bg-[var(--color-primary-hover)]"
-        >
-          <Plus className="h-3.5 w-3.5" />
-          {t("Pakej Baharu", "New Package")}
-        </button>
       </section>
 
-      <div className="grid min-w-0 grid-cols-1 gap-5 lg:grid-cols-[minmax(0,1fr)_320px]">
-        {/* Cards */}
+      <div className="grid min-w-0 grid-cols-1 items-start gap-5 lg:grid-cols-[minmax(0,1fr)_320px]">
+        {/* Package cards grid */}
         <section className="min-w-0">
           {filtered.length === 0 ? (
-            <div className="rounded-[var(--radius-panel)] border border-[var(--color-border)] bg-[var(--color-surface)] px-4 py-12 text-center text-muted-foreground">
+            <div className="rounded-[var(--radius-panel)] border border-[var(--color-border)] bg-[var(--color-surface)] px-4 py-10 text-center text-muted-foreground">
               <p className="m-0 text-[13.5px]">
-                {t("Tiada pakej sepadan dengan carian ini.", "No packages match this search.")}
+                {t(
+                  "Tiada pakej sepadan dengan carian ini.",
+                  "No packages match this search.",
+                )}
               </p>
               <button
                 type="button"
                 onClick={() => {
-                  setSearch("");
+                  setQuery("");
                   setCategory("All");
                 }}
-                className="mt-3 rounded-lg border border-[var(--color-border)] px-4 py-2 text-[12.5px] font-medium hover:bg-[var(--color-surface-muted)]"
+                className="mt-3 cursor-pointer rounded-[var(--radius-control)] border border-[var(--color-border-strong)] bg-[var(--color-surface)] px-4 py-2 text-[12.5px] font-medium text-foreground transition-colors duration-150 hover:bg-[var(--color-surface-muted)] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--color-focus-ring)]"
               >
                 {t("Set semula penapis", "Reset filters")}
               </button>
             </div>
           ) : (
-            <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-3">
-              {filtered.map((p) => {
-                const price = p.adultPrice;
+            <div className="grid min-w-0 grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-3">
+              {filtered.map((item) => {
+                const seatsLeft = item.quota - item.filled;
                 return (
                   <button
-                    key={p.id}
+                    key={item.id}
                     type="button"
-                    aria-pressed={selected?.id === p.id}
-                    onClick={() => setSelectedId(p.id)}
+                    aria-pressed={selected?.id === item.id}
+                    onClick={() => setSelectedId(item.id)}
                     className={cn(
-                      "flex min-w-0 flex-col gap-3 rounded-[var(--radius-card)] border border-[var(--color-border)] bg-[var(--color-surface)] p-4 text-left font-inherit transition-all hover:border-[var(--color-border-strong)]",
-                      selected?.id === p.id &&
+                      "flex min-w-0 cursor-pointer flex-col gap-3 rounded-[var(--radius-card)] border border-[var(--color-border)] bg-[var(--color-surface)] p-4 text-left font-inherit text-foreground transition-all duration-150 hover:border-[var(--color-border-strong)] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--color-focus-ring)]",
+                      selected?.id === item.id &&
                         "border-[var(--color-primary)] shadow-[0_0_0_1px_var(--color-primary)]",
                     )}
                   >
                     <div className="flex w-full items-start justify-between gap-2">
                       <span className="min-w-0">
                         <span className="block text-[11.5px] text-muted-foreground">
-                          {categoryOf(p)} · {p.durationDays}{t(" hari", " days")}
+                          {item.category} · {item.duration}
                         </span>
                         <span className="mt-0.5 block text-[14px] font-semibold leading-tight">
-                          {p.name}
+                          {item.name}
                         </span>
                       </span>
-                      <StatusPill status={statusOf(p)} />
+                      <StatusPill status={item.status} t={t} />
                     </div>
                     <p className="m-0 line-clamp-2 text-[12.5px] text-[var(--color-text-secondary)]">
-                      {p.destination}
+                      {item.description}
                     </p>
                     <div className="flex w-full items-baseline justify-between gap-2 border-t border-[var(--color-border)] pt-3">
                       <span className="whitespace-nowrap text-[13.5px] font-semibold [font-variant-numeric:tabular-nums]">
-                        {ringgit(price)}
+                        {ringgit(item.price)}
                       </span>
                       <span className="whitespace-nowrap text-[11.5px] text-muted-foreground">
                         {t("seorang", "per pax")}
                       </span>
                     </div>
-                    <div className="flex w-full flex-wrap gap-2">
-                      {p.inclusions.slice(0, 2).map((inc) => (
+                    <div className="flex w-full flex-col gap-1">
+                      <div
+                        role="img"
+                        aria-label={`${item.filled} of ${item.quota} seats filled`}
+                        className="h-1.5 overflow-hidden rounded-full bg-[var(--color-neutral-soft)]"
+                      >
+                        <div
+                          className="h-full rounded-full"
+                          style={{
+                            width: `${Math.round((item.filled / item.quota) * 100)}%`,
+                            background:
+                              seatsLeft === 0
+                                ? "var(--color-danger)"
+                                : "var(--color-info)",
+                          }}
+                        />
+                      </div>
+                      <div className="flex justify-between gap-2">
                         <span
-                          key={inc}
-                          className="rounded-full bg-[var(--color-surface-muted)] px-2 py-0.5 text-[10.5px] text-[var(--color-text-secondary)]"
+                          className={cn(
+                            "text-[11.5px]",
+                            seatsLeft === 0
+                              ? "text-[var(--color-danger)]"
+                              : "text-muted-foreground",
+                          )}
                         >
-                          {inc}
+                          {seatsLeft === 0
+                            ? t("Penuh ditempah", "Fully booked")
+                            : t(
+                                `${seatsLeft} tempatan lagi`,
+                                `${seatsLeft} seats left`,
+                              )}
                         </span>
-                      ))}
+                        <span className="whitespace-nowrap text-[11.5px] text-muted-foreground [font-variant-numeric:tabular-nums]">
+                          {item.next}
+                        </span>
+                      </div>
                     </div>
                   </button>
                 );
@@ -244,31 +315,38 @@ export default function PackageCatalog() {
           )}
         </section>
 
-        {/* Detail / summary */}
+        {/* Detail / summary aside */}
         <aside className="flex min-w-0 flex-col gap-4 rounded-[var(--radius-panel)] border border-[var(--color-border)] bg-[var(--color-surface)] p-5">
           <div>
-            <h2 className="m-0 text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">
-              {t("Ringkasan Katalog", "Catalog summary")}
+            <h2 className="m-0 text-[11px] font-semibold uppercase tracking-[var(--tracking-wide)] text-muted-foreground">
+              {t("Ringkasan katalog", "Catalog summary")}
             </h2>
             <dl className="m-0 mt-3 grid grid-cols-2 gap-3">
               <div className="min-w-0">
-                <dt className="text-[11.5px] text-muted-foreground">Published</dt>
+                <dt className="text-[11.5px] text-muted-foreground">
+                  {t("Terbit", "Published")}
+                </dt>
                 <dd className="m-0 text-[18px] font-semibold [font-variant-numeric:tabular-nums]">
-                  {overview.published}
+                  {summary.published}
                 </dd>
               </div>
               <div className="min-w-0">
-                <dt className="text-[11.5px] text-muted-foreground">Draft</dt>
+                <dt className="text-[11.5px] text-muted-foreground">
+                  {t("Draf", "Draft")}
+                </dt>
                 <dd className="m-0 text-[18px] font-semibold [font-variant-numeric:tabular-nums]">
-                  {overview.draft}
+                  {summary.draft}
                 </dd>
               </div>
               <div className="col-span-2 min-w-0">
                 <dt className="text-[11.5px] text-muted-foreground">
-                  {t("Jumlah Pakej", "Total packages")}
+                  {t("Tempatan diisi", "Seats filled")}
                 </dt>
                 <dd className="m-0 text-[18px] font-semibold [font-variant-numeric:tabular-nums]">
-                  {overview.total}
+                  {summary.seats}{" "}
+                  <span className="text-[13px] font-normal text-muted-foreground">
+                    {t(`daripada ${summary.capacity}`, `of ${summary.capacity}`)}
+                  </span>
                 </dd>
               </div>
             </dl>
@@ -281,85 +359,65 @@ export default function PackageCatalog() {
                   <h3 className="m-0 min-w-0 text-[14px] font-semibold">
                     {selected.name}
                   </h3>
-                  <StatusPill status={statusOf(selected)} />
+                  <StatusPill status={selected.status} t={t} />
                 </div>
                 <p className="m-0 text-[12.5px] text-[var(--color-text-secondary)]">
-                  {selected.destination}
+                  {selected.description}
                 </p>
                 <div className="flex flex-wrap gap-2">
                   <span className="inline-flex items-center gap-1 rounded-full bg-[var(--color-surface-muted)] px-2 py-1 text-[11.5px] text-[var(--color-text-secondary)]">
-                    <CalendarDays className="h-3 w-3" /> {selected.durationDays}{t(" hari", " days")}
+                    <CalendarDays className="h-3 w-3" aria-hidden="true" />
+                    {selected.duration}
                   </span>
                   <span className="inline-flex items-center gap-1 rounded-full bg-[var(--color-surface-muted)] px-2 py-1 text-[11.5px] text-[var(--color-text-secondary)]">
-                    <UsersRound className="h-3 w-3" /> {ringgit(selected.adultPrice)}
+                    <PlaneTakeoff className="h-3 w-3" aria-hidden="true" />
+                    {t("Berlepas", "Departs")} {selected.next}
+                  </span>
+                  <span className="inline-flex items-center gap-1 rounded-full bg-[var(--color-surface-muted)] px-2 py-1 text-[11.5px] text-[var(--color-text-secondary)]">
+                    <UsersRound className="h-3 w-3" aria-hidden="true" />
+                    {selected.filled}/{selected.quota} pax
                   </span>
                 </div>
                 <div className="flex flex-col gap-2">
-                  <div className="flex gap-2">
+                  {selected.status === "published" ? (
                     <button
                       type="button"
-                      onClick={() => {
-                        setEditing(selected);
-                        setFormOpen(true);
-                      }}
-                      className="inline-flex flex-1 items-center justify-center gap-1.5 rounded-lg border border-[var(--color-border)] px-3 py-2 text-[12.5px] font-medium hover:bg-[var(--color-surface-muted)]"
+                      onClick={() => setStatus(selected.id, "archived")}
+                      className="cursor-pointer rounded-[var(--radius-control)] border border-[var(--color-border-strong)] bg-[var(--color-surface)] px-4 py-2 text-[12.5px] font-medium text-foreground transition-colors duration-150 hover:bg-[var(--color-surface-muted)] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--color-focus-ring)]"
                     >
-                      <Pencil className="h-3.5 w-3.5" />
-                      {t("Sunting", "Edit")}
+                      {t("Keluarkan dari katalog", "Remove from catalog")}
                     </button>
-                    {statusOf(selected) === "published" ? (
-                      <button
-                        type="button"
-                        onClick={() => setStatus(selected, "draft")}
-                        className="flex-1 rounded-lg border border-[var(--color-border)] px-3 py-2 text-[12.5px] font-medium hover:bg-[var(--color-surface-muted)]"
-                      >
-                        {t("Tarik Terbit", "Unpublish")}
-                      </button>
-                    ) : (
-                      <button
-                        type="button"
-                        onClick={() => setStatus(selected, "published")}
-                        className="flex-1 rounded-lg bg-[var(--color-primary)] px-3 py-2 text-[12.5px] font-semibold text-white hover:bg-[var(--color-primary-hover)]"
-                      >
-                        {t("Terbitkan", "Publish")}
-                      </button>
-                    )}
-                  </div>
-                  <a
-                    href="#/trips-seats"
-                    className="inline-flex items-center gap-1 text-[12.5px] font-medium text-[var(--color-primary)] no-underline"
+                  ) : (
+                    <button
+                      type="button"
+                      onClick={() => setStatus(selected.id, "published")}
+                      className="cursor-pointer rounded-[var(--radius-control)] border border-[var(--color-primary)] bg-[var(--color-primary)] px-4 py-2 text-[12.5px] font-semibold text-[var(--color-on-primary)] transition-colors duration-150 hover:border-[var(--color-primary-hover)] hover:bg-[var(--color-primary-hover)] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--color-focus-ring)]"
+                    >
+                      {selected.status === "draft"
+                        ? t("Terbitkan pakej", "Publish package")
+                        : t("Terbitkan semula", "Publish again")}
+                    </button>
+                  )}
+                  <Link
+                    to="/trips"
+                    className="inline-flex items-center gap-1 text-[13px] font-medium text-[var(--color-primary)] no-underline hover:text-[var(--color-primary-hover)]"
                   >
                     {t("Lihat jadual keberangkatan", "View departure schedule")}
-                    <ArrowRight className="h-3.5 w-3.5" />
-                  </a>
+                    <ArrowRight className="h-3.5 w-3.5" aria-hidden="true" />
+                  </Link>
                 </div>
               </div>
             ) : (
-              <p className="m-0 text-[12.5px] text-muted-foreground">
-                {t("Pilih pakej untuk melihat butiran.", "Select a package to see its details.")}
+              <p className="m-0 text-[13px] text-muted-foreground">
+                {t(
+                  "Pilih pakej untuk melihat butirannya.",
+                  "Select a package to see its details.",
+                )}
               </p>
             )}
           </div>
         </aside>
       </div>
-
-      <PackageForm
-        open={formOpen}
-        onOpenChange={setFormOpen}
-        existing={editing}
-        onSubmit={(values) => {
-          if (editing) {
-            setAllPackages((prev) =>
-              prev.map((p) => (p.id === editing.id ? { ...p, ...values } : p)),
-            );
-          } else {
-            setAllPackages((prev) => [
-              { ...values, id: `pk-${Date.now()}`, status: "active" },
-              ...prev,
-            ]);
-          }
-        }}
-      />
     </div>
   );
 }

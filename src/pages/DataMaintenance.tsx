@@ -1,14 +1,5 @@
 import { useState } from "react";
-import {
-  Check,
-  Database,
-  Download,
-  HardDrive,
-  RefreshCw,
-  Trash2,
-  UploadCloud,
-} from "lucide-react";
-import { cn } from "@/lib/utils";
+import { Check, Database, Download, HardDrive, RefreshCw, Trash2, UploadCloud } from "lucide-react";
 import { useLang } from "@/lib/i18n";
 
 interface Operation {
@@ -57,11 +48,23 @@ const STATS = [
   { label: { ms: "Saiz Pangkalan Data", en: "Database Size" }, value: "24.6 MB" },
 ];
 
-const TONE_CLASS = {
-  primary: "border-primary/30 text-primary hover:bg-primary/5",
-  amber: "border-amber-200 text-amber-700 hover:bg-amber-50",
-  red: "border-red-200 text-red-600 hover:bg-red-50",
+// Ikon chip soft-tone (30px, radius 9px) mengikut token soft-tone design system.
+const CHIP_TONE = {
+  primary: "bg-[var(--color-primary-soft)] text-[var(--color-primary)]",
+  amber: "bg-[var(--color-warning-soft)] text-[var(--color-warning)]",
+  red: "bg-[var(--color-danger-soft)] text-[var(--color-danger)]",
 };
+
+// Butang secondary mengikut corak ss-btn + varian tone.
+const BTN =
+  "inline-flex items-center gap-1.5 rounded-[var(--radius-control)] border px-3.5 py-2 text-[13px] font-semibold transition-colors disabled:opacity-55 disabled:cursor-not-allowed";
+const BTN_TONE = {
+  primary: `${BTN} border-[color-mix(in_srgb,var(--color-primary)_35%,var(--color-border))] bg-[var(--color-surface)] text-[var(--color-primary)] hover:bg-[var(--color-primary-soft)]`,
+  amber: `${BTN} border-[color-mix(in_srgb,var(--color-warning)_35%,var(--color-border))] bg-[var(--color-surface)] text-[var(--color-warning)] hover:bg-[var(--color-warning-soft)]`,
+  red: `${BTN} border-[color-mix(in_srgb,var(--color-danger)_35%,var(--color-border))] bg-[var(--color-surface)] text-[var(--color-danger)] hover:bg-[var(--color-danger-soft)]`,
+};
+
+const CARD = "rounded-[var(--radius-panel)] border border-[var(--color-border)] bg-[var(--color-surface)]";
 
 export default function DataMaintenance() {
   const { t } = useLang();
@@ -76,7 +79,7 @@ export default function DataMaintenance() {
       setDone((prev) => [...prev, op.id]);
       setLastRun((prev) => ({
         ...prev,
-        [op.id]: new Date().toLocaleString(langToLocale(), {
+        [op.id]: new Date().toLocaleString("en-MY", {
           dateStyle: "short",
           timeStyle: "short",
         }),
@@ -84,36 +87,36 @@ export default function DataMaintenance() {
     }, 900);
   };
 
-  const langToLocale = () => "en-MY";
-
   return (
-    <div className="max-w-5xl space-y-6">
-      {/* Header */}
-      <div>
-        <h1 className="font-display text-2xl font-bold tracking-tight">
-          {t("Penyelenggaraan Data", "Data Maintenance")}
-        </h1>
-        <p className="text-sm text-muted-foreground">
-          {t(
-            "Operasi penyelenggaraan sistem dan ringkasan data.",
-            "System maintenance operations and data overview.",
-          )}
-        </p>
+    <div className="max-w-5xl space-y-5">
+      {/* Page head */}
+      <div className="tvl-pagehead">
+        <div className="min-w-0">
+          <h1 className="tvl-title">{t("Penyelenggaraan Data", "Data Maintenance")}</h1>
+          <p className="tvl-subtitle">
+            {t(
+              "Operasi penyelenggaraan sistem dan ringkasan data.",
+              "System maintenance operations and data overview.",
+            )}
+          </p>
+        </div>
       </div>
 
       {/* Stats */}
       <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
         {STATS.map((s) => (
-          <div key={s.label.en} className="rounded-lg border bg-white p-3">
-            <p className="text-xs text-muted-foreground">{t(s.label.ms, s.label.en)}</p>
-            <p className="mt-1 font-display text-xl font-bold">{s.value}</p>
+          <div key={s.label.en} className={`${CARD} p-4`}>
+            <p className="text-xs text-[var(--color-text-muted)]">{t(s.label.ms, s.label.en)}</p>
+            <p className="mt-1 font-display text-xl font-bold tabular-nums text-[var(--color-text)]">
+              {s.value}
+            </p>
           </div>
         ))}
       </div>
 
       {/* Operations */}
       <div>
-        <h2 className="mb-2 font-display text-lg font-bold tracking-tight">
+        <h2 className="mb-2 font-display text-[15px] font-bold tracking-tight text-[var(--color-text)]">
           {t("Operasi", "Operations")}
         </h2>
         <div className="grid gap-3 sm:grid-cols-2">
@@ -122,43 +125,41 @@ export default function DataMaintenance() {
             const isRunning = running === op.id;
             const isDone = done.includes(op.id);
             return (
-              <div key={op.id} className="rounded-lg border bg-white p-4">
+              <div key={op.id} className={`${CARD} p-4`}>
                 <div className="flex items-start gap-3">
-                  <div className={cn("flex h-9 w-9 items-center justify-center rounded-lg border", TONE_CLASS[op.tone])}>
-                    <Icon className={cn("h-4 w-4", isRunning && "animate-spin")} />
-                  </div>
-                  <div className="flex-1">
-                    <div className="flex items-center justify-between">
-                      <h3 className="text-sm font-semibold">
+                  <span
+                    className={`grid h-[30px] w-[30px] flex-none place-items-center rounded-[9px] ${CHIP_TONE[op.tone]}`}
+                    aria-hidden="true"
+                  >
+                    <Icon className={`h-4 w-4 ${isRunning ? "animate-spin" : ""}`} />
+                  </span>
+                  <div className="min-w-0 flex-1">
+                    <div className="flex items-center justify-between gap-2">
+                      <h3 className="text-[13.5px] font-semibold text-[var(--color-text)]">
                         {t(op.label.ms, op.label.en)}
                       </h3>
                       {isDone && (
-                        <span className="inline-flex items-center gap-1 text-[11px] font-semibold text-emerald-600">
+                        <span className="inline-flex items-center gap-1 rounded-full bg-[var(--color-success-soft)] px-2 py-0.5 text-[11.5px] font-semibold text-[var(--color-success)]">
                           <Check className="h-3 w-3" />
                           {t("Selesai", "Done")}
                         </span>
                       )}
                     </div>
-                    <p className="mt-0.5 text-xs text-muted-foreground">
+                    <p className="mt-0.5 text-xs leading-relaxed text-[var(--color-text-muted)]">
                       {t(op.desc.ms, op.desc.en)}
                     </p>
                     {lastRun[op.id] && (
-                      <p className="mt-1 text-[11px] text-muted-foreground">
+                      <p className="mt-1 text-[11px] tabular-nums text-[var(--color-text-muted)]">
                         {t("Terakhir", "Last run")}: {lastRun[op.id]}
                       </p>
                     )}
                     <button
                       onClick={() => runOperation(op)}
                       disabled={running !== null}
-                      className={cn(
-                        "mt-3 inline-flex items-center gap-1.5 rounded-md border px-2.5 py-1.5 text-xs font-medium disabled:opacity-50",
-                        TONE_CLASS[op.tone],
-                      )}
+                      className={`${BTN_TONE[op.tone]} mt-3 px-2.5 py-1.5 text-xs`}
                     >
-                      <Icon className={cn("h-3.5 w-3.5", isRunning && "animate-spin")} />
-                      {isRunning
-                        ? t("Sedang jalan…", "Running…")
-                        : t("Jalankan", "Run")}
+                      <Icon className={`h-3.5 w-3.5 ${isRunning ? "animate-spin" : ""}`} />
+                      {isRunning ? t("Sedang jalan…", "Running…") : t("Jalankan", "Run")}
                     </button>
                   </div>
                 </div>
@@ -169,29 +170,72 @@ export default function DataMaintenance() {
       </div>
 
       {/* Export / Import */}
-      <div className="rounded-lg border bg-white p-4">
-        <h2 className="mb-3 text-sm font-semibold">
-          {t("Eksport & Import Data", "Data Export & Import")}
-        </h2>
-        <div className="flex flex-wrap gap-2">
-          <button className="inline-flex items-center gap-1.5 rounded-md border px-3 py-2 text-xs font-medium hover:bg-muted/50">
-            <Download className="h-3.5 w-3.5" />
-            {t("Eksport Semua Data (JSON)", "Export All Data (JSON)")}
-          </button>
-          <button className="inline-flex items-center gap-1.5 rounded-md border px-3 py-2 text-xs font-medium hover:bg-muted/50">
-            <UploadCloud className="h-3.5 w-3.5" />
-            {t("Import Data", "Import Data")}
-          </button>
+      <div className={CARD}>
+        <div className="border-b border-[var(--color-border)] px-5 py-4">
+          <h2 className="text-[14.5px] font-semibold text-[var(--color-text)]">
+            {t("Eksport & Import Data", "Data Export & Import")}
+          </h2>
         </div>
-        <p className="mt-2 text-xs text-muted-foreground">
-          {t(
-            "Eksport/import akan didayakan dengan backend storage.",
-            "Export/import will be enabled with backend storage.",
-          )}
-        </p>
+        <div className="space-y-3 p-5">
+          <div className="flex flex-wrap gap-2">
+            <button
+              className={`${BTN} border-[var(--color-border)] bg-[var(--color-surface)] text-[var(--color-text)] hover:bg-[var(--color-surface-muted)]`}
+            >
+              <Download className="h-3.5 w-3.5" />
+              {t("Eksport Semua Data (JSON)", "Export All Data (JSON)")}
+            </button>
+            <button
+              className={`${BTN} border-[var(--color-border)] bg-[var(--color-surface)] text-[var(--color-text)] hover:bg-[var(--color-surface-muted)]`}
+            >
+              <UploadCloud className="h-3.5 w-3.5" />
+              {t("Import Data", "Import Data")}
+            </button>
+          </div>
+          <p className="text-xs text-[var(--color-text-muted)]">
+            {t(
+              "Eksport/import akan didayakan dengan backend storage.",
+              "Export/import will be enabled with backend storage.",
+            )}
+          </p>
+        </div>
       </div>
 
-      <p className="text-xs text-muted-foreground">
+      {/* Danger zone — border danger-soft + butang danger */}
+      <div
+        className="rounded-[var(--radius-panel)] border bg-[var(--color-surface)]"
+        style={{ borderColor: "var(--color-danger-soft)" }}
+      >
+        <div
+          className="border-b px-5 py-4"
+          style={{ borderColor: "var(--color-danger-soft)" }}
+        >
+          <h2 className="text-[14.5px] font-semibold text-[var(--color-danger)]">
+            {t("Zon Bahaya", "Danger Zone")}
+          </h2>
+        </div>
+        <div className="space-y-3 p-5">
+          <p className="text-[13px] leading-relaxed text-[var(--color-text-secondary)]">
+            {t(
+              "Padam log lama dan data usang secara permanen. Tindakan direkodkan dalam log audit.",
+              "Permanently delete old logs and stale data. Actions are recorded in the audit log.",
+            )}
+          </p>
+          <div className="flex flex-wrap gap-2">
+            <button className={`${BTN} border-[color-mix(in_srgb,var(--color-danger)_35%,var(--color-border))] bg-[var(--color-surface)] text-[var(--color-danger)] hover:bg-[var(--color-danger-soft)]`}>
+              <Trash2 className="h-3.5 w-3.5" />
+              {t("Kosongkan Data Lama", "Purge Old Data")}
+            </button>
+            <button
+              className={`${BTN} border-transparent bg-transparent text-[var(--color-text-secondary)] hover:bg-[var(--color-surface-muted)] hover:text-[var(--color-text)]`}
+            >
+              <HardDrive className="h-3.5 w-3.5" />
+              {t("Padam Log Lama", "Purge Old Logs")}
+            </button>
+          </div>
+        </div>
+      </div>
+
+      <p className="text-xs text-[var(--color-text-muted)]">
         {t(
           "Operasi olok-olok — penyelenggaraan sebenar akan didayakan pada fasa backend.",
           "Mock operations — real maintenance will be enabled in the backend phase.",

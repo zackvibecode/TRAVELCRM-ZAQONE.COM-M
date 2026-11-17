@@ -1,813 +1,375 @@
-﻿import { useCallback, useEffect, useMemo, useState } from "react";
+﻿import { useMemo, useRef, useState } from "react";
 import {
-  Users,
+  UsersRound,
+  Sparkles,
+  RefreshCw,
+  BadgeCheck,
   Search,
-  MessageCircle,
-  Filter,
-  LayoutGrid,
-  List as ListIcon,
-  Plus,
-  TrendingUp,
-  CalendarClock,
+  Download,
+  UserPlus,
+  ArrowRightLeft,
+  Phone,
+  FileText,
+  Wallet,
+  CalendarCheck,
+  AlertCircle,
+  CheckCircle2,
+  X,
 } from "lucide-react";
-import { mockLeads } from "@/lib/mock-data";
-import { apiFetch } from "@/lib/api";
-import {
-  LEAD_STAGES,
-  type Lead,
-  type LeadActivity,
-  type LeadStage,
-  type LeadSource,
-} from "@/lib/types";
-import { cn, waLink , formatRinggit } from "@/lib/utils";
+import { cn } from "@/lib/utils";
 import { useLang } from "@/lib/i18n";
-import LeadDetailDrawer from "@/components/LeadDetailDrawer";
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Badge } from "@/components/ui/badge";
-import {
-  Card,
-  CardContent,
-  CardHeader,
-  CardTitle,
-} from "@/components/ui/card";
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from "@/components/ui/table";
 
-const SOURCE_LABELS: Record<LeadSource, string> = {
-  website: "Website",
-  whatsapp: "WhatsApp",
-  instagram: "Instagram",
-  referral: "Referral",
-  walk_in: "Walk-in",
-  campaign: "Campaign",
+const STAGES = ["New", "Contacted", "Quotation", "Booking"] as const;
+const SOURCES = ["Instagram", "Website", "Referral", "WhatsApp", "Travel fair"];
+
+type Stage = (typeof STAGES)[number];
+type HistoryIcon = "sparkles" | "phone" | "file-text" | "wallet" | "calendar-check" | "alert-circle" | "arrow-right-left" | "badge-check";
+
+/** Prototype leads (CONTACTS where kind === "lead"). */
+interface Lead {
+  id: string;
+  name: string;
+  initials: string;
+  email: string;
+  phone: string;
+  city: string;
+  stage: Stage;
+  source: string;
+  value: number;
+  trip: string;
+  owner: string;
+  created: string;
+  note: string;
+  history: { icon: HistoryIcon; text: string; time: string }[];
+}
+
+const HISTORY_ICONS: Record<HistoryIcon, typeof Sparkles> = {
+  sparkles: Sparkles,
+  phone: Phone,
+  "file-text": FileText,
+  wallet: Wallet,
+  "calendar-check": CalendarCheck,
+  "alert-circle": AlertCircle,
+  "arrow-right-left": ArrowRightLeft,
+  "badge-check": BadgeCheck,
 };
 
-function formatRupiah(value: number): string {
-  return formatRinggit(value);
-}
+const INITIAL_LEADS: Lead[] = [
+  { id: "c1", name: "Rani Kusuma", initials: "RK", email: "rani.kusuma@mail.my", phone: "012 334 5511", city: "Penang", stage: "New", source: "Instagram", value: 4850, trip: "Langkawi 4D3N", owner: "Rizky Putra", created: "Today, 08:42", note: "Requested a Langkawi itinerary for a family of four.", history: [{ icon: "sparkles", text: "Lead captured from the Instagram campaign", time: "Today, 08:42" }] },
+  { id: "c2", name: "Dimas Prakoso", initials: "DP", email: "dimas.prakoso@mail.my", phone: "013 221 7788", city: "Kuala Lumpur", stage: "Contacted", source: "Website", value: 6200, trip: "Perhentian 6D5N", owner: "Nadia Sari", created: "Yesterday, 15:10", note: "Called once, waiting to confirm the departure date.", history: [{ icon: "phone", text: "6-minute call — asked about seat availability", time: "Yesterday, 16:20" }, { icon: "sparkles", text: "Lead captured from the Perhentian destination form", time: "Yesterday, 15:10" }] },
+  { id: "c3", name: "Siti Nurhaliza", initials: "SN", email: "siti.nur@mail.my", phone: "017 889 0022", city: "Johor Bahru", stage: "Quotation", source: "Referral", value: 12400, trip: "Umrah 9D", owner: "Ayu Rahma", created: "12 Feb, 10:05", note: "Quotation sent, comparing two departure dates.", history: [{ icon: "file-text", text: "9D quotation emailed to the customer", time: "12 Feb, 14:00" }, { icon: "sparkles", text: "Referral from existing customer Siti Rahmawati", time: "12 Feb, 10:05" }] },
+  { id: "c4", name: "Adi Nugroho", initials: "AN", email: "adi.nugroho@mail.my", phone: "011 445 6677", city: "Ipoh", stage: "Booking", source: "WhatsApp", value: 3750, trip: "Mount Bromo Sunrise", owner: "Rizky Putra", created: "11 Feb, 09:30", note: "Deposit received, balance due before 20 Feb.", history: [{ icon: "wallet", text: "RM 1,000 deposit received", time: "11 Feb, 13:15" }, { icon: "calendar-check", text: "Seats held for 2 passengers", time: "11 Feb, 10:02" }] },
+  { id: "c5", name: "Nadia Sari (internal)", initials: "NS", email: "nadia.workspace@zaqone.my", phone: "011 221 3344", city: "Kuala Lumpur", stage: "New", source: "Travel fair", value: 2900, trip: "Borneo 5D4N", owner: "Nadia Sari", created: "10 Feb, 17:44", note: "Travel fair contact; needs re-check because the record looks duplicated.", history: [{ icon: "alert-circle", text: "Flagged as similar to an internal staff contact", time: "10 Feb, 17:45" }] },
+];
 
-/** Map a D1 lead row (snake_case-ish, nullable fields) to the UI Lead type. */
-function mapLead(row: Record<string, unknown>): Lead {
-  return {
-    id: String(row.id),
-    name: String(row.name ?? ""),
-    phone: String(row.phone ?? ""),
-    email: String(row.email ?? ""),
-    destination: String(row.destination ?? ""),
-    pax: Number(row.pax ?? 1),
-    budget: Number(row.budget ?? 0),
-    stage: (row.stage as LeadStage) ?? "new",
-    source: (row.sourceId as LeadSource) ?? "website",
-    assignedTo: String(row.assignedTo ?? ""),
-    nextFollowUp: row.nextFollowUp ? String(row.nextFollowUp) : undefined,
-    lastActivityAt: String(row.lastActivityAt ?? "").replace(" ", "T"),
-    notes: row.notes ? String(row.notes) : undefined,
-    activities: [],
-    createdAt: String(row.createdAt ?? "").replace(" ", "T"),
+const ringgit = (v: number) => `RM ${v.toLocaleString("en-MY")}`;
+
+function stageTone(stage: Stage): { bg: string; fg: string } {
+  const map: Record<Stage, { bg: string; fg: string }> = {
+    New: { bg: "var(--color-info-soft)", fg: "var(--color-info)" },
+    Contacted: { bg: "var(--color-warning-soft)", fg: "var(--color-warning)" },
+    Quotation: { bg: "var(--color-neutral-soft)", fg: "var(--color-text-secondary)" },
+    Booking: { bg: "var(--color-success-soft)", fg: "var(--color-success)" },
   };
+  return map[stage];
 }
 
-function stageBadgeClass(stage: LeadStage): string {
-  switch (stage) {
-    case "new":
-      return "bg-blue-50 text-blue-700 border-blue-200";
-    case "contacted":
-      return "bg-amber-50 text-amber-700 border-amber-200";
-    case "qualified":
-      return "bg-violet-50 text-violet-700 border-violet-200";
-    case "quotation":
-      return "bg-cyan-50 text-cyan-700 border-cyan-200";
-    case "won":
-      return "bg-green-50 text-green-700 border-green-200";
-    case "lost":
-      return "bg-red-50 text-red-700 border-red-200";
-  }
+function initialsOf(name: string) {
+  return name.trim().split(/\s+/).slice(0, 2).map((p) => p[0]?.toUpperCase()).join("");
+}
+
+function MetricCard({ label, icon: Icon, value, note }: { label: string; icon: typeof UsersRound; value: string; note: string }) {
+  return (
+    <div className="flex min-w-0 flex-col gap-1 rounded-[var(--radius-card)] border border-[var(--color-border)] bg-[var(--color-surface)] p-4">
+      <span className="flex items-center gap-1.5 text-[12px] font-semibold text-muted-foreground">
+        <Icon className="h-3.5 w-3.5" /> {label}
+      </span>
+      <span className="font-display text-[24px] font-bold leading-tight tracking-tight [font-variant-numeric:tabular-nums]">{value}</span>
+      <span className="text-[12px] text-muted-foreground">{note}</span>
+    </div>
+  );
 }
 
 export default function LeadsPipeline() {
   const { t } = useLang();
-  const [leads, setLeads] = useState<Lead[]>(mockLeads);
-  const [live, setLive] = useState(false);
-  const [search, setSearch] = useState("");
-  const [sourceFilter, setSourceFilter] = useState<LeadSource | "all">("all");
-  const [assigneeFilter, setAssigneeFilter] = useState<string>("all");
-  const [view, setView] = useState<"board" | "list">("board");
-  const [selectedLeadId, setSelectedLeadId] = useState<string | null>(null);
-  const [drawerOpen, setDrawerOpen] = useState(false);
+  const [leads, setLeads] = useState<Lead[]>(INITIAL_LEADS);
+  const [query, setQuery] = useState("");
+  const [source, setSource] = useState("All sources");
+  const [selectedId, setSelectedId] = useState<string>("c1");
+  const [notice, setNotice] = useState("");
+  const [formOpen, setFormOpen] = useState(false);
+  const [form, setForm] = useState({ name: "", contact: "", source: "Instagram", trip: "", note: "" });
+  const [errors, setErrors] = useState<Record<string, string>>({});
+  const toastTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
-  // Load real leads from D1; keep mock data as offline fallback.
-  const loadLeads = useCallback(async () => {
-    try {
-      const res = await apiFetch<{
-        success: boolean;
-        data: Record<string, unknown>[];
-      }>("/leads?limit=200");
-      if (res.success && Array.isArray(res.data)) {
-        setLeads(res.data.map(mapLead));
-        setLive(true);
-      }
-    } catch {
-      setLive(false);
-    }
-  }, []);
-
-  useEffect(() => {
-    void loadLeads();
-  }, [loadLeads]);
-
-  const selectedLead = useMemo(
-    () => leads.find((l) => l.id === selectedLeadId) ?? null,
-    [leads, selectedLeadId],
-  );
-
-  async function openLead(lead: Lead) {
-    setSelectedLeadId(lead.id);
-    setDrawerOpen(true);
-    if (live) {
-      try {
-        const res = await apiFetch<{
-          success: boolean;
-          data: {
-            activities: {
-              id: string;
-              type: LeadActivity["type"];
-              text: string;
-              user: string;
-              at: string;
-            }[];
-          };
-        }>(`/leads/${lead.id}`);
-        if (res.success && Array.isArray(res.data.activities)) {
-          const acts: LeadActivity[] = res.data.activities.map((a) => ({
-            id: a.id,
-            type: a.type,
-            text: a.text,
-            user: a.user,
-            at: String(a.at).replace(" ", "T"),
-          }));
-          setLeads((p) =>
-            p.map((l) => (l.id === lead.id ? { ...l, activities: acts } : l)),
-          );
-        }
-      } catch {
-        // keep existing activities
-      }
-    }
-  }
-
-  async function handleStageChange(leadId: string, stage: LeadStage) {
-    const prevLead = leads.find((l) => l.id === leadId);
-    setLeads((prev) =>
-      prev.map((l) =>
-        l.id === leadId
-          ? {
-              ...l,
-              stage,
-              activities: [
-                ...l.activities,
-                {
-                  id: `la-${Date.now()}`,
-                  at: new Date().toISOString(),
-                  type: "stage_change" as const,
-                  text: `${LEAD_STAGES.find((s) => s.value === l.stage)?.label} → ${LEAD_STAGES.find((s) => s.value === stage)?.label}`,
-                  user: "Anda (Sales)",
-                },
-              ],
-            }
-          : l,
-      ),
-    );
-    if (live) {
-      try {
-        await apiFetch(`/leads/${leadId}/stage`, {
-          method: "POST",
-          body: JSON.stringify({ stage }),
-        });
-      } catch {
-        if (prevLead) setLeads((p) => p.map((l) => (l.id === leadId ? prevLead : l)));
-      }
-    }
-  }
-
-  async function handleAssigneeChange(leadId: string, assignee: string) {
-    const prevLead = leads.find((l) => l.id === leadId);
-    setLeads((prev) =>
-      prev.map((l) =>
-        l.id === leadId
-          ? {
-              ...l,
-              assignedTo: assignee,
-              activities: [
-                ...l.activities,
-                {
-                  id: `la-${Date.now()}`,
-                  at: new Date().toISOString(),
-                  type: "note" as const,
-                  text: `Lead di-assign ke ${assignee}.`,
-                  user: "Anda (Sales)",
-                },
-              ],
-            }
-          : l,
-      ),
-    );
-    if (live) {
-      try {
-        await apiFetch(`/leads/${leadId}`, {
-          method: "PATCH",
-          body: JSON.stringify({ assignedTo: assignee }),
-        });
-      } catch {
-        if (prevLead) setLeads((p) => p.map((l) => (l.id === leadId ? prevLead : l)));
-      }
-    }
-  }
-
-  async function handleFollowUpChange(leadId: string, date: string | null) {
-    const prevLead = leads.find((l) => l.id === leadId);
-    setLeads((prev) =>
-      prev.map((l) =>
-        l.id === leadId
-          ? {
-              ...l,
-              nextFollowUp: date ?? undefined,
-              activities: [
-                ...l.activities,
-                {
-                  id: `la-${Date.now()}`,
-                  at: new Date().toISOString(),
-                  type: "note" as const,
-                  text: date
-                    ? `Follow-up dijadwalkan: ${date}.`
-                    : "Follow-up dihapus.",
-                  user: "Anda (Sales)",
-                },
-              ],
-            }
-          : l,
-      ),
-    );
-    if (live) {
-      try {
-        await apiFetch(`/leads/${leadId}`, {
-          method: "PATCH",
-          body: JSON.stringify({ nextFollowUp: date }),
-        });
-      } catch {
-        if (prevLead) setLeads((p) => p.map((l) => (l.id === leadId ? prevLead : l)));
-      }
-    }
-  }
-
-  async function handleActivityAdd(
-    leadId: string,
-    type: "note" | "call" | "whatsapp" | "email" | "stage_change",
-    text: string,
-  ) {
-    const prevLead = leads.find((l) => l.id === leadId);
-    setLeads((prev) =>
-      prev.map((l) =>
-        l.id === leadId
-          ? {
-              ...l,
-              activities: [
-                ...l.activities,
-                {
-                  id: `la-${Date.now()}`,
-                  at: new Date().toISOString(),
-                  type,
-                  text,
-                  user: "Anda (Sales)",
-                },
-              ],
-              lastActivityAt: new Date().toISOString(),
-            }
-          : l,
-      ),
-    );
-    if (live && type !== "stage_change") {
-      try {
-        await apiFetch(`/leads/${leadId}/activities`, {
-          method: "POST",
-          body: JSON.stringify({ type, text }),
-        });
-      } catch {
-        if (prevLead) setLeads((p) => p.map((l) => (l.id === leadId ? prevLead : l)));
-      }
-    }
-  }
-
-  // Follow-up reminders: open leads with follow-up today or overdue.
-  const today = new Date().toISOString().slice(0, 10);
-  const reminders = useMemo(
-    () =>
-      leads.filter(
-        (l) =>
-          l.stage !== "won" &&
-          l.stage !== "lost" &&
-          l.nextFollowUp &&
-          l.nextFollowUp <= today,
-      ),
-    [leads, today],
-  );
-
-  const assignees = useMemo(
-    () => Array.from(new Set(leads.map((l) => l.assignedTo))).sort(),
-    [leads],
-  );
-
-  // Per-source summary: lead count + open pipeline value per source.
-  const sourceSummary = useMemo(() => {
-    const map = new Map<
-      LeadSource,
-      { count: number; openCount: number; pipelineValue: number; won: number }
-    >();
-    for (const lead of leads) {
-      const entry = map.get(lead.source) ?? {
-        count: 0,
-        openCount: 0,
-        pipelineValue: 0,
-        won: 0,
-      };
-      entry.count += 1;
-      if (lead.stage !== "won" && lead.stage !== "lost") {
-        entry.openCount += 1;
-        entry.pipelineValue += lead.budget;
-      }
-      if (lead.stage === "won") entry.won += 1;
-      map.set(lead.source, entry);
-    }
-    return Object.entries(SOURCE_LABELS).map(([key, label]) => ({
-      source: key as LeadSource,
-      label,
-      ...(map.get(key as LeadSource) ?? {
-        count: 0,
-        openCount: 0,
-        pipelineValue: 0,
-        won: 0,
-      }),
-    }));
-  }, [leads]);
-
-  const filtered = useMemo(() => {
-    const q = search.toLowerCase();
-    return leads.filter((lead) => {
-      if (q) {
-        if (
-          !lead.name.toLowerCase().includes(q) &&
-          !lead.destination.toLowerCase().includes(q) &&
-          !lead.phone.toLowerCase().includes(q)
-        ) {
-          return false;
-        }
-      }
-      if (sourceFilter !== "all" && lead.source !== sourceFilter) return false;
-      if (assigneeFilter !== "all" && lead.assignedTo !== assigneeFilter)
-        return false;
-      return true;
+  const visible = useMemo(() => {
+    const q = query.trim().toLowerCase();
+    return leads.filter((c) => {
+      const matchQuery = !q || c.name.toLowerCase().includes(q) || c.email.toLowerCase().includes(q) || c.city.toLowerCase().includes(q) || c.trip.toLowerCase().includes(q);
+      const matchSource = source === "All sources" || c.source === source;
+      return matchQuery && matchSource;
     });
-  }, [leads, search, sourceFilter, assigneeFilter]);
+  }, [leads, query, source]);
 
-  const byStage = useMemo(() => {
-    const map = new Map<LeadStage, Lead[]>();
-    for (const stage of LEAD_STAGES) map.set(stage.value, []);
-    for (const lead of filtered) map.get(lead.stage)!.push(lead);
-    return map;
-  }, [filtered]);
+  const selected = leads.find((c) => c.id === selectedId) ?? visible[0] ?? null;
+  const newLeads = leads.filter((c) => c.stage === "New").length;
+  const inProgress = leads.filter((c) => c.stage === "Contacted" || c.stage === "Quotation").length;
+  const pipelineValue = leads.reduce((s, c) => s + c.value, 0);
 
-  const kpi = useMemo(() => {
-    const open = filtered.filter(
-      (l) => l.stage !== "won" && l.stage !== "lost",
+  function showNotice(message: string) {
+    if (toastTimer.current) clearTimeout(toastTimer.current);
+    setNotice(message);
+    toastTimer.current = setTimeout(() => setNotice(""), 4000);
+  }
+
+  function moveStage(nextStage: Stage) {
+    if (!selected) return;
+    setLeads((current) =>
+      current.map((c) =>
+        c.id === selected.id
+          ? { ...c, stage: nextStage, history: [{ icon: "arrow-right-left", text: `Stage moved to ${nextStage}`, time: "Just now" }, ...c.history] }
+          : c,
+      ),
     );
-    const won = filtered.filter((l) => l.stage === "won");
-    const pipelineValue = open.reduce((s, l) => s + l.budget, 0);
-    const conversion =
-      won.length + filtered.filter((l) => l.stage === "lost").length > 0
-        ? Math.round(
-            (won.length /
-              (won.length + filtered.filter((l) => l.stage === "lost").length)) *
-              100,
-          )
-        : 0;
-    const followUps = open.filter(
-      (l) => l.nextFollowUp && l.nextFollowUp <= "2026-11-18",
-    ).length;
-    return {
-      totalLeads: filtered.length,
-      openLeads: open.length,
-      pipelineValue,
-      conversion,
-      followUps,
+    showNotice(`${selected.name} ${t("dipindahkan ke", "moved to")} ${nextStage}`);
+  }
+
+  function convertToCustomer() {
+    if (!selected) return;
+    setLeads((current) =>
+      current.map((c) =>
+        c.id === selected.id
+          ? { ...c, history: [{ icon: "badge-check", text: "Lead converted to a customer", time: "Just now" }, ...c.history] }
+          : c,
+      ),
+    );
+    showNotice(`${selected.name} ${t("kini direkodkan sebagai pelanggan", "is now recorded as a customer")}`);
+  }
+
+  function submitLead(e: React.FormEvent) {
+    e.preventDefault();
+    const next: Record<string, string> = {};
+    if (!form.name.trim()) next.name = "Name is required";
+    if (!form.contact.trim()) next.contact = "Email or phone number is required";
+    setErrors(next);
+    if (Object.keys(next).length > 0) return;
+
+    const isEmail = form.contact.includes("@");
+    const id = `c-${Date.now()}`;
+    const newLead: Lead = {
+      id,
+      name: form.name.trim(),
+      initials: initialsOf(form.name),
+      email: isEmail ? form.contact.trim() : "Not provided",
+      phone: isEmail ? "Not provided" : form.contact.trim(),
+      city: "Not provided",
+      stage: "New",
+      source: form.source,
+      value: 0,
+      trip: form.trip || "Not decided",
+      owner: "Ayu Rahma",
+      created: "Just now",
+      note: form.note || "No notes yet.",
+      history: [{ icon: "sparkles", text: "Lead added manually", time: "Just now" }],
     };
-  }, [filtered]);
+    setLeads((current) => [newLead, ...current]);
+    setSelectedId(id);
+    setQuery("");
+    setSource("All sources");
+    setForm({ name: "", contact: "", source: "Instagram", trip: "", note: "" });
+    setFormOpen(false);
+    showNotice(`${newLead.name} ${t("ditambah ke pipeline lead", "added to the lead pipeline")}`);
+  }
 
   return (
-    <div className="space-y-6">
-      {/* Header */}
-      <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-        <div>
-          <h1 className="font-display text-2xl font-bold tracking-tight">
-            {t("Saluran Leads", "Leads Pipeline")}
-          </h1>
-          <p className="text-sm text-muted-foreground">
-            {t(
-              "Jejaki prospek daripada pertanyaan sehingga closing.",
-              "Track prospects from enquiry through to closing.",
-            )}
+    <div className="flex flex-col gap-5">
+      <header className="flex flex-wrap items-end justify-between gap-4">
+        <div className="min-w-0">
+          <h1 className="m-0 font-display text-[22px] font-bold tracking-tight">{t("Saluran Leads", "Leads Pipeline")}</h1>
+          <p className="mt-1.5 text-[13px] text-muted-foreground">
+            {leads.length} {t("lead dalam pipeline", "leads in pipeline")} · {t("nilai pipeline", "pipeline value")} {ringgit(pipelineValue)}
           </p>
         </div>
-        <Button className="gap-2">
-          <Plus className="h-4 w-4" />
-          {t("Tambah Lead", "Add Lead")}
-        </Button>
-      </div>
-
-      {/* KPI cards */}
-      <div className="grid grid-cols-2 gap-4 lg:grid-cols-4">
-        <Card>
-          <CardHeader className="pb-2">
-            <CardTitle className="flex items-center gap-2 text-xs font-medium text-muted-foreground">
-              <Users className="h-4 w-4" /> {t("Jumlah Leads", "Total Leads")}
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            <p className="font-display text-2xl font-bold">{kpi.totalLeads}</p>
-            <p className="text-xs text-muted-foreground">
-              {kpi.openLeads} {t("aktif", "active")}
-            </p>
-          </CardContent>
-        </Card>
-        <Card>
-          <CardHeader className="pb-2">
-            <CardTitle className="flex items-center gap-2 text-xs font-medium text-muted-foreground">
-              <TrendingUp className="h-4 w-4" /> {t("Nilai Paip", "Pipeline Value")}
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            <p className="font-display text-2xl font-bold">
-              {formatRupiah(kpi.pipelineValue)}
-            </p>
-            <p className="text-xs text-muted-foreground">
-              {t("anggaran bajet aktif", "estimated active budget")}
-            </p>
-          </CardContent>
-        </Card>
-        <Card>
-          <CardHeader className="pb-2">
-            <CardTitle className="flex items-center gap-2 text-xs font-medium text-muted-foreground">
-              <TrendingUp className="h-4 w-4" /> {t("Kadar Menang", "Win Rate")}
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            <p className="font-display text-2xl font-bold">{kpi.conversion}%</p>
-            <p className="text-xs text-muted-foreground">won vs lost</p>
-          </CardContent>
-        </Card>
-        <Card>
-          <CardHeader className="pb-2">
-            <CardTitle className="flex items-center gap-2 text-xs font-medium text-muted-foreground">
-              <CalendarClock className="h-4 w-4" /> {t("Susulan Hampir", "Follow-ups Soon")}
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            <p className="font-display text-2xl font-bold">{kpi.followUps}</p>
-            <p className="text-xs text-muted-foreground">
-              {t("2 hari akan datang", "next 2 days")}
-            </p>
-          </CardContent>
-        </Card>
-      </div>
-
-      {/* Lead source summary / quick filter bar */}
-      <div className="flex flex-wrap gap-2">
-        {sourceSummary.map((s) => (
-          <button
-            key={s.source}
-            onClick={() =>
-              setSourceFilter(sourceFilter === s.source ? "all" : s.source)
-            }
-            className={cn(
-              "flex items-center gap-2 rounded-full border px-3 py-1.5 text-xs transition-colors",
-              sourceFilter === s.source
-                ? "border-primary bg-primary text-white"
-                : "border-border bg-background text-muted-foreground hover:border-primary/40 hover:text-foreground",
-            )}
-            title={`${s.openCount} aktif • pipeline ${formatRupiah(s.pipelineValue)}`}
-          >
-            <span className="font-medium">{s.label}</span>
-            <span
-              className={cn(
-                "rounded-full px-1.5 py-0.5 text-[10px] font-semibold",
-                sourceFilter === s.source
-                  ? "bg-white/20 text-white"
-                  : "bg-muted text-foreground",
-              )}
-            >
-              {s.count}
-            </span>
-            <span
-              className={cn(
-                "text-[10px]",
-                sourceFilter === s.source
-                  ? "text-white/80"
-                  : "text-muted-foreground",
-              )}
-            >
-              {s.won > 0 ? `${s.won} won` : formatRupiah(s.pipelineValue)}
-            </span>
+        <div className="flex flex-wrap gap-2">
+          <button type="button" onClick={() => showNotice(t("Senarai lead (CSV) sedia untuk dimuat turun", "Contact list (CSV) is ready to download"))} className="inline-flex items-center gap-1.5 rounded-lg border border-[var(--color-border)] bg-[var(--color-surface)] px-3.5 py-2 text-[13px] font-semibold hover:bg-[var(--color-surface-muted)]">
+            <Download className="h-3.5 w-3.5" /> {t("Eksport", "Export")}
           </button>
-        ))}
-      </div>
+          <button type="button" onClick={() => { setErrors({}); setFormOpen(true); }} className="inline-flex items-center gap-1.5 rounded-lg bg-[var(--color-primary)] px-3.5 py-2 text-[13px] font-semibold text-[var(--color-on-primary)] hover:bg-[var(--color-primary-hover)]">
+            <UserPlus className="h-3.5 w-3.5" /> {t("Tambah Lead", "Add lead")}
+          </button>
+        </div>
+      </header>
 
-      {/* Follow-up reminders */}
-      {reminders.length > 0 && (
-        <Card className="border-amber-200 bg-amber-50/50">
-          <CardContent className="space-y-2 p-4">
-            <p className="flex items-center gap-2 text-sm font-semibold text-amber-800">
-              <CalendarClock className="h-4 w-4" />
-              Follow-up perlu tindakan ({reminders.length})
-            </p>
-            <div className="flex flex-wrap gap-2">
-              {reminders.map((lead) => {
-                const overdue = lead.nextFollowUp! < today;
+      <section className="grid grid-cols-2 gap-3 xl:grid-cols-4" aria-label={t("Ringkasan lead", "Lead summary")}>
+        <MetricCard label={t("Jumlah Lead", "Total leads")} icon={UsersRound} value={String(leads.length)} note={t("Semua lead dalam pipeline", "All leads in pipeline")} />
+        <MetricCard label={t("Lead Baharu", "New leads")} icon={Sparkles} value={String(newLeads)} note={t("Belum dihubungi", "Not contacted yet")} />
+        <MetricCard label={t("Dalam Proses", "In progress")} icon={RefreshCw} value={String(inProgress)} note={t("Dihubungi & sebut harga", "Contacted and quoted")} />
+        <MetricCard label={t("Nilai Pipeline", "Pipeline value")} icon={BadgeCheck} value={ringgit(pipelineValue)} note={t("Jumlah nilai semua lead", "Total value of all leads")} />
+      </section>
+
+      <div className="grid min-w-0 grid-cols-1 gap-5 lg:grid-cols-[minmax(0,1fr)_340px]">
+        <section className="min-w-0 overflow-hidden rounded-[var(--radius-panel)] border border-[var(--color-border)] bg-[var(--color-surface)]">
+          <div className="px-4 pt-4">
+            <div className="flex flex-wrap gap-1 border-b border-[var(--color-border)]" role="tablist">
+              <button type="button" role="tab" aria-selected="true" className="inline-flex items-center gap-2 border-b-2 border-[var(--color-primary)] px-3 pb-3 pt-1.5 text-[13.5px] font-semibold text-[var(--color-primary)]">
+                {t("Leads", "Leads")} <span className="rounded-full bg-[var(--color-primary-soft)] px-1.5 text-[11px] font-bold text-[var(--color-primary)]">{leads.length}</span>
+              </button>
+            </div>
+            <div className="flex flex-wrap gap-2 py-3">
+              <div className="flex min-w-0 max-w-[300px] flex-1 items-center gap-2 rounded-lg border border-[var(--color-border)] bg-[var(--color-surface-raised)] px-3 py-2">
+                <Search className="h-3.5 w-3.5 text-muted-foreground" />
+                <input type="search" value={query} onChange={(e) => setQuery(e.target.value)} placeholder={t("Cari nama, emel, bandar…", "Search name, email, city…")} aria-label={t("Cari lead", "Search leads")} className="min-w-0 flex-1 border-0 bg-transparent text-[13px] outline-none" />
+              </div>
+              <label className="flex items-center gap-1.5 text-[12px] text-muted-foreground">
+                Source
+                <select value={source} onChange={(e) => setSource(e.target.value)} className="rounded-lg border border-[var(--color-border)] bg-[var(--color-surface)] px-2 py-2 text-[13px]">
+                  <option>All sources</option>
+                  {SOURCES.map((s) => <option key={s}>{s}</option>)}
+                </select>
+              </label>
+            </div>
+          </div>
+
+          {visible.length === 0 ? (
+            <div className="px-5 py-12 text-center text-muted-foreground">
+              <p className="m-0 font-semibold text-foreground">{t("Tiada lead sepadan", "No leads match")}</p>
+              <p className="mb-4 mt-1.5 text-[13px]">{t("Tukar kata kunci atau pilih sumber lain.", "Change the keyword or pick another source.")}</p>
+              <button type="button" onClick={() => { setQuery(""); setSource("All sources"); }} className="rounded-lg border border-[var(--color-border)] px-3 py-1.5 text-[12px] font-semibold">Reset filters</button>
+            </div>
+          ) : (
+            <ul className="m-0 list-none p-0">
+              {visible.map((lead) => {
+                const pill = stageTone(lead.stage);
                 return (
-                  <button
-                    key={lead.id}
-                    onClick={() => openLead(lead)}
-                    className={cn(
-                      "flex items-center gap-2 rounded-full border px-3 py-1.5 text-xs font-medium transition-colors",
-                      overdue
-                        ? "border-red-200 bg-red-50 text-red-700 hover:bg-red-100"
-                        : "border-amber-200 bg-amber-100/70 text-amber-800 hover:bg-amber-200/70",
-                    )}
-                  >
-                    {lead.name} • {lead.destination}
-                    <Badge
-                      variant="outline"
-                      className={cn(
-                        "px-1.5 py-0 text-[10px]",
-                        overdue
-                          ? "border-red-300 bg-red-100 text-red-800"
-                          : "border-amber-300 bg-amber-50 text-amber-800",
-                      )}
-                    >
-                      {overdue
-                        ? t("Tertunggak", "Overdue") + ` ${lead.nextFollowUp}`
-                        : t("Hari ini", "Today")}
-                    </Badge>
-                  </button>
+                  <li key={lead.id}>
+                    <button type="button" onClick={() => setSelectedId(lead.id)} aria-current={selected?.id === lead.id ? "true" : undefined} className={cn("flex w-full items-center gap-3 border-b border-[var(--color-border)] px-4 py-3 text-left transition-colors last:border-b-0 hover:bg-[var(--color-surface-raised)]", selected?.id === lead.id && "bg-[var(--color-primary-soft)]")}>
+                      <span className="grid h-9 w-9 flex-none place-items-center rounded-full bg-[var(--color-neutral-soft)] text-[12px] font-bold text-[var(--color-text-secondary)]">{lead.initials}</span>
+                      <div className="min-w-0 flex-1">
+                        <p className="m-0 truncate text-[13.5px] font-semibold">{lead.name}</p>
+                        <div className="mt-0.5 flex flex-wrap gap-x-1.5 gap-y-0.5 text-[11.5px] text-muted-foreground">
+                          <span>{lead.trip}</span><span>{lead.source}</span><span className="max-md:hidden">{lead.owner}</span>
+                        </div>
+                      </div>
+                      <div className="flex flex-none flex-col items-end gap-1.5">
+                        <span className="rounded-full px-2 py-0.5 text-[11.5px] font-semibold" style={{ background: pill.bg, color: pill.fg }}>{lead.stage}</span>
+                        <span className="text-[12px] font-semibold text-[var(--color-text-secondary)] [font-variant-numeric:tabular-nums]">{lead.value > 0 ? ringgit(lead.value) : "—"}</span>
+                      </div>
+                    </button>
+                  </li>
                 );
               })}
+            </ul>
+          )}
+        </section>
+
+        <aside className="min-w-0 overflow-hidden rounded-[var(--radius-panel)] border border-[var(--color-border)] bg-[var(--color-surface)]">
+          {!selected ? (
+            <div className="flex flex-col gap-1.5 p-5">
+              <p className="m-0 font-semibold">{t("Pilih lead", "Select a lead")}</p>
+              <p className="m-0 text-[13px] text-muted-foreground">{t("Butiran lead dan tindakan pipeline dipaparkan di sini.", "Lead details and pipeline actions appear here.")}</p>
             </div>
-          </CardContent>
-        </Card>
-      )}
-
-      {/* Filters */}
-      <div className="flex flex-col gap-3 lg:flex-row lg:items-center">
-        <div className="relative flex-1">
-          <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-          <Input
-            placeholder={t("Cari nama, destinasi, atau no. telefon...", "Search name, destination, or phone...")}
-            value={search}
-            onChange={(e) => setSearch(e.target.value)}
-            className="pl-9"
-          />
-        </div>
-        <div className="flex flex-wrap items-center gap-2">
-          <div className="flex items-center gap-1.5 text-sm text-muted-foreground">
-            <Filter className="h-4 w-4" />
-          </div>
-          <select
-            value={sourceFilter}
-            onChange={(e) =>
-              setSourceFilter(e.target.value as LeadSource | "all")
-            }
-            className="h-9 rounded-md border border-input bg-background px-3 text-sm"
-          >
-            <option value="all">{t("Semua Sumber", "All Sources")}</option>
-            {Object.entries(SOURCE_LABELS).map(([value, label]) => (
-              <option key={value} value={value}>
-                {label}
-              </option>
-            ))}
-          </select>
-          <select
-            value={assigneeFilter}
-            onChange={(e) => setAssigneeFilter(e.target.value)}
-            className="h-9 rounded-md border border-input bg-background px-3 text-sm"
-          >
-            <option value="all">{t("Semua Ejen", "All Agents")}</option>
-            {assignees.map((a) => (
-              <option key={a} value={a}>
-                {a}
-              </option>
-            ))}
-          </select>
-          <div className="ml-auto flex items-center rounded-md border p-1">
-            <button
-              onClick={() => setView("board")}
-              className={cn(
-                "flex items-center gap-1.5 rounded px-2 py-1 text-sm",
-                view === "board"
-                  ? "bg-primary text-white"
-                  : "text-muted-foreground hover:text-foreground",
-              )}
-            >
-              <LayoutGrid className="h-4 w-4" /> Board
-            </button>
-            <button
-              onClick={() => setView("list")}
-              className={cn(
-                "flex items-center gap-1.5 rounded px-2 py-1 text-sm",
-                view === "list"
-                  ? "bg-primary text-white"
-                  : "text-muted-foreground hover:text-foreground",
-              )}
-            >
-              <ListIcon className="h-4 w-4" /> List
-            </button>
-          </div>
-        </div>
-      </div>
-
-      {/* Board view */}
-      {view === "board" && (
-        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6">
-          {LEAD_STAGES.map((stage) => {
-            const stageLeads = byStage.get(stage.value) ?? [];
-            return (
-              <div key={stage.value} className="flex flex-col gap-3">
-                <div className="flex items-center justify-between">
-                  <span className="text-sm font-semibold">{stage.label}</span>
-                  <Badge variant="secondary">{stageLeads.length}</Badge>
-                </div>
-                <div className="flex flex-col gap-3">
-                  {stageLeads.map((lead) => (
-                    <Card
-                      key={lead.id}
-                      className="cursor-pointer transition-shadow hover:shadow-md"
-                      onClick={() => openLead(lead)}
-                    >
-                      <CardContent className="space-y-2 p-3">
-                        <div className="flex items-start justify-between gap-2">
-                          <p className="text-sm font-semibold leading-tight">
-                            {lead.name}
-                          </p>
-                          <Badge
-                            variant="outline"
-                            className={cn(
-                              "shrink-0 text-[10px]",
-                              stageBadgeClass(lead.stage),
-                            )}
-                          >
-                            {SOURCE_LABELS[lead.source]}
-                          </Badge>
-                        </div>
-                        <p className="text-xs text-muted-foreground">
-                          {lead.destination} • {lead.pax} pax
-                        </p>
-                        <p className="text-xs font-medium">
-                          {formatRupiah(lead.budget)}
-                        </p>
-                        <div className="flex items-center justify-between pt-1">
-                          <span className="text-[11px] text-muted-foreground">
-                            {lead.assignedTo}
-                          </span>
-                          <a
-                            href={waLink(lead.phone)}
-                            target="_blank"
-                            rel="noreferrer"
-                            className="inline-flex h-7 w-7 items-center justify-center rounded-md bg-green-500/10 text-green-600 hover:bg-green-500/20"
-                            title={`Chat WhatsApp ${lead.name}`}
-                          >
-                            <MessageCircle className="h-3.5 w-3.5" />
-                          </a>
-                        </div>
-                        {lead.nextFollowUp && (
-                          <p className="border-t pt-1.5 text-[11px] text-primary">
-                            Follow-up: {lead.nextFollowUp}
-                          </p>
-                        )}
-                      </CardContent>
-                    </Card>
-                  ))}
-                  {stageLeads.length === 0 && (
-                    <div className="rounded-lg border border-dashed p-4 text-center text-xs text-muted-foreground">
-                      Tidak ada lead
-                    </div>
-                  )}
+          ) : (
+            <div className="flex flex-col gap-4 p-5">
+              <div className="flex items-center gap-3">
+                <span className="grid h-11 w-11 flex-none place-items-center rounded-full bg-[var(--color-surface-muted)] text-[14px] font-bold text-[var(--color-primary)]">{selected.initials}</span>
+                <div className="min-w-0">
+                  <p className="m-0 break-words text-[15px] font-bold">{selected.name}</p>
+                  <span className="mt-1 inline-block rounded-full px-2 py-0.5 text-[11.5px] font-semibold" style={{ background: stageTone(selected.stage).bg, color: stageTone(selected.stage).fg }}>{selected.stage}</span>
                 </div>
               </div>
-            );
-          })}
+              <dl className="m-0 grid grid-cols-[96px_minmax(0,1fr)] gap-x-3 gap-y-1.5 text-[13px]">
+                <dt className="text-[12px] text-muted-foreground">Email</dt><dd className="m-0 break-words">{selected.email}</dd>
+                <dt className="text-[12px] text-muted-foreground">Phone</dt><dd className="m-0 [font-variant-numeric:tabular-nums]">{selected.phone}</dd>
+                <dt className="text-[12px] text-muted-foreground">City</dt><dd className="m-0">{selected.city}</dd>
+                <dt className="text-[12px] text-muted-foreground">Package</dt><dd className="m-0">{selected.trip}</dd>
+                <dt className="text-[12px] text-muted-foreground">Value</dt><dd className="m-0 [font-variant-numeric:tabular-nums]">{selected.value > 0 ? ringgit(selected.value) : t("Tiada nilai lagi", "No value yet")}</dd>
+                <dt className="text-[12px] text-muted-foreground">Source</dt><dd className="m-0">{selected.source}</dd>
+                <dt className="text-[12px] text-muted-foreground">Owner</dt><dd className="m-0">{selected.owner}</dd>
+              </dl>
+              <div className="flex flex-col gap-1.5">
+                <p className="m-0 text-[12px] font-bold uppercase tracking-wider text-muted-foreground">Notes</p>
+                <p className="m-0 text-[13px] leading-relaxed text-[var(--color-text-secondary)]">{selected.note}</p>
+              </div>
+              <div className="flex flex-col gap-2">
+                <p className="m-0 text-[12px] font-bold uppercase tracking-wider text-muted-foreground">{t("Peringkat pipeline", "Pipeline stage")}</p>
+                <div className="flex flex-wrap gap-1.5" role="group" aria-label={t("Tukar peringkat lead", "Change lead stage")}>
+                  {STAGES.map((stage) => (
+                    <button key={stage} type="button" aria-pressed={selected.stage === stage} onClick={() => moveStage(stage)} className={cn("rounded-lg border border-[var(--color-border)] px-2.5 py-1.5 text-[12px] font-semibold hover:bg-[var(--color-surface-muted)]", selected.stage === stage && "border-[var(--color-primary)] bg-[var(--color-primary)] text-[var(--color-on-primary)]")}>
+                      {stage}
+                    </button>
+                  ))}
+                </div>
+                <button type="button" onClick={convertToCustomer} className="mt-0.5 inline-flex items-center justify-center gap-1.5 rounded-lg border border-[var(--color-border)] px-3 py-1.5 text-[12px] font-semibold hover:bg-[var(--color-surface-muted)]">
+                  <BadgeCheck className="h-3.5 w-3.5" /> {t("Tukar kepada pelanggan", "Convert to customer")}
+                </button>
+              </div>
+              <div className="flex flex-col gap-2">
+                <p className="m-0 text-[12px] font-bold uppercase tracking-wider text-muted-foreground">Activity</p>
+                <ul className="m-0 flex flex-col gap-3 p-0">
+                  {selected.history.map((entry, i) => {
+                    const Icon = HISTORY_ICONS[entry.icon] ?? Sparkles;
+                    return (
+                      <li key={`${selected.id}-${i}`} className="flex gap-2.5 text-[12.5px] text-[var(--color-text-secondary)]">
+                        <Icon className="mt-0.5 h-3.5 w-3.5 flex-none text-muted-foreground" />
+                        <div><span>{entry.text}</span><time className="mt-0.5 block text-[11px] text-muted-foreground">{entry.time}</time></div>
+                      </li>
+                    );
+                  })}
+                </ul>
+              </div>
+            </div>
+          )}
+        </aside>
+      </div>
+
+      {formOpen && (
+        <div className="fixed inset-0 z-50 grid place-items-center bg-black/40 p-4" onClick={() => setFormOpen(false)}>
+          <form onSubmit={submitLead} noValidate onClick={(e) => e.stopPropagation()} className="w-full max-w-[480px] overflow-hidden rounded-[var(--radius-panel)] bg-[var(--color-surface)] shadow-2xl">
+            <div className="flex flex-col gap-4 p-5">
+              <div>
+                <h2 className="m-0 font-display text-[17px] font-bold">{t("Tambah Lead Baharu", "Add a new lead")}</h2>
+                <p className="mb-0 mt-1 text-[12.5px] text-muted-foreground">{t("Lead bermula di peringkat New dan boleh ditindaklanjuti serta-merta.", "The lead starts in the New stage and can be followed up straight away.")}</p>
+              </div>
+              {([
+                { key: "name", label: t("Nama Penuh", "Full name"), placeholder: "Prospect name" },
+                { key: "contact", label: t("Emel atau Nombor Telefon", "Email or phone number"), placeholder: "name@mail.my or 012…" },
+              ] as const).map((f) => (
+                <div key={f.key} className="flex flex-col gap-1.5">
+                  <label className="text-[12.5px] font-semibold text-[var(--color-text-secondary)]">{f.label}</label>
+                  <input value={form[f.key]} onChange={(e) => setForm((c) => ({ ...c, [f.key]: e.target.value }))} placeholder={f.placeholder} aria-invalid={Boolean(errors[f.key])} className="w-full rounded-lg border border-[var(--color-border)] bg-[var(--color-surface)] px-3 py-2.5 text-[13px] outline-none focus:border-[var(--color-border-strong)]" />
+                  {errors[f.key] && <span className="text-[12px] text-[var(--color-danger)]">{errors[f.key]}</span>}
+                </div>
+              ))}
+              <div className="grid grid-cols-2 gap-3">
+                <div className="flex flex-col gap-1.5">
+                  <label className="text-[12.5px] font-semibold text-[var(--color-text-secondary)]">Source</label>
+                  <select value={form.source} onChange={(e) => setForm((c) => ({ ...c, source: e.target.value }))} className="rounded-lg border border-[var(--color-border)] bg-[var(--color-surface)] px-3 py-2.5 text-[13px]">{SOURCES.map((s) => <option key={s}>{s}</option>)}</select>
+                </div>
+                <div className="flex flex-col gap-1.5">
+                  <label className="text-[12.5px] font-semibold text-[var(--color-text-secondary)]">{t("Pakej diminati", "Package of interest")}</label>
+                  <input value={form.trip} onChange={(e) => setForm((c) => ({ ...c, trip: e.target.value }))} placeholder="e.g. Langkawi 4D3N" className="rounded-lg border border-[var(--color-border)] bg-[var(--color-surface)] px-3 py-2.5 text-[13px] outline-none" />
+                </div>
+              </div>
+              <div className="flex flex-col gap-1.5">
+                <label className="text-[12.5px] font-semibold text-[var(--color-text-secondary)]">Notes</label>
+                <textarea rows={3} value={form.note} onChange={(e) => setForm((c) => ({ ...c, note: e.target.value }))} placeholder={t("Keperluan, bilangan pelancong, tarikh…", "Requirements, number of travellers, dates…")} className="w-full rounded-lg border border-[var(--color-border)] bg-[var(--color-surface)] px-3 py-2.5 text-[13px] outline-none" />
+              </div>
+            </div>
+            <div className="flex justify-end gap-2 border-t border-[var(--color-border)] bg-[var(--color-surface-raised)] px-5 py-4">
+              <button type="button" onClick={() => setFormOpen(false)} className="rounded-lg px-3 py-2 text-[13px] font-semibold text-[var(--color-text-secondary)] hover:bg-[var(--color-surface-muted)]">{t("Batal", "Cancel")}</button>
+              <button type="submit" className="rounded-lg bg-[var(--color-primary)] px-4 py-2 text-[13px] font-semibold text-[var(--color-on-primary)] hover:bg-[var(--color-primary-hover)]">{t("Simpan Lead", "Save lead")}</button>
+            </div>
+          </form>
         </div>
       )}
 
-      {/* List view */}
-      {view === "list" && (
-        <Card>
-          <CardContent className="p-0">
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead>{t("Nama", "Name")}</TableHead>
-                  <TableHead>{t("Kontak", "Contact")}</TableHead>
-                  <TableHead>{t("Destinasi", "Destination")}</TableHead>
-                  <TableHead>Pax</TableHead>
-                  <TableHead>{t("Bajet", "Budget")}</TableHead>
-                  <TableHead>{t("Sumber", "Source")}</TableHead>
-                  <TableHead>{t("Peringkat", "Stage")}</TableHead>
-                  <TableHead>{t("Ejen", "Agent")}</TableHead>
-                  <TableHead>{t("Susulan", "Follow-up")}</TableHead>
-                  <TableHead className="text-right">WhatsApp</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {filtered.map((lead) => (
-                  <TableRow
-                    key={lead.id}
-                    className="cursor-pointer"
-                    onClick={() => openLead(lead)}
-                  >
-                    <TableCell className="font-medium">{lead.name}</TableCell>
-                    <TableCell>
-                      <div className="flex flex-col">
-                        <span className="text-xs">{lead.phone}</span>
-                        <span className="text-xs text-muted-foreground">
-                          {lead.email}
-                        </span>
-                      </div>
-                    </TableCell>
-                    <TableCell>{lead.destination}</TableCell>
-                    <TableCell>{lead.pax}</TableCell>
-                    <TableCell>{formatRupiah(lead.budget)}</TableCell>
-                    <TableCell>
-                      <Badge variant="outline">
-                        {SOURCE_LABELS[lead.source]}
-                      </Badge>
-                    </TableCell>
-                    <TableCell>
-                      <Badge
-                        variant="outline"
-                        className={stageBadgeClass(lead.stage)}
-                      >
-                        {LEAD_STAGES.find((s) => s.value === lead.stage)?.label}
-                      </Badge>
-                    </TableCell>
-                    <TableCell className="text-xs">
-                      {lead.assignedTo}
-                    </TableCell>
-                    <TableCell className="text-xs">
-                      {lead.nextFollowUp ?? "—"}
-                    </TableCell>
-                    <TableCell className="text-right">
-                      <a
-                        href={waLink(lead.phone)}
-                        target="_blank"
-                        rel="noreferrer"
-                        className="inline-flex h-7 w-7 items-center justify-center rounded-md bg-green-500/10 text-green-600 hover:bg-green-500/20"
-                        title={`Chat WhatsApp ${lead.name}`}
-                      >
-                        <MessageCircle className="h-3.5 w-3.5" />
-                      </a>
-                    </TableCell>
-                  </TableRow>
-                ))}
-                {filtered.length === 0 && (
-                  <TableRow>
-                    <TableCell
-                      colSpan={10}
-                      className="h-24 text-center text-muted-foreground"
-                    >
-                      Tidak ada lead yang cocok dengan filter.
-                    </TableCell>
-                  </TableRow>
-                )}
-              </TableBody>
-            </Table>
-          </CardContent>
-        </Card>
+      {notice && (
+        <div className="fixed bottom-6 right-6 z-[60] flex max-w-[340px] items-center gap-3 rounded-[var(--radius-card)] bg-[var(--color-text)] px-3.5 py-3 text-[13px] text-[var(--color-surface)] shadow-2xl" role="status" aria-live="polite">
+          <CheckCircle2 className="h-4 w-4 flex-none" />
+          <span className="flex-1">{notice}</span>
+          <button type="button" aria-label="Dismiss" onClick={() => setNotice("")} className="grid place-items-center"><X className="h-3.5 w-3.5" /></button>
+        </div>
       )}
-
-      {/* Lead detail drawer */}
-      <LeadDetailDrawer
-        lead={selectedLead}
-        open={drawerOpen}
-        onOpenChange={setDrawerOpen}
-        onStageChange={handleStageChange}
-        onAssigneeChange={handleAssigneeChange}
-        onFollowUpChange={handleFollowUpChange}
-        onActivityAdd={handleActivityAdd}
-        assignees={assignees}
-      />
     </div>
   );
 }

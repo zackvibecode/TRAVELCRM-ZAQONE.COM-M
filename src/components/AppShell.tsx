@@ -144,12 +144,12 @@ export default function AppShell() {
         </button>
 
         <div className="flex items-center gap-3 px-4 pb-5 pt-5">
-          <span className="grid h-10 w-10 flex-none place-items-center rounded-xl bg-[var(--color-primary)] font-display text-[15px] font-bold tracking-tight text-white">
+          <span className="grid h-10 w-10 flex-none place-items-center rounded-xl bg-[var(--color-primary)] font-display text-[15px] font-bold tracking-[-0.02em] text-white">
             ZA
           </span>
           {!collapsed && (
             <span className="flex min-w-0 flex-col">
-              <span className="truncate font-display text-base font-bold leading-tight tracking-tight">
+              <span className="truncate font-display text-[16px] font-bold leading-tight tracking-[-0.01em]">
                 ZAQONE
               </span>
               <span className="text-[11px] font-semibold uppercase tracking-[0.06em] text-muted-foreground">

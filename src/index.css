@@ -3,38 +3,34 @@
 @tailwind utilities;
 
 /* --------------------------------------------------------------------------
-   Design tokens — diselaraskan dengan Design System DesainPakeAI (TravelOS).
-   Token shadcn (HSL) dikekalkan untuk komponen ui/*, dan token prototaip
-   (hex) ditambah untuk gaya baharu. Keduanya menunjuk warna yang sama.
+   Design tokens — diselaraskan 100% dengan Design System DesainPakeAI
+   (TravelOS Suite). Sumber: src/styles/tokens.css + prototype-system.css.
    -------------------------------------------------------------------------- */
 @layer base {
   :root {
-    /* shadcn / Radix tokens (HSL) */
-    --background: 220 14% 96%; /* #f6f7f9 */
-    --foreground: 222 20% 10%; /* #14171f */
-    --card: 0 0% 100%;
-    --card-foreground: 222 20% 10%;
-    --popover: 0 0% 100%;
-    --popover-foreground: 222 20% 10%;
-    --primary: 358 71% 48%; /* #d1232a */
-    --primary-foreground: 0 0% 100%;
-    --secondary: 220 14% 95%; /* #f1f2f5 */
-    --secondary-foreground: 222 16% 30%;
-    --muted: 220 14% 95%;
-    --muted-foreground: 220 6% 42%; /* #6b7280 */
-    --accent: 220 14% 95%;
-    --accent-foreground: 222 16% 30%;
-    --destructive: 4 69% 43%; /* #b3261e */
-    --destructive-foreground: 0 0% 98%;
-    --border: 220 13% 89%; /* #e3e5ea */
-    --input: 220 13% 89%;
-    --ring: 358 71% 48%;
-    --radius: 0.75rem;
-
-    /* Prototype tokens (hex) — sumber: DESIGN.md DesainPakeAI */
+    /* Prototype tokens (hex) — sumber kebenaran */
     --font-body: Inter, ui-sans-serif, system-ui, -apple-system, "Segoe UI", sans-serif;
     --font-display: Montserrat, Inter, ui-sans-serif, system-ui, sans-serif;
     --font-mono: "JetBrains Mono", ui-monospace, SFMono-Regular, Menlo, monospace;
+
+    --text-caption: 12px;
+    --text-label-md: 13px;
+    --text-body-sm: 14px;
+    --text-body-md: 15px;
+    --text-body-lg: 17px;
+    --text-heading-sm: 20px;
+    --text-heading-md: 26px;
+    --text-heading-lg: 32px;
+    --text-display: 40px;
+    --weight-regular: 400;
+    --weight-medium: 500;
+    --weight-semibold: 600;
+    --weight-bold: 700;
+    --leading-tight: 1.2;
+    --leading-normal: 1.5;
+    --leading-relaxed: 1.6;
+    --tracking-tight: -0.02em;
+    --tracking-wide: 0.04em;
 
     --color-background: #f6f7f9;
     --color-surface: #ffffff;
@@ -74,6 +70,34 @@
     --radius-card: 12px;
     --radius-panel: 16px;
     --radius-pill: 999px;
+
+    --breakpoint-tablet: 768px;
+    --breakpoint-desktop: 1080px;
+  }
+
+  /* shadcn / Radix tokens (HSL) — dipetakan ke warna prototaip yang sama
+     supaya komponen ui/* sedia ada kekal konsisten. */
+  :root {
+    --background: 220 14% 96%; /* #f6f7f9 */
+    --foreground: 222 20% 10%; /* #14171f */
+    --card: 0 0% 100%;
+    --card-foreground: 222 20% 10%;
+    --popover: 0 0% 100%;
+    --popover-foreground: 222 20% 10%;
+    --primary: 358 71% 48%; /* #d1232a */
+    --primary-foreground: 0 0% 100%;
+    --secondary: 220 14% 95%; /* #f1f2f5 */
+    --secondary-foreground: 222 16% 30%;
+    --muted: 220 14% 95%;
+    --muted-foreground: 220 6% 42%; /* #6b7280 */
+    --accent: 220 14% 95%;
+    --accent-foreground: 222 16% 30%;
+    --destructive: 4 69% 43%; /* #b3261e */
+    --destructive-foreground: 0 0% 98%;
+    --border: 220 13% 89%; /* #e3e5ea */
+    --input: 220 13% 89%;
+    --ring: 358 71% 48%;
+    --radius: 0.75rem;
   }
 
   * {
@@ -87,6 +111,7 @@
   body {
     @apply bg-background text-foreground antialiased;
     color: var(--color-text);
+    margin: 0;
   }
 
   button,
@@ -102,35 +127,110 @@
 }
 
 /* --------------------------------------------------------------------------
-   Text roles from the prototype scale, exposed as plain utilities so existing
-   Tailwind classes keep working alongside them.
+   Typography roles — sepadan dengan prototype-system.css. Setiap role
+   membawa font-size, weight, line-height dan letter-spacing penuh.
    -------------------------------------------------------------------------- */
 .text-caption {
-  font-size: 12px;
+  font-size: var(--text-caption);
+  font-weight: var(--weight-regular);
+  line-height: var(--leading-normal);
+  letter-spacing: 0em;
 }
 .text-label-md {
-  font-size: 13px;
+  font-size: var(--text-label-md);
+  font-weight: var(--weight-semibold);
+  line-height: 1.4;
+  letter-spacing: 0em;
 }
 .text-body-sm {
-  font-size: 14px;
+  font-size: var(--text-body-sm);
+  font-weight: var(--weight-regular);
+  line-height: var(--leading-normal);
+  letter-spacing: 0em;
 }
 .text-body-md {
-  font-size: 15px;
+  font-size: var(--text-body-md);
+  font-weight: var(--weight-regular);
+  line-height: var(--leading-normal);
+  letter-spacing: 0em;
 }
 .text-body-lg {
-  font-size: 17px;
+  font-size: var(--text-body-lg);
+  font-weight: var(--weight-regular);
+  line-height: var(--leading-relaxed);
+  letter-spacing: 0em;
 }
 .text-heading-sm {
-  font-size: 20px;
+  font-family: var(--font-display);
+  font-size: var(--text-heading-sm);
+  font-weight: var(--weight-semibold);
+  line-height: 1.3;
+  letter-spacing: -0.01em;
 }
 .text-heading-md {
-  font-size: 26px;
+  font-family: var(--font-display);
+  font-size: var(--text-heading-md);
+  font-weight: var(--weight-semibold);
+  line-height: var(--leading-tight);
+  letter-spacing: -0.02em;
 }
 .text-heading-lg {
-  font-size: 32px;
+  font-family: var(--font-display);
+  font-size: var(--text-heading-lg);
+  font-weight: var(--weight-semibold);
+  line-height: 1.15;
+  letter-spacing: -0.025em;
 }
 .text-display {
-  font-size: 40px;
+  font-family: var(--font-display);
+  font-size: var(--text-display);
+  font-weight: var(--weight-semibold);
+  line-height: 1.15;
+  letter-spacing: -0.025em;
+}
+
+/* --------------------------------------------------------------------------
+   Shell utilities — sepadan dengan travelos-shell.layout.jsx
+   -------------------------------------------------------------------------- */
+.tvl-pagehead {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: var(--space-4);
+  flex-wrap: wrap;
+}
+.tvl-title {
+  margin: 0;
+  font-family: var(--font-display);
+  font-size: 24px;
+  line-height: 1.2;
+  letter-spacing: -0.02em;
+  font-weight: 700;
+  color: var(--color-text);
+}
+.tvl-subtitle {
+  margin: 6px 0 0;
+  font-size: 13.5px;
+  color: var(--color-text-muted);
+}
+.tvl-card {
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-panel);
+}
+.tvl-card__head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-3);
+  padding: var(--space-4) var(--space-5);
+  border-bottom: 1px solid var(--color-border);
+}
+.tvl-card__title {
+  margin: 0;
+  font-size: 14.5px;
+  font-weight: 600;
+  color: var(--color-text);
 }
 
 /* reusable surface + focus affordances used by the prototype shells */

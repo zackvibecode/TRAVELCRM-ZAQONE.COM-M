@@ -1,8 +1,59 @@
 import { useState } from "react";
 import { Link } from "react-router-dom";
-import { ArrowLeft, Languages, Mail, Plane, Send } from "lucide-react";
+import { ArrowLeft, Languages, Mail, Plane, Send, type LucideIcon } from "lucide-react";
 import { useLang } from "@/lib/i18n";
 import { requestPasswordReset } from "@/lib/auth";
+
+/* --------------------------------------------------------------- styles */
+const css = `
+.au-shell { min-height: 100vh; display: flex; align-items: center; justify-content: center; padding: var(--space-6) var(--space-4); background: var(--color-background); }
+.au-wrap { width: 100%; max-width: 400px; display: flex; flex-direction: column; gap: var(--space-5); }
+
+.au-brand { display: flex; flex-direction: column; align-items: center; gap: 8px; text-align: center; }
+.au-brand__mark { display: grid; place-items: center; width: 48px; height: 48px; border-radius: var(--radius-card); background: var(--color-primary); color: var(--color-on-primary); }
+.au-brand__name { margin: 0; font-family: var(--font-display); font-size: 24px; font-weight: 700; letter-spacing: -0.02em; color: var(--color-text); }
+.au-brand__tag { margin: 0; font-size: 11.5px; font-weight: 500; letter-spacing: 0.08em; text-transform: uppercase; color: var(--color-text-muted); }
+
+.au-panel { background: var(--color-surface); border: 1px solid var(--color-border); border-radius: var(--radius-panel); padding: var(--space-6); box-shadow: 0 8px 28px color-mix(in srgb, var(--color-text) 8%, transparent); }
+.au-panel form { display: flex; flex-direction: column; gap: var(--space-4); }
+
+.au-title { margin: 0; font-family: var(--font-display); font-size: 18px; font-weight: 700; letter-spacing: -0.01em; color: var(--color-text); }
+.au-sub { margin: 4px 0 0; font-size: 12.5px; color: var(--color-text-muted); }
+
+.au-field { display: flex; flex-direction: column; gap: 6px; min-width: 0; }
+.au-label { font-size: 12.5px; font-weight: 600; color: var(--color-text-secondary); }
+.au-control { position: relative; }
+.au-input { width: 100%; box-sizing: border-box; height: 40px; padding: 0 12px 0 36px; border: 1px solid var(--color-border); border-radius: var(--radius-control); background: var(--color-surface); font: inherit; font-size: 13px; color: var(--color-text); min-width: 0; }
+.au-input::placeholder { color: var(--color-text-muted); }
+.au-input:focus-visible { outline: 2px solid var(--color-focus-ring); outline-offset: 0; border-color: var(--color-primary); }
+.au-icon { position: absolute; left: 12px; top: 50%; transform: translateY(-50%); color: var(--color-text-muted); pointer-events: none; }
+
+.au-success { display: flex; flex-direction: column; align-items: center; gap: 10px; text-align: center; }
+.au-success__icon { display: grid; place-items: center; width: 40px; height: 40px; border-radius: var(--radius-pill); background: var(--color-success-soft); color: var(--color-success); }
+
+.au-btn { display: inline-flex; align-items: center; justify-content: center; gap: 6px; height: 40px; padding: 0 var(--space-4); border-radius: var(--radius-control); border: 1px solid var(--color-primary); background: var(--color-primary); color: var(--color-on-primary); font: inherit; font-size: 13px; font-weight: 600; cursor: pointer; transition: background 140ms ease, border-color 140ms ease; }
+.au-btn:hover { background: var(--color-primary-hover); border-color: var(--color-primary-hover); }
+.au-btn:focus-visible { outline: 2px solid var(--color-focus-ring); outline-offset: 2px; }
+.au-btn:disabled { opacity: 0.55; cursor: not-allowed; }
+
+.au-back { display: flex; align-items: center; justify-content: center; gap: 6px; padding-top: var(--space-4); border-top: 1px solid var(--color-border); margin-top: var(--space-5); }
+.au-back a { display: inline-flex; align-items: center; gap: 5px; font-size: 11.5px; font-weight: 600; color: var(--color-text-secondary); text-decoration: none; }
+.au-back a:hover { color: var(--color-text); text-decoration: underline; }
+.au-back a:focus-visible { outline: 2px solid var(--color-focus-ring); outline-offset: 2px; border-radius: 4px; }
+
+.au-foot { display: flex; justify-content: center; }
+.au-lang { display: inline-flex; align-items: center; gap: 6px; padding: 6px 10px; border: 1px solid var(--color-border); border-radius: var(--radius-control); background: var(--color-surface); color: var(--color-text-secondary); font: inherit; font-size: 11.5px; font-weight: 600; cursor: pointer; }
+.au-lang:hover { background: var(--color-surface-muted); }
+.au-lang:focus-visible { outline: 2px solid var(--color-focus-ring); outline-offset: 2px; }
+
+@media (max-width: 480px) { .au-panel { padding: var(--space-5) var(--space-4); } }
+@media (prefers-reduced-motion: reduce) { .au-btn { transition: none; } }
+`;
+
+function Ikon({ icon, size = 15, style }: { icon: LucideIcon; size?: number; style?: React.CSSProperties }) {
+  const Icon = icon;
+  return <Icon aria-hidden="true" style={{ fontSize: `${size}px`, width: size, height: size, flex: "none", ...style }} />;
+}
 
 export default function ForgotPasswordPage() {
   const { t, lang, setLang } = useLang();
@@ -23,40 +74,37 @@ export default function ForgotPasswordPage() {
   };
 
   return (
-    <div className="flex min-h-screen items-center justify-center bg-gradient-to-br from-background via-muted/40 to-background px-4 py-10">
-      <div className="w-full max-w-md">
-        <div className="mb-6 flex flex-col items-center gap-2 text-center">
-          <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-primary text-white shadow-sm">
-            <Plane className="h-6 w-6" />
+    <div className="au-shell" data-node-id="auth.forgot">
+      <style>{css}</style>
+      <div className="au-wrap">
+        <div className="au-brand">
+          <div className="au-brand__mark">
+            <Ikon icon={Plane} size={24} />
           </div>
-          <h1 className="font-display text-2xl font-bold tracking-tight">
-            ZAQONE <span className="text-primary">TRAVEL</span>
+          <h1 className="au-brand__name">
+            ZAQONE <span style={{ color: "var(--color-primary)" }}>TRAVEL</span>
           </h1>
-          <p className="text-xs font-medium uppercase tracking-widest text-muted-foreground">
+          <p className="au-brand__tag">
             {t("Ruang Kerja Staf", "Staff Workspace")} · CRM
           </p>
         </div>
 
-        <div className="rounded-xl border bg-white p-6 shadow-sm">
+        <div className="au-panel">
           {!sent ? (
-            <form onSubmit={handleSubmit} className="space-y-4">
+            <form onSubmit={handleSubmit}>
               <div>
-                <h2 className="text-lg font-semibold">
-                  {t("Lupa Kata Laluan?", "Forgot Password?")}
-                </h2>
-                <p className="mt-1 text-sm text-muted-foreground">
+                <h2 className="au-title">{t("Lupa Kata Laluan?", "Forgot Password?")}</h2>
+                <p className="au-sub">
                   {t(
                     "Masukkan emel staf anda. Kami akan hantar pautan untuk menetapkan semula kata laluan.",
                     "Enter your staff email. We'll send a link to reset your password.",
                   )}
                 </p>
               </div>
-              <div className="space-y-1.5">
-                <label htmlFor="email" className="text-sm font-medium">
-                  {t("Emel Staf", "Staff Email")}
-                </label>
-                <div className="relative">
-                  <Mail className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+              <div className="au-field">
+                <label className="au-label" htmlFor="email">{t("Emel Staf", "Staff Email")}</label>
+                <div className="au-control">
+                  <Ikon icon={Mail} size={15} style={{ position: "absolute", left: 12, top: "50%", transform: "translateY(-50%)", color: "var(--color-text-muted)", pointerEvents: "none" }} />
                   <input
                     id="email"
                     type="email"
@@ -64,30 +112,22 @@ export default function ForgotPasswordPage() {
                     value={email}
                     onChange={(e) => setEmail(e.target.value)}
                     placeholder="owner@zaqone.travel"
-                    className="h-10 w-full rounded-md border border-input bg-transparent pl-9 pr-3 text-sm shadow-sm placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
+                    className="au-input"
                   />
                 </div>
               </div>
-              <button
-                type="submit"
-                disabled={submitting}
-                className="inline-flex h-10 w-full items-center justify-center gap-2 rounded-md bg-primary px-4 text-sm font-semibold text-white hover:bg-primary/90 disabled:opacity-50"
-              >
-                <Send className="h-4 w-4" />
-                {submitting
-                  ? t("Sedang hantar…", "Sending…")
-                  : t("Hantar Pautan Reset", "Send Reset Link")}
+              <button type="submit" className="au-btn" disabled={submitting}>
+                <Ikon icon={Send} size={15} />
+                {submitting ? t("Sedang hantar…", "Sending…") : t("Hantar Pautan Reset", "Send Reset Link")}
               </button>
             </form>
           ) : (
-            <div className="space-y-3 text-center">
-              <div className="mx-auto flex h-10 w-10 items-center justify-center rounded-full bg-emerald-50 text-emerald-600">
-                <Mail className="h-5 w-5" />
+            <div className="au-success">
+              <div className="au-success__icon">
+                <Ikon icon={Mail} size={18} />
               </div>
-              <h2 className="text-lg font-semibold">
-                {t("Semak Emel Anda", "Check Your Email")}
-              </h2>
-              <p className="text-sm text-muted-foreground">
+              <h2 className="au-title">{t("Semak Emel Anda", "Check Your Email")}</h2>
+              <p className="au-sub">
                 {t(
                   `Jika akaun wujud untuk ${email}, pautan reset telah dihantar.`,
                   `If an account exists for ${email}, a reset link has been sent.`,
@@ -96,24 +136,21 @@ export default function ForgotPasswordPage() {
             </div>
           )}
 
-          <div className="mt-5 border-t pt-4">
-            <Link
-              to="/login"
-              className="inline-flex items-center gap-1.5 text-xs font-medium text-muted-foreground hover:text-foreground"
-            >
-              <ArrowLeft className="h-3.5 w-3.5" />
+          <div className="au-back">
+            <Link to="/login">
+              <Ikon icon={ArrowLeft} size={13} />
               {t("Kembali ke Log Masuk", "Back to Sign In")}
             </Link>
           </div>
         </div>
 
-        <div className="mt-6 flex justify-center">
+        <div className="au-foot">
           <button
             type="button"
+            className="au-lang"
             onClick={() => setLang(lang === "ms" ? "en" : "ms")}
-            className="inline-flex items-center gap-1.5 rounded-md border bg-white px-3 py-1.5 text-xs font-medium text-muted-foreground hover:bg-muted/50"
           >
-            <Languages className="h-3.5 w-3.5" />
+            <Ikon icon={Languages} size={13} />
             {lang === "ms" ? "English" : "Bahasa Melayu"}
           </button>
         </div>

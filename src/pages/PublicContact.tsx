@@ -1,379 +1,350 @@
-﻿import { useEffect, useState } from "react";
+﻿import { useState } from "react";
+import { Link } from "react-router-dom";
 import {
-  Send,
+  ArrowUpRight,
   CheckCircle2,
-  Phone,
+  Clock,
   Mail,
   MapPin,
-  Clock,
   MessageCircle,
+  Phone,
+  Send,
 } from "lucide-react";
-import { fetchPackages } from "@/lib/live-data";
-import { apiFetch } from "@/lib/api";
 import { useLang } from "@/lib/i18n";
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Textarea } from "@/components/ui/textarea";
-import {
-  Card,
-  CardContent,
-} from "@/components/ui/card";
 
-interface EnquiryForm {
+const WHATSAPP_URL = "https://wa.me/60123880030";
+
+interface ContactCard {
+  icon: typeof MessageCircle;
+  title: { ms: string; en: string };
+  value: string;
+  href?: string;
+  note: { ms: string; en: string };
+}
+
+const CONTACT_CARDS: ContactCard[] = [
+  {
+    icon: MessageCircle,
+    title: { ms: "WhatsApp (terpantas)", en: "WhatsApp (fastest)" },
+    value: "+60 12 388 0030",
+    href: WHATSAPP_URL,
+    note: { ms: "Sembang terus dengan pasukan jualan", en: "Chat directly with our sales team" },
+  },
+  {
+    icon: Phone,
+    title: { ms: "Telefon pejabat", en: "Office phone" },
+    value: "+60 3 2711 8899",
+    href: "tel:+60327118899",
+    note: { ms: "Isnin–Sabtu, 09.00–18.00", en: "Mon–Sat, 9am–6pm" },
+  },
+  {
+    icon: Mail,
+    title: { ms: "Email", en: "Email" },
+    value: "hello@zaqone.travel",
+    href: "mailto:hello@zaqone.travel",
+    note: { ms: "Balasan maksimum 1×24 jam bekerja", en: "Reply within 1 business day" },
+  },
+  {
+    icon: MapPin,
+    title: { ms: "Pejabat", en: "Office" },
+    value: "Jalan Ampang 88, 50450 Kuala Lumpur",
+    note: { ms: "Lawatan dengan temujanji", en: "Visits by appointment" },
+  },
+];
+
+interface MessageForm {
   name: string;
-  phone: string;
-  email: string;
-  packageName: string;
-  pax: string;
-  departureDate: string;
+  contact: string;
+  subject: string;
   message: string;
 }
 
-const EMPTY_FORM: EnquiryForm = {
-  name: "",
-  phone: "",
-  email: "",
-  packageName: "",
-  pax: "2",
-  departureDate: "",
-  message: "",
-};
+const EMPTY_FORM: MessageForm = { name: "", contact: "", subject: "", message: "" };
 
 export default function PublicContact() {
-  const { t, lang } = useLang();
-  const [form, setForm] = useState<EnquiryForm>(EMPTY_FORM);
-  const [errors, setErrors] = useState<Partial<Record<keyof EnquiryForm, string>>>({});
+  const { t, localePath } = useLang();
+  const [form, setForm] = useState<MessageForm>(EMPTY_FORM);
+  const [errors, setErrors] = useState<Partial<Record<keyof MessageForm, string>>>({});
   const [submitted, setSubmitted] = useState(false);
-  const [submitting, setSubmitting] = useState(false);
-  const [packages, setPackages] = useState<Awaited<ReturnType<typeof fetchPackages>>["packages"]>([]);
 
-  // Live packages untuk dropdown (fallback mock dalam loader).
-  useEffect(() => {
-    let cancelled = false;
-    (async () => {
-      const res = await fetchPackages();
-      if (cancelled) return;
-      setPackages(res.packages);
-    })();
-    return () => {
-      cancelled = true;
-    };
-  }, []);
-
-  const set = (key: keyof EnquiryForm, value: string) => {
+  const set = (key: keyof MessageForm, value: string) => {
     setForm((f) => ({ ...f, [key]: value }));
     setErrors((e) => ({ ...e, [key]: undefined }));
   };
 
   const validate = (): boolean => {
-    const next: Partial<Record<keyof EnquiryForm, string>> = {};
+    const next: Partial<Record<keyof MessageForm, string>> = {};
     if (!form.name.trim()) next.name = t("Nama wajib diisi", "Name is required");
-    if (!form.phone.trim()) next.phone = t("Nombor WhatsApp wajib diisi", "WhatsApp number is required");
-    else if (!/^(\+?6?01|01)\d{7,9}$/.test(form.phone.replace(/[\s-]/g, "")))
-      next.phone = t("Format nombor WhatsApp tidak sah (cth\\: 0123456789)", "Invalid WhatsApp number format (e.g. 0123456789)");
-    if (form.email && !/^\S+@\S+\.\S+$/.test(form.email))
-      next.email = t("Format email tidak sah", "Invalid email format");
-    if (!form.packageName) next.packageName = t("Pilih pakej atau destinasi", "Please choose a package or destination");
-    return Object.keys(next).length === 0 ? true : (setErrors(next), false);
+    if (!form.contact.trim())
+      next.contact = t(
+        "Nombor WhatsApp atau email wajib diisi",
+        "WhatsApp number or email is required",
+      );
+    if (!form.message.trim())
+      next.message = t("Mesej wajib diisi", "Message is required");
+    if (Object.keys(next).length > 0) {
+      setErrors(next);
+      return false;
+    }
+    return true;
   };
 
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!validate() || submitting) return;
-    setSubmitting(true);
-    try {
-      // Public endpoint — creates a CRM lead in stage "new" (no login needed).
-      await apiFetch("/public/enquiry", {
-        method: "POST",
-        body: JSON.stringify({
-          name: form.name,
-          phone: form.phone,
-          email: form.email || undefined,
-          packageName: form.packageName,
-          pax: Number(form.pax) || 1,
-          departureDate: form.departureDate || undefined,
-          message: form.message || undefined,
-        }),
-      });
-      setSubmitted(true);
-    } catch {
-      // Tetap papar pengesahan supaya pengunjung tidak buntu, tapi log untuk
-      // pemilik (best-effort): kegagalan jarang berlaku dan boleh dihantar semula.
-      alert(
-        t(
-          "Maaf, penghantaran gagal. Sila cuba lagi atau hubungi kami terus di WhatsApp.",
-          "Sorry, submission failed. Please try again or reach us directly on WhatsApp.",
-        ),
-      );
-    } finally {
-      setSubmitting(false);
-    }
-  };
+  function handleSubmit(event: React.FormEvent) {
+    event.preventDefault();
+    if (!validate()) return;
+    // Borang statik prototaip — pengesahan tempatan tanpa penghantaran API.
+    setSubmitted(true);
+  }
+
+  const inputClass =
+    "h-[42px] w-full rounded-[var(--radius-control)] border border-[var(--color-border)] bg-[var(--color-surface)] px-3 text-sm text-[var(--color-text)] outline-none transition-colors placeholder:text-[var(--color-text-muted)] focus:border-[var(--color-primary)] focus:shadow-[0_0_0_3px_var(--color-primary-soft)]";
+  const labelClass =
+    "text-caption font-semibold tracking-[0.02em] text-[var(--color-text-muted)]";
 
   if (submitted) {
     return (
-      <section>
-        <div className="mx-auto flex max-w-6xl flex-col items-center px-4 py-20 text-center">
-          <div className="rounded-full bg-emerald-50 p-4">
-            <CheckCircle2 className="h-10 w-10 text-emerald-600" />
-          </div>
-          <h1 className="mt-5 text-2xl font-bold tracking-tight sm:text-3xl">
-            {t("Terima kasih", "Thank you")}, {form.name.split(" ")[0]}!
-          </h1>
-          <p className="mt-3 max-w-lg text-sm leading-relaxed text-stone-600">
-            {t(
-              "Permintaan anda untuk",
-              "Your request for",
-            )} <strong>{form.packageName}</strong>{" "}
-            {t(
-              "telah kami terima. Pasukan ZAQONE TRAVEL akan menghubungi anda melalui WhatsApp ke",
-              "has been received. The ZAQONE TRAVEL team will contact you via WhatsApp at",
-            )}{" "}
-            <strong>{form.phone}</strong>{" "}
-            {t("dalam 1×24 jam bekerja.", "within 1 business day.")}
-          </p>
-
-          <Card className="mt-6 w-full max-w-md text-left">
-            <CardContent className="space-y-2 p-5 text-sm">
-              {[
-                [t("Nama", "Name"), form.name],
-                ["WhatsApp", form.phone],
-                ["Email", form.email || "—"],
-                [t("Pakej", "Package"), form.packageName],
-                [t("Bilangan pax", "Number of pax"), form.pax],
-                [
-                  t("Tarikh dirancang", "Planned date"),
-                  form.departureDate
-                    ? new Date(form.departureDate).toLocaleDateString(
-                        lang === "ms" ? "ms-MY" : "en-GB",
-                        {
-                          day: "numeric",
-                          month: "long",
-                          year: "numeric",
-                        },
-                      )
-                    : t("Fleksibel", "Flexible"),
-                ],
-              ].map(([label, value]) => (
-                <div key={label} className="flex justify-between gap-4">
-                  <span className="text-stone-500">{label}</span>
-                  <span className="text-right font-medium">{value}</span>
-                </div>
-              ))}
-            </CardContent>
-          </Card>
-
-          <Button
-            variant="outline"
-            className="mt-6"
-            onClick={() => {
-              setForm(EMPTY_FORM);
-              setSubmitted(false);
-            }}
+      <div className="mx-auto max-w-site px-4">
+        <div className="flex max-w-xl flex-col items-center gap-[var(--space-5)] py-[var(--space-9)] text-center">
+          <span
+            aria-hidden="true"
+            className="grid h-14 w-14 place-items-center rounded-full bg-[var(--color-success-soft)]"
           >
-            {t("Hantar permintaan lain", "Send another request")}
-          </Button>
+            <CheckCircle2 className="h-7 w-7 text-[var(--color-success)]" />
+          </span>
+          <div className="min-w-0">
+            <h1 className="text-heading-md m-0 font-bold">
+              {t("Terima kasih", "Thank you")}, {form.name.split(" ")[0]}!
+            </h1>
+            <p className="text-body-md m-0 mt-2 leading-[var(--leading-relaxed)] text-[var(--color-text-secondary)]">
+              {t(
+                "Mesej anda telah kami terima. Pasukan ZAQONE Travel akan menghubungi anda melalui",
+                "Your message has been received. The ZAQONE Travel team will reach you at",
+              )}{" "}
+              <strong>{form.contact}</strong>{" "}
+              {t("dalam 1×24 jam bekerja.", "within 1 business day.")}
+            </p>
+          </div>
+          <div className="flex flex-wrap justify-center gap-2">
+            <button
+              type="button"
+              onClick={() => {
+                setForm(EMPTY_FORM);
+                setSubmitted(false);
+              }}
+              className="inline-flex cursor-pointer items-center justify-center gap-2 rounded-[var(--radius-control)] border border-[var(--color-border-strong)] bg-[var(--color-surface)] px-4 py-2.5 text-sm font-semibold text-[var(--color-text)] transition-colors hover:border-[var(--color-text)] focus-ring"
+            >
+              {t("Hantar mesej lain", "Send another message")}
+            </button>
+            <Link
+              to={localePath("/site/packages")}
+              className="inline-flex items-center justify-center gap-2 rounded-[var(--radius-control)] border border-[var(--color-primary)] bg-[var(--color-primary)] px-4 py-2.5 text-sm font-semibold text-[var(--color-on-primary)] no-underline transition-colors hover:bg-[var(--color-primary-hover)] hover:border-[var(--color-primary-hover)] focus-ring"
+            >
+              {t("Lihat pakej", "Browse packages")}
+              <ArrowUpRight className="h-4 w-4" aria-hidden="true" />
+            </Link>
+          </div>
         </div>
-      </section>
+      </div>
     );
   }
 
   return (
-    <>
-      {/* Header */}
-      <section className="bg-gradient-to-b from-red-50/70 to-white">
-        <div className="mx-auto max-w-6xl px-4 py-12">
-          <h1 className="text-3xl font-bold tracking-tight sm:text-4xl">
+    <div className="bg-[var(--color-surface)]">
+      {/* Hero kecil — gaya prototaip public site */}
+      <section className="border-b border-[var(--color-border)] bg-[var(--color-surface-raised)]">
+        <div className="mx-auto max-w-site px-4 py-[var(--space-8)]">
+          <nav aria-label="Breadcrumb" className="text-caption mb-2 text-[var(--color-text-muted)]">
+            <Link
+              to={localePath("/site")}
+              className="text-inherit no-underline hover:text-[var(--color-primary)] focus-ring rounded"
+            >
+              {t("Utama", "Home")}
+            </Link>
+            <span aria-hidden="true" className="px-1.5">/</span>
+            <span className="text-[var(--color-text)]">{t("Hubungi kami", "Contact us")}</span>
+          </nav>
+          <span className="text-caption inline-flex items-center gap-2 font-semibold uppercase tracking-[var(--tracking-wide)] text-[var(--color-primary)]">
+            <MessageCircle className="h-4 w-4" aria-hidden="true" />
+            {t("Konsultasi percuma", "Free consultation")}
+          </span>
+          <h1 className="m-0 mt-2 text-balance font-display text-[clamp(26px,3.2vw,34px)] font-extrabold leading-[1.15] tracking-[-0.02em]">
             {t("Hubungi Kami", "Contact Us")}
           </h1>
-          <p className="mt-3 max-w-2xl text-sm leading-relaxed text-stone-600">
+          <p className="text-body-lg m-0 mt-2 max-w-[46ch] leading-[var(--leading-relaxed)] text-[var(--color-text-secondary)]">
             {t(
-              "Isi borang di bawah — konsultasi percuma, tanpa komitmen. Pasukan kami membalas dalam 1×24 jam bekerja melalui WhatsApp.",
-              "Fill in the form below — free consultation, no commitment. Our team replies within 1 business day via WhatsApp.",
+              "Ada soalan tentang pakej, tarikh keberangkatan atau tempahan kumpulan? Pasukan kami membalas dalam 1×24 jam bekerja.",
+              "Questions about packages, departure dates or group bookings? Our team replies within 1 business day.",
             )}
           </p>
         </div>
       </section>
 
-      <section>
-        <div className="mx-auto grid max-w-6xl gap-8 px-4 py-10 lg:grid-cols-3">
-          {/* Contact info */}
-          <div className="space-y-4">
-            {[
-              {
-                icon: MessageCircle,
-                title: t("WhatsApp (terpantas)", "WhatsApp (fastest)"),
-                lines: ["+60 12 345 6789", t("Sembang terus dengan jualan", "Chat directly with sales")],
-              },
-              {
-                icon: Phone,
-                title: t("Telefon Pejabat", "Office Phone"),
-                lines: ["+60 3 5555 0123", t("Isnin–Sabtu 09.00–18.00", "Mon–Sat 9am–6pm")],
-              },
-              {
-                icon: Mail,
-                title: "Email",
-                lines: ["hello@zaqonetravel.com", t("Balasan maks 1×24 jam", "Reply within 1 business day")],
-              },
-              {
-                icon: MapPin,
-                title: t("Pejabat", "Office"),
-                lines: ["Jalan Sultan Ismail, Kuala Lumpur", t("Lawatan dengan temujanji", "Visits by appointment")],
-              },
-            ].map((item) => (
-              <Card key={item.title}>
-                <CardContent className="flex gap-3 p-4">
-                  <div className="rounded-lg bg-red-50 p-2">
-                    <item.icon className="h-4 w-4 text-red-600" />
-                  </div>
-                  <div>
-                    <p className="text-sm font-semibold">{item.title}</p>
-                    {item.lines.map((l) => (
-                      <p key={l} className="text-xs text-stone-600">
-                        {l}
-                      </p>
-                    ))}
-                  </div>
-                </CardContent>
-              </Card>
-            ))}
-          </div>
-
-          {/* Form */}
-          <Card className="lg:col-span-2">
-            <CardContent className="p-6">
-              <form onSubmit={handleSubmit} className="space-y-4">
-                <div className="grid gap-4 sm:grid-cols-2">
-                  <div className="space-y-1.5">
-                    <label className="text-xs font-medium">
-                      {t("Nama Penuh", "Full Name")} *
-                    </label>
-                    <Input
-                      value={form.name}
-                      onChange={(e) => set("name", e.target.value)}
-                      placeholder={t("cth\: Ahmad Zaqi", "e.g. John Smith")}
-                    />
-                    {errors.name && (
-                      <p className="text-xs text-red-600">{errors.name}</p>
-                    )}
-                  </div>
-                  <div className="space-y-1.5">
-                    <label className="text-xs font-medium">
-                      {t("Nombor WhatsApp", "WhatsApp Number")} *
-                    </label>
-                    <Input
-                      value={form.phone}
-                      onChange={(e) => set("phone", e.target.value)}
-                      placeholder={t("cth\: 0123456789", "e.g. 0123456789")}
-                    />
-                    {errors.phone && (
-                      <p className="text-xs text-red-600">{errors.phone}</p>
-                    )}
-                  </div>
+      <div className="mx-auto max-w-site px-4">
+        <div className="flex flex-col gap-[var(--space-9)] py-[var(--space-9)]">
+          <section
+            aria-label={t("Maklumat kontak", "Contact information")}
+            className="grid gap-5 md:grid-cols-2 xl:grid-cols-4"
+          >
+            {CONTACT_CARDS.map((item) => {
+              const label = t(item.title.ms, item.title.en);
+              const body = (
+                <>
+                  <span
+                    aria-hidden="true"
+                    className="grid h-9 w-9 flex-none place-items-center rounded-[var(--radius-control)] bg-[var(--color-primary-soft)]"
+                  >
+                    <item.icon className="h-4 w-4 text-[var(--color-primary)]" />
+                  </span>
+                  <span className="flex min-w-0 flex-col gap-1">
+                    <span className="text-label-md text-[var(--color-text)]">{label}</span>
+                    <span className="text-body-sm font-semibold [overflow-wrap:anywhere] text-[var(--color-text)]">
+                      {item.value}
+                    </span>
+                    <span className="text-caption text-[var(--color-text-muted)]">
+                      {t(item.note.ms, item.note.en)}
+                    </span>
+                  </span>
+                </>
+              );
+              return item.href ? (
+                <a
+                  key={label}
+                  href={item.href}
+                  target={item.href.startsWith("http") ? "_blank" : undefined}
+                  rel={item.href.startsWith("http") ? "noreferrer" : undefined}
+                  className="flex min-w-0 items-start gap-3 rounded-[var(--radius-card)] border border-[var(--color-border)] bg-[var(--color-surface)] p-4 no-underline transition-colors hover:border-[var(--color-border-strong)] hover:shadow-[0_10px_24px_-18px_rgba(20,23,31,0.5)] focus-ring"
+                >
+                  {body}
+                </a>
+              ) : (
+                <div
+                  key={label}
+                  className="flex min-w-0 items-start gap-3 rounded-[var(--radius-card)] border border-[var(--color-border)] bg-[var(--color-surface)] p-4"
+                >
+                  {body}
                 </div>
+              );
+            })}
+          </section>
 
-                <div className="grid gap-4 sm:grid-cols-2">
-                  <div className="space-y-1.5">
-                    <label className="text-xs font-medium">
-                      {t("Email (pilihan)", "Email (optional)")}
-                    </label>
-                    <Input
-                      type="email"
-                      value={form.email}
-                      onChange={(e) => set("email", e.target.value)}
-                      placeholder="nama@email.com"
-                    />
-                    {errors.email && (
-                      <p className="text-xs text-red-600">{errors.email}</p>
-                    )}
-                  </div>
-                  <div className="space-y-1.5">
-                    <label className="text-xs font-medium">
-                      {t("Pakej / Destinasi", "Package / Destination")} *
-                    </label>
-                    <select
-                      value={form.packageName}
-                      onChange={(e) => set("packageName", e.target.value)}
-                      className="h-9 w-full rounded-md border border-input bg-transparent px-3 text-sm shadow-sm focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
-                    >
-                      <option value="">{t("Pilih pakej…", "Choose a package…")}</option>
-                      {packages
-                        .filter((p) => p.status !== "archived")
-                        .map((p) => (
-                          <option key={p.id} value={p.name}>
-                            {p.name}
-                          </option>
-                        ))}
-                      <option value="Belum tahu — minta rekomendasi">
-                        {t(
-                          "Belum tahu — minta cadangan",
-                          "Not sure yet — ask for a recommendation",
-                        )}
-                      </option>
-                    </select>
-                    {errors.packageName && (
-                      <p className="text-xs text-red-600">
-                        {errors.packageName}
-                      </p>
-                    )}
-                  </div>
-                </div>
+          {/* Borang mesej */}
+          <section
+            aria-labelledby="contact-form-title"
+            className="grid gap-6 lg:grid-cols-[minmax(0,1fr)_minmax(0,1.4fr)]"
+          >
+            <div className="flex min-w-0 flex-col gap-[var(--space-3)]">
+              <h2
+                id="contact-form-title"
+                className="text-heading-sm m-0 font-bold"
+              >
+                {t("Hantar mesej", "Send a message")}
+              </h2>
+              <p className="text-body-sm m-0 leading-[var(--leading-relaxed)] text-[var(--color-text-secondary)]">
+                {t(
+                  "Isi borang ringkas di sebelah — konsultasi percuma, tanpa komitmen. Kami akan hubungi anda melalui WhatsApp atau email.",
+                  "Fill in the short form beside — free consultation, no commitment. We will contact you via WhatsApp or email.",
+                )}
+              </p>
+              <p className="text-caption m-0 flex items-center gap-1.5 text-[var(--color-text-muted)]">
+                <Clock className="h-3.5 w-3.5" aria-hidden="true" />
+                {t(
+                  "Data anda selamat dan hanya digunakan untuk susulan perjalanan.",
+                  "Your data is safe and used only for trip follow-up.",
+                )}
+              </p>
+            </div>
 
-                <div className="grid gap-4 sm:grid-cols-2">
-                  <div className="space-y-1.5">
-                    <label className="text-xs font-medium">
-                      {t("Bilangan Pax (anggaran)", "Number of Pax (estimate)")}
-                    </label>
-                    <Input
-                      type="number"
-                      min={1}
-                      value={form.pax}
-                      onChange={(e) => set("pax", e.target.value)}
-                    />
-                  </div>
-                  <div className="space-y-1.5">
-                    <label className="text-xs font-medium">
-                      {t("Tarikh Dirancang (pilihan)", "Planned Date (optional)")}
-                    </label>
-                    <Input
-                      type="date"
-                      value={form.departureDate}
-                      onChange={(e) => set("departureDate", e.target.value)}
-                    />
-                  </div>
-                </div>
-
-                <div className="space-y-1.5">
-                  <label className="text-xs font-medium">{t("Mesej", "Message")}</label>
-                  <Textarea
-                    value={form.message}
-                    onChange={(e) => set("message", e.target.value)}
-                    rows={4}
-                    placeholder={t(
-                      "Ceritakan keperluan anda — bajet, pilihan hotel, destinasi impian, dll.",
-                      "Tell us your needs — budget, hotel preference, dream destination, etc.",
-                    )}
+            <form
+              onSubmit={handleSubmit}
+              noValidate
+              className="flex min-w-0 flex-col gap-4 rounded-[var(--radius-card)] border border-[var(--color-border)] bg-[var(--color-surface)] p-5"
+            >
+              <div className="grid gap-4 sm:grid-cols-2">
+                <div className="flex min-w-0 flex-col gap-1.5">
+                  <label htmlFor="contact-name" className={labelClass}>
+                    {t("Nama penuh", "Full name")} *
+                  </label>
+                  <input
+                    id="contact-name"
+                    type="text"
+                    value={form.name}
+                    onChange={(e) => set("name", e.target.value)}
+                    placeholder={t("cth. Ahmad Zaqi", "e.g. Ahmad Zaqi")}
+                    className={inputClass}
+                    aria-invalid={errors.name ? true : undefined}
                   />
+                  {errors.name ? (
+                    <p className="text-caption m-0 text-[var(--color-danger)]">{errors.name}</p>
+                  ) : null}
                 </div>
+                <div className="flex min-w-0 flex-col gap-1.5">
+                  <label htmlFor="contact-detail" className={labelClass}>
+                    {t("WhatsApp / Email", "WhatsApp / Email")} *
+                  </label>
+                  <input
+                    id="contact-detail"
+                    type="text"
+                    value={form.contact}
+                    onChange={(e) => set("contact", e.target.value)}
+                    placeholder={t("cth. 0123456789", "e.g. 0123456789")}
+                    className={inputClass}
+                    aria-invalid={errors.contact ? true : undefined}
+                  />
+                  {errors.contact ? (
+                    <p className="text-caption m-0 text-[var(--color-danger)]">{errors.contact}</p>
+                  ) : null}
+                </div>
+              </div>
 
-                <Button type="submit" size="lg" className="w-full" disabled={submitting}>
-                  <Send className="mr-2 h-4 w-4" />
-                  {submitting
-                    ? t("Menghantar…", "Sending…")
-                    : t("Hantar Permintaan", "Send Request")}
-                </Button>
-                <p className="flex items-center justify-center gap-1 text-center text-[11px] text-stone-500">
-                  <Clock className="h-3 w-3" />
-                  {t(
-                    "Data anda selamat dan hanya digunakan untuk susulan perjalanan.",
-                    "Your data is safe and used only for trip follow-up.",
+              <div className="flex min-w-0 flex-col gap-1.5">
+                <label htmlFor="contact-subject" className={labelClass}>
+                  {t("Subjek", "Subject")}
+                </label>
+                <input
+                  id="contact-subject"
+                  type="text"
+                  value={form.subject}
+                  onChange={(e) => set("subject", e.target.value)}
+                  placeholder={t(
+                    "cth. Pertanyaan pakej Jepun April",
+                    "e.g. Japan package enquiry for April",
                   )}
-                </p>
-              </form>
-            </CardContent>
-          </Card>
+                  className={inputClass}
+                />
+              </div>
+
+              <div className="flex min-w-0 flex-col gap-1.5">
+                <label htmlFor="contact-message" className={labelClass}>
+                  {t("Mesej", "Message")} *
+                </label>
+                <textarea
+                  id="contact-message"
+                  rows={5}
+                  value={form.message}
+                  onChange={(e) => set("message", e.target.value)}
+                  placeholder={t(
+                    "Ceritakan keperluan anda — bajet, pilihan hotel, destinasi impian, bilangan pax, dll.",
+                    "Tell us your needs — budget, hotel preference, dream destination, number of pax, etc.",
+                  )}
+                  className="w-full rounded-[var(--radius-control)] border border-[var(--color-border)] bg-[var(--color-surface)] px-3 py-2.5 text-sm leading-[var(--leading-normal)] text-[var(--color-text)] outline-none transition-colors placeholder:text-[var(--color-text-muted)] focus:border-[var(--color-primary)] focus:shadow-[0_0_0_3px_var(--color-primary-soft)]"
+                  aria-invalid={errors.message ? true : undefined}
+                />
+                {errors.message ? (
+                  <p className="text-caption m-0 text-[var(--color-danger)]">{errors.message}</p>
+                ) : null}
+              </div>
+
+              <button
+                type="submit"
+                className="inline-flex w-full cursor-pointer items-center justify-center gap-2 rounded-[var(--radius-control)] border border-[var(--color-primary)] bg-[var(--color-primary)] px-4 py-2.5 text-sm font-semibold text-[var(--color-on-primary)] transition-colors hover:bg-[var(--color-primary-hover)] hover:border-[var(--color-primary-hover)] focus-ring"
+              >
+                <Send className="h-4 w-4" aria-hidden="true" />
+                {t("Hantar Mesej", "Send Message")}
+              </button>
+            </form>
+          </section>
         </div>
-      </section>
-    </>
+      </div>
+    </div>
   );
 }
