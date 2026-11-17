@@ -193,6 +193,57 @@ dashboardRouter.get("/revenue-trends", async (c) => {
 });
 
 /**
+ * GET /dashboard/sales-performance
+ *
+ * Per-agent funnel: assigned leads, won leads, bookings created, and
+ * collected value. Agents are identified by leads.assigned_to / bookings.created_by.
+ */
+dashboardRouter.get("/sales-performance", async (c) => {
+  const db = c.get("db");
+
+  const agentRows = await db.all<{
+    agent: string;
+    leads: number;
+    won: number;
+    bookings: number;
+    revenue: number;
+  }>(sql`
+    WITH agents AS (
+      SELECT assigned_to AS agent FROM leads WHERE assigned_to IS NOT NULL
+      UNION
+      SELECT created_by AS agent FROM bookings WHERE created_by IS NOT NULL
+    )
+    SELECT
+      a.agent AS agent,
+      (SELECT COUNT(*) FROM leads l WHERE l.assigned_to = a.agent) AS leads,
+      (SELECT COUNT(*) FROM leads l WHERE l.assigned_to = a.agent AND l.stage = 'won') AS won,
+      (SELECT COUNT(*) FROM bookings b WHERE b.created_by = a.agent AND b.status NOT IN ('cancelled', 'draft')) AS bookings,
+      (SELECT COALESCE(SUM(p.amount), 0)
+         FROM payments p
+         JOIN invoices i ON i.id = p.invoice_id
+         JOIN bookings b ON b.id = i.booking_id
+        WHERE b.created_by = a.agent AND p.status = 'verified') AS revenue
+    FROM agents a
+    ORDER BY revenue DESC, won DESC, leads DESC
+  `);
+
+  return c.json({
+    agents: agentRows.map((r) => {
+      const leads = Number(r.leads);
+      const won = Number(r.won);
+      return {
+        agent: r.agent,
+        leads,
+        won,
+        bookings: Number(r.bookings),
+        revenue: Number(r.revenue),
+        conversionRate: leads > 0 ? Math.round((won / leads) * 100) : 0,
+      };
+    }),
+  });
+});
+
+/**
  * GET /dashboard/top-packages
  *
  * Top-selling packages by confirmed/completed booking value and pax count.
