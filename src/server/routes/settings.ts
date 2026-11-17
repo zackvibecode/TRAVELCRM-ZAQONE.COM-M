@@ -3,6 +3,7 @@ import { and, desc, eq } from "drizzle-orm";
 import type { DrizzleD1Database } from "drizzle-orm/d1";
 import * as schema from "../db/schema";
 import { requireStaffSession, requireRole, requirePermission } from "../middleware/auth";
+import { settingsAuditMiddleware } from "../middleware/settings-audit";
 import {
   validateSettingPayload,
   validateBankAccount,
@@ -32,6 +33,8 @@ const settingsRouter = new Hono<Env>();
 
 // All settings endpoints require a signed-in session.
 settingsRouter.use("*", requireStaffSession);
+// Safety-net audit trail for any mutation without explicit before/after logs.
+settingsRouter.use("*", settingsAuditMiddleware());
 
 /** GET /settings — all settings key/value pairs (read: admin + management). */
 settingsRouter.get(
