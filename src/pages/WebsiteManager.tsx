@@ -323,52 +323,24 @@ export default function WebsiteManager() {
       </div>
 
       {/* Site health summary */}
-      <div className="grid gap-4 sm:grid-cols-3">
-        <Card>
-          <CardContent className="flex items-center gap-3 p-4">
-            <div className="rounded-lg bg-emerald-50 p-2">
-              <Globe className="h-4 w-4 text-emerald-600" />
+      <div className="grid grid-cols-2 gap-3 xl:grid-cols-4">
+        {[
+          { label: t("Halaman tayang", "Live pages"), value: String(publishedCount), note: `${pages.length} ${t("jumlah halaman", "total pages")}`, icon: Globe, tone: "primary" },
+          { label: t("Pakej tayang", "Live packages"), value: String(publishedPackages.length), note: t("dari katalog D1", "from live catalog"), icon: LayoutDashboard, tone: "neutral" },
+          { label: t("Draf tersembunyi", "Hidden drafts"), value: String(pages.length - publishedCount), note: t("sedia untuk diterbitkan", "ready to publish"), icon: EyeOff, tone: "neutral" },
+          { label: t("Bendera aktif", "Live banners"), value: String(banners.filter((b) => b.active).length), note: t("promosi laman awam", "public promotions"), icon: Megaphone, tone: "primary" },
+        ].map((m, i) => (
+          <article key={i} className="flex min-w-0 flex-col gap-1.5 rounded-[var(--radius-card)] border border-[var(--color-border)] bg-[var(--color-surface)] p-4">
+            <div className="flex items-center justify-between gap-2">
+              <span className="truncate text-[12px] font-semibold text-muted-foreground">{m.label}</span>
+              <span className={`grid h-[26px] w-[26px] flex-none place-items-center rounded-lg ${m.tone === "primary" ? "bg-[var(--color-primary-soft)] text-[var(--color-primary)]" : "bg-[var(--color-surface-muted)] text-[var(--color-text-secondary)]"}`}>
+                <m.icon className="h-3.5 w-3.5" />
+              </span>
             </div>
-            <div>
-              <p className="text-lg font-bold leading-tight">
-                {publishedCount}
-              </p>
-              <p className="text-xs text-muted-foreground">
-                {t("Halaman tayang", "Live pages")}
-              </p>
-            </div>
-          </CardContent>
-        </Card>
-        <Card>
-          <CardContent className="flex items-center gap-3 p-4">
-            <div className="rounded-lg bg-blue-50 p-2">
-              <LayoutDashboard className="h-4 w-4 text-blue-600" />
-            </div>
-            <div>
-              <p className="text-lg font-bold leading-tight">
-                {publishedPackages.length}
-              </p>
-              <p className="text-xs text-muted-foreground">
-                {t("Pakej tayang", "Live packages")}
-              </p>
-            </div>
-          </CardContent>
-        </Card>
-        <Card>
-          <CardContent className="flex items-center gap-3 p-4">
-            <div className="rounded-lg bg-amber-50 p-2">
-              <EyeOff className="h-4 w-4 text-amber-600" />
-            </div>
-            <div>
-              <p className="text-lg font-bold leading-tight">
-                {pages.length - publishedCount}
-              </p>
-              <p className="text-xs text-muted-foreground">
-                {t("Draf tersembunyi", "Hidden drafts")}
-              </p>
-            </div>
-          </CardContent>
-        </Card>
+            <div className="font-display text-[26px] font-bold leading-tight tracking-tight [font-variant-numeric:tabular-nums]">{m.value}</div>
+            <span className="truncate text-[12px] text-muted-foreground">{m.note}</span>
+          </article>
+        ))}
       </div>
 
       {/* Banner manager */}

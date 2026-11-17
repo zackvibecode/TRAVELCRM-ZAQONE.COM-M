@@ -136,6 +136,22 @@ export default function StaffRoles() {
         </p>
       </div>
 
+      {/* Metrics */}
+      <div className="grid grid-cols-2 gap-3 xl:grid-cols-4">
+        {[
+          { label: t("Jumlah Staf", "Total staff"), value: String(staff.length), note: t("semua status", "all statuses") },
+          { label: t("Aktif", "Active"), value: String(staff.filter((m) => m.status === "active").length), note: t("log masuk terkini", "recently signed in") },
+          { label: t("Menunggu Jemputan", "Awaiting invite"), value: String(staff.filter((m) => m.status === "invited").length), note: t("belum pernah masuk", "never signed in") },
+          { label: t("Peranan", "Roles"), value: String(ROLES.length), note: t("dari Super Admin ke Operasi", "from Super Admin to Operations") },
+        ].map((m, i) => (
+          <div key={i} className="flex min-w-0 flex-col gap-1 rounded-[var(--radius-card)] border border-[var(--color-border)] bg-[var(--color-surface)] p-4">
+            <span className="text-[12px] font-semibold text-muted-foreground">{m.label}</span>
+            <span className="font-display text-[24px] font-bold leading-tight tracking-tight [font-variant-numeric:tabular-nums]">{m.value}</span>
+            <span className="truncate text-[12px] text-muted-foreground">{m.note}</span>
+          </div>
+        ))}
+      </div>
+
       {/* Role summary cards */}
       <div className="grid grid-cols-2 gap-3 sm:grid-cols-5">
         {roleCounts.map(({ role, count }) => (

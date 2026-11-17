@@ -328,6 +328,20 @@ export default function Settings() {
           ))}
         </div>
       )}
+      {/* Shortcut cards to settings sub-pages */}
+      <div className="grid grid-cols-2 gap-3 xl:grid-cols-4">
+        {[
+          { href: "/document-numbering", label: { ms: "Dokumen", en: "Documents" }, note: { ms: "Penomboran invois & resit", en: "Invoice & receipt numbering" }, icon: "FileDigit" },
+          { href: "/booking-defaults", label: { ms: "Booking", en: "Booking" }, note: { ms: "Deposit, tempoh & lalai", en: "Deposit, deadlines & defaults" }, icon: "CalendarClock" },
+          { href: "/api-tokens", label: { ms: "Token API", en: "API Tokens" }, note: { ms: "Kunci akses integrasi", en: "Integration access keys" }, icon: "KeyRound" },
+          { href: "/data-maintenance", label: { ms: "Data & Pemeliharaan", en: "Data & Maintenance" }, note: { ms: "Sandaran & pembersihan", en: "Backup & cleanup" }, icon: "Database" },
+        ].map((c) => (
+          <a key={c.href} href={c.href} className="flex min-w-0 flex-col gap-1 rounded-[var(--radius-card)] border border-[var(--color-border)] bg-[var(--color-surface)] p-4 transition-colors hover:bg-[var(--color-surface-muted)]">
+            <span className="text-[12px] font-semibold text-muted-foreground">{t(c.label.ms, c.label.en)}</span>
+            <span className="font-display text-[13.5px] font-bold leading-snug text-[var(--color-primary)]">{t(c.note.ms, c.note.en)}</span>
+          </a>
+        ))}
+      </div>
     </div>
   );
 }
