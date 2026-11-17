@@ -1084,6 +1084,30 @@ export type McpTokenRow = typeof mcpTokens.$inferSelect;
 export type NewMcpTokenRow = typeof mcpTokens.$inferInsert;
 export type McpAuditLogRow = typeof mcpAuditLogs.$inferSelect;
 export type NewMcpAuditLogRow = typeof mcpAuditLogs.$inferInsert;
+
+// ---------------------------------------------------------------------------
+// MCP rate limiting. Fixed-window counters keyed by token + minute bucket;
+// Workers have no in-memory shared state across isolates, so the window
+// counter lives in D1 and is pruned by the cron job.
+// ---------------------------------------------------------------------------
+export const mcpRateLimits = sqliteTable(
+  "mcp_rate_limits",
+  {
+    id: text("id").primaryKey(),
+    tokenId: text("token_id").notNull(),
+    windowStart: text("window_start").notNull(),
+    count: integer("count").notNull().default(0),
+  },
+  (table) => ({
+    tokenWindowIdx: index("mcp_rate_token_window_idx").on(
+      table.tokenId,
+      table.windowStart,
+    ),
+  }),
+);
+
+export type McpRateLimitRow = typeof mcpRateLimits.$inferSelect;
+export type NewMcpRateLimitRow = typeof mcpRateLimits.$inferInsert;
 // SEO metadata driving the public website. Enquiries from the public site are
 // captured in `leads` (PRD: enquiry capture), so no separate table is needed.
 // ---------------------------------------------------------------------------
