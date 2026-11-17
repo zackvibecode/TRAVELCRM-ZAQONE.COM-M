@@ -44,6 +44,25 @@ const TOOLS = [
     requiredScope: "leads:read",
   },
   {
+    name: "get_booking",
+    description: "Look up one booking by reference (e.g. ZQK-2026-0114).",
+    inputSchema: {
+      type: "object",
+      properties: { reference: { type: "string" } },
+      required: ["reference"],
+    },
+    requiredScope: "bookings:read",
+  },
+  {
+    name: "list_bookings",
+    description: "List bookings, optionally filtered by status.",
+    inputSchema: {
+      type: "object",
+      properties: { status: { type: "string" }, limit: { type: "number" } },
+    },
+    requiredScope: "bookings:read",
+  },
+  {
     name: "list_departures",
     description: "List upcoming departures and seat availability.",
     inputSchema: {
@@ -214,6 +233,41 @@ mcpRouter.post("/", async (c) => {
         const rows = await db.all<{ id: string; name: string; stage: string }>(sql`
           SELECT id, name, stage FROM leads
           WHERE ${stage ? sql`stage = ${stage}` : sql`1 = 1`}
+          ORDER BY created_at DESC LIMIT ${limit}
+        `);
+        text = JSON.stringify(rows);
+      } else if (name === "get_booking") {
+        const reference = String(args.reference ?? "");
+        const rows = await db.all<{
+          id: string;
+          reference: string;
+          status: string;
+          paymentStatus: string;
+          totalAmount: number;
+          paidAmount: number;
+          balanceDue: number;
+        }>(sql`
+          SELECT id, reference, status, payment_status AS paymentStatus,
+                 total_amount AS totalAmount, paid_amount AS paidAmount,
+                 balance_due AS balanceDue
+          FROM bookings WHERE reference = ${reference} LIMIT 1
+        `);
+        text = rows.length ? JSON.stringify(rows[0]) : JSON.stringify({ error: "booking not found" });
+      } else if (name === "list_bookings") {
+        const status = args.status ? String(args.status) : null;
+        const limit = Math.min(Number(args.limit) || 20, 100);
+        const rows = await db.all<{
+          id: string;
+          reference: string;
+          status: string;
+          paymentStatus: string;
+          totalAmount: number;
+          balanceDue: number;
+        }>(sql`
+          SELECT id, reference, status, payment_status AS paymentStatus,
+                 total_amount AS totalAmount, balance_due AS balanceDue
+          FROM bookings
+          WHERE ${status ? sql`status = ${status}` : sql`1 = 1`}
           ORDER BY created_at DESC LIMIT ${limit}
         `);
         text = JSON.stringify(rows);
