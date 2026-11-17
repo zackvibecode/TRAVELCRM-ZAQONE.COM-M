@@ -326,6 +326,18 @@ mcpRouter.post("/", async (c) => {
         description: "Explain outstanding balances for a customer",
         arguments: [{ name: "customerName", required: true }],
       });
+    if (has("leads:read"))
+      prompts.push({
+        name: "daily-follow-up-list",
+        description: "List today's leads due for follow-up with suggested messages",
+        arguments: [{ name: "date", required: false }],
+      });
+    if (has("invoices:read"))
+      prompts.push({
+        name: "overdue-payment-digest",
+        description: "Summarize overdue invoices and suggested reminder messages",
+        arguments: [{ name: "days", required: false }],
+      });
     await audit("prompts/list", "success");
     return c.json(rpcResult(id, { prompts }));
   }
