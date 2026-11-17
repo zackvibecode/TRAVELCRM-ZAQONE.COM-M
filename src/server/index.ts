@@ -22,18 +22,22 @@ import alertsRouter from "./routes/alerts";
 import websiteRouter from "./routes/website";
 import mcpAdminRouter from "./routes/mcp-admin";
 import mcpRouter from "./routes/mcp";
+import authRouter from "./routes/auth";
 import { releaseExpiredHolds } from "./lib/seat-availability";
 import { runScheduledContent } from "./lib/scheduled-content";
 
 export type Env = {
   DB: D1Database;
   DOCUMENTS: R2Bucket;
+  BETTER_AUTH_SECRET?: string;
 };
 
 type AppEnv = {
   Bindings: Env;
   Variables: {
     db: DrizzleD1Database<typeof schema>;
+    auth: import("./lib/auth").Auth;
+    staff: import("./lib/auth-context").StaffIdentity;
   };
 };
 
@@ -57,6 +61,7 @@ app.get("/health", (c) => {
   return c.json({ status: "ok" });
 });
 
+app.route("/auth", authRouter);
 app.route("/bookings", bookingsRouter);
 app.route("/", passengersRouter);
 app.route("/departures", departuresRouter);
