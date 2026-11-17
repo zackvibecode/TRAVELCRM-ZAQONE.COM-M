@@ -83,6 +83,7 @@ const ROUTE_LABELS: Record<string, { ms: string; en: string }> = {
   "/booking-defaults": { ms: "Lalai Tempahan", en: "Booking Defaults" },
   "/notification-templates": { ms: "Templat Pemberitahuan", en: "Notification Templates" },
   "/api-tokens": { ms: "Token API", en: "API Tokens" },
+  "/data-maintenance": { ms: "Penyelenggaraan Data", en: "Data Maintenance" },
   "/settings": { ms: "Tetapan", en: "Settings" },
 };
 
