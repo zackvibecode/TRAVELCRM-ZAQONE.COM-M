@@ -107,6 +107,106 @@ websiteRouter.get("/seo", async (c) => {
 });
 
 // ---------------------------------------------------------------------------
+// Public package catalogue.
+// ---------------------------------------------------------------------------
+
+/**
+ * GET /website/packages — published packages with next departure + seats left.
+ * Query: ?destination=...&search=...
+ */
+websiteRouter.get("/packages", async (c) => {
+  const db = c.get("db");
+  const destination = c.req.query("destination");
+  const search = c.req.query("search");
+
+  const rows = await db.all<{
+    id: string;
+    name: string;
+    destination: string;
+    durationDays: number;
+    adultPrice: number;
+    coverImageUrl: string | null;
+    highlights: string;
+    nextDeparture: string | null;
+    seatsLeft: number;
+  }>(sql`
+    SELECT
+      p.id, p.name, p.destination, p.duration_days AS durationDays,
+      p.adult_price AS adultPrice, p.cover_image_url AS coverImageUrl,
+      p.highlights,
+      (SELECT MIN(d.departure_date) FROM departures d
+        WHERE d.package_id = p.id AND d.status IN ('open','almost_full')
+          AND d.departure_date >= date('now')) AS nextDeparture,
+      (SELECT COALESCE(SUM(d.seat_capacity - d.seats_booked - d.seats_held), 0)
+         FROM departures d
+        WHERE d.package_id = p.id AND d.status IN ('open','almost_full')
+          AND d.departure_date >= date('now')) AS seatsLeft
+    FROM packages p
+    WHERE p.publish_status = 'published'
+      ${destination ? sql`AND p.destination = ${destination}` : sql``}
+      ${search ? sql`AND (p.name LIKE ${`%${search}%`} OR p.destination LIKE ${`%${search}%`})` : sql``}
+    ORDER BY p.destination ASC, p.name ASC
+  `);
+
+  return c.json({
+    packages: rows.map((r) => ({
+      ...r,
+      highlights: (() => {
+        try {
+          return JSON.parse(r.highlights || "[]");
+        } catch {
+          return [];
+        }
+      })(),
+    })),
+  });
+});
+
+/**
+ * GET /website/packages/:id — full published detail + departure dates.
+ */
+websiteRouter.get("/packages/:id", async (c) => {
+  const db = c.get("db");
+  const id = c.req.param("id");
+
+  const pkg = await db.all<schema.PackageRow>(sql`
+    SELECT * FROM packages WHERE id = ${id} AND publish_status = 'published' LIMIT 1
+  `);
+  if (pkg.length === 0) return c.json({ error: "package not found" }, 404);
+
+  const departures = await db.all<{
+    id: string;
+    departureDate: string;
+    returnDate: string | null;
+    adultPrice: number;
+    seatCapacity: number;
+    seatsBooked: number;
+    seatsHeld: number;
+    status: string;
+  }>(sql`
+    SELECT id, departure_date AS departureDate, return_date AS returnDate,
+           adult_price AS adultPrice, seat_capacity AS seatCapacity,
+           seats_booked AS seatsBooked, seats_held AS seatsHeld, status
+    FROM departures
+    WHERE package_id = ${id}
+      AND status NOT IN ('cancelled', 'closed')
+      AND departure_date >= date('now')
+    ORDER BY departure_date ASC
+  `);
+
+  return c.json({
+    package: pkg[0],
+    departures: departures.map((d) => ({
+      ...d,
+      seatsLeft: Math.max(
+        0,
+        Number(d.seatCapacity) - Number(d.seatsBooked) - Number(d.seatsHeld),
+      ),
+    })),
+  });
+});
+
+// ---------------------------------------------------------------------------
 // Admin content management (persisted CRUD for the Website Manager screen).
 // ---------------------------------------------------------------------------
 
