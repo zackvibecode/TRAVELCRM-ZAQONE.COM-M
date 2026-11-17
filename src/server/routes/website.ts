@@ -687,4 +687,25 @@ websiteRouter.put("/admin/seo/:slug", async (c) => {
   return c.json({ seo: rows[0] ?? null });
 });
 
+/**
+ * DELETE /website/admin/seo/:slug — remove SEO metadata for a page.
+ */
+websiteRouter.delete("/admin/seo/:slug", async (c) => {
+  const db = c.get("db");
+  await db.execute(sql`DELETE FROM site_seo WHERE slug = ${c.req.param("slug")}`);
+  return c.json({ ok: true });
+});
+
+/**
+ * GET /website/seo/:slug — SEO metadata for a single public page (404 if unset).
+ */
+websiteRouter.get("/seo/:slug", async (c) => {
+  const db = c.get("db");
+  const rows = await db.all<schema.SiteSeoRow>(sql`
+    SELECT * FROM site_seo WHERE slug = ${c.req.param("slug")} LIMIT 1
+  `);
+  if (rows.length === 0) return c.json({ error: "SEO metadata not found" }, 404);
+  return c.json({ seo: rows[0] });
+});
+
 export default websiteRouter;
