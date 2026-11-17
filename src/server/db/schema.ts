@@ -1254,3 +1254,51 @@ export const verification = sqliteTable("verification", {
     .notNull()
     .$defaultFn(() => new Date()),
 });
+
+// ---------------------------------------------------------------------------
+// Staff Access — auth audit log.
+// Immutable trail of staff authentication and account events (sign-in,
+// sign-out, failed attempts, role changes, invitations). Written by the auth
+// middleware and staff API; never updated or deleted from application code.
+// ---------------------------------------------------------------------------
+
+export const staffAuditLogs = sqliteTable(
+  "staff_audit_logs",
+  {
+    id: text("id").primaryKey(),
+    userId: text("user_id"),
+    actorEmail: text("actor_email").notNull(),
+    action: text("action", {
+      enum: [
+        "login",
+        "logout",
+        "login_failed",
+        "password_reset_request",
+        "password_reset_done",
+        "role_change",
+        "staff_invite",
+        "staff_update",
+        "staff_delete",
+        "account_suspended",
+        "account_reactivated",
+      ],
+    }).notNull(),
+    detail: text("detail"),
+    ip: text("ip"),
+    userAgent: text("user_agent"),
+    outcome: text("outcome", { enum: ["success", "failed"] })
+      .notNull()
+      .default("success"),
+    createdAt: integer("createdAt", { mode: "timestamp" })
+      .notNull()
+      .$defaultFn(() => new Date()),
+  },
+  (table) => ({
+    userIdIdx: index("staff_audit_logs_user_idx").on(table.userId),
+    actionIdx: index("staff_audit_logs_action_idx").on(table.action),
+    createdAtIdx: index("staff_audit_logs_created_at_idx").on(table.createdAt),
+  }),
+);
+
+export type StaffAuditLogRow = typeof staffAuditLogs.$inferSelect;
+export type NewStaffAuditLogRow = typeof staffAuditLogs.$inferInsert;
