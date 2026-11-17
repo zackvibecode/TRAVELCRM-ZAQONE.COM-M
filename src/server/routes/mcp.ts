@@ -156,6 +156,21 @@ const TOOLS = [
     },
     requiredScope: "bookings:write",
   },
+  {
+    name: "add_payment_note",
+    description: "Record a payment intent on an invoice — always pending verification (finance staff verifies).",
+    inputSchema: {
+      type: "object",
+      properties: {
+        invoiceNumber: { type: "string" },
+        amount: { type: "number" },
+        method: { type: "string" },
+        reference: { type: "string" },
+      },
+      required: ["invoiceNumber", "amount"],
+    },
+    requiredScope: "invoices:write",
+  },
 ];
 
 function rpcResult(id: RpcRequest["id"], result: unknown) {
@@ -617,6 +632,58 @@ mcpRouter.post("/", async (c) => {
           seatHoldId: hold.holdId,
           holdExpiresInMinutes: 15,
           seatsAvailable: hold.seatsAvailable,
+        });
+      } else if (name === "add_payment_note") {
+        const invoiceNumber = String(args.invoiceNumber ?? "");
+        const amount = Number(args.amount) || 0;
+        const method = String(args.method ?? "bank_transfer");
+        const validMethods = ["bank_transfer", "credit_card", "cash", "ewallet", "other"];
+
+        if (!invoiceNumber || amount <= 0 || !validMethods.includes(method)) {
+          await audit(name, "error", "invalid payment note parameters");
+          return c.json(
+            rpcResult(id, {
+              content: [{ type: "text", text: "Invalid: invoiceNumber, amount>0 and a valid method are required" }],
+              isError: true,
+            }),
+          );
+        }
+
+        const invoice = await db.all<{ id: string; bookingId: string | null }>(sql`
+          SELECT id, booking_id AS bookingId FROM invoices WHERE number = ${invoiceNumber} LIMIT 1
+        `);
+        if (!invoice.length) {
+          await audit(name, "error", "invoice not found");
+          return c.json(
+            rpcResult(id, {
+              content: [{ type: "text", text: "Invoice not found" }],
+              isError: true,
+            }),
+          );
+        }
+
+        // MCP can only stage a payment — verification stays with finance staff.
+        const paymentId = crypto.randomUUID();
+        await db.insert(schema.payments).values({
+          id: paymentId,
+          invoiceId: invoice[0].id,
+          amount,
+          method: method as "bank_transfer" | "credit_card" | "cash" | "ewallet" | "other",
+          status: "pending_verification",
+          reference: args.reference ? String(args.reference) : null,
+          createdBy: `mcp:${token.id}`,
+        }).run();
+        await db.execute(sql`
+          INSERT INTO audit_logs (id, actor, role, action, entity_type, entity_id, detail, at)
+          VALUES (${crypto.randomUUID()}, ${`mcp:${token.id}`}, ${token.role}, 'mcp_stage_payment', 'payments', ${paymentId}, ${`invoice:${invoiceNumber}`}, datetime('now'))
+        `).catch(() => undefined);
+
+        text = JSON.stringify({
+          id: paymentId,
+          invoiceNumber,
+          amount,
+          status: "pending_verification",
+          note: "Finance staff must verify before it counts as collected.",
         });
       } else {
         text = "[]";
