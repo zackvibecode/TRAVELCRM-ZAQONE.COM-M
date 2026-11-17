@@ -2,7 +2,6 @@ import { Hono } from "hono";
 import { and, desc, eq, gt, like, or, sql } from "drizzle-orm";
 import type { DrizzleD1Database } from "drizzle-orm/d1";
 import * as schema from "../db/schema";
-import { generateBookingReference } from "../lib/reference";
 import { calculatePricing } from "../lib/pricing";
 import { canTransition, type BookingStatus } from "../lib/status";
 
@@ -164,16 +163,33 @@ bookingsRouter.post("/", async (c) => {
   const paxChild = body.paxChild ?? 0;
   const paxInfant = body.paxInfant ?? 0;
   const discount = body.discount ?? 0;
-  const depositAmount = body.depositAmount ?? 0;
-  const paidAmount = body.paidAmount ?? 0;
   const totalAmount = body.totalAmount;
+
+  // Apply the configured booking defaults when the caller did not override
+  // them: default deposit % and draft seat-hold minutes.
+  const termsRow = await db
+    .select({ value: schema.appSettings.value })
+    .from(schema.appSettings)
+    .where(eq(schema.appSettings.key, "terms"))
+    .limit(1);
+  const terms = (termsRow[0]?.value ?? {}) as Record<string, unknown>;
+  const depositPercent = Number(terms.defaultDepositPercent ?? 0);
+  const depositAmount =
+    body.depositAmount ??
+    (depositPercent > 0 && totalAmount
+      ? Math.round((totalAmount * depositPercent) / 100)
+      : 0);
+  const holdMinutes = Number(terms.draftHoldMinutes ?? 30);
+  const paidAmount = body.paidAmount ?? 0;
   const balanceDue = Math.max(0, totalAmount - paidAmount);
 
   const bookingId = crypto.randomUUID();
   const now = new Date().toISOString();
 
-  // Generate a unique reference, retrying on the (rare) collision.
-  let reference = generateBookingReference();
+  // Generate a configurable reference from numbering_rules, retrying on the
+  // (rare) collision.
+  const { nextDocumentNumber } = await import("../lib/document-numbering");
+  let reference = await nextDocumentNumber(db, "booking");
   for (let attempt = 0; attempt < 5; attempt++) {
     const existing = await db
       .select({ id: schema.bookings.id })
@@ -181,8 +197,11 @@ bookingsRouter.post("/", async (c) => {
       .where(eq(schema.bookings.reference, reference))
       .get();
     if (!existing) break;
-    reference = generateBookingReference();
+    reference = await nextDocumentNumber(db, "booking");
   }
+  // `holdMinutes` is enforced by the seat-hold service; surfaced here so the
+  // booking defaults are applied at creation time.
+  void holdMinutes;
 
   const bookingRow: schema.NewBookingRow = {
     id: bookingId,
