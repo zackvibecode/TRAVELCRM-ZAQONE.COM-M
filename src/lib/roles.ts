@@ -18,6 +18,7 @@ export const ROUTE_ROLES: Record<string, StaffRole[]> = {
   "/mcp-audit": ["super_admin", "management"],
   "/staff": ["super_admin"],
   "/staff-audit": ["super_admin", "management"],
+  "/company-profile": ["super_admin", "management"],
   "/settings": ["super_admin"],
 };
 

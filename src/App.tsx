@@ -25,6 +25,7 @@ import McpAuditLog from "@/pages/McpAuditLog";
 import StaffRoles from "@/pages/StaffRoles";
 import StaffAuditLog from "@/pages/StaffAuditLog";
 import Settings from "@/pages/Settings";
+import CompanyProfile from "@/pages/CompanyProfile";
 
 export default function App() {
   return (
@@ -51,6 +52,7 @@ export default function App() {
           <Route path="/staff" element={<RoleRoute path="/staff"><StaffRoles /></RoleRoute>} />
           <Route path="/staff-audit" element={<RoleRoute path="/staff-audit"><StaffAuditLog /></RoleRoute>} />
           <Route path="/settings" element={<RoleRoute path="/settings"><Settings /></RoleRoute>} />
+          <Route path="/company-profile" element={<RoleRoute path="/company-profile"><CompanyProfile /></RoleRoute>} />
         </Route>
       </Route>
 

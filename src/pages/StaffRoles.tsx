@@ -77,6 +77,7 @@ const ROUTE_LABELS: Record<string, { ms: string; en: string }> = {
   "/mcp-audit": { ms: "Log Audit MCP", en: "MCP Audit Log" },
   "/staff": { ms: "Peranan Staf", en: "Staff Roles" },
   "/staff-audit": { ms: "Log Audit Staf", en: "Staff Audit Log" },
+  "/company-profile": { ms: "Profil Syarikat", en: "Company Profile" },
   "/settings": { ms: "Tetapan", en: "Settings" },
 };
 
