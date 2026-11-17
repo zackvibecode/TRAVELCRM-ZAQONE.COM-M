@@ -71,6 +71,9 @@ export function createAuth(db: DrizzleD1Database<typeof schema>, env: Env) {
     // token via `Authorization: Bearer <token>` instead: it rewrites the
     // header into a signed session cookie before routing, and exposes the
     // token via the `set-auth-token` response header on sign-in responses.
+    // Note: the plugin hook only runs inside auth.handler (/auth/*); the
+    // CRM data routes below resolve sessions via requireStaffSession, which
+    // performs the same bearer->cookie rewrite itself (see middleware/auth).
     plugins: [bearer()],
     user: {
       additionalFields: {

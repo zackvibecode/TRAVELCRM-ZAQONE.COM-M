@@ -3,6 +3,28 @@ import { getAuth } from "../lib/auth-context";
 import type { AuthEnv, StaffIdentity } from "../lib/auth-context";
 import { canPerform, type PermissionAction } from "../lib/permissions";
 
+/**
+ * The Better Auth bearer plugin only rewrites `Authorization: Bearer` into a
+ * session cookie inside auth.handler (/auth/*). The CRM data routes below
+ * resolve sessions directly via auth.api.getSession(), which bypasses that
+ * hook. On iOS Safari the third-party session cookie is blocked, so those
+ * routes see no session -> 401 -> the app logs the user out right after a
+ * successful login.
+ *
+ * Mirror the bearer token into the correctly-named signed session cookie
+ * (`zaqone.session_token`, dot separator — must match server/lib/auth.ts
+ * cookiePrefix) so these direct calls authenticate exactly like /auth/* does.
+ */
+function authHeadersWithBearer(raw: Headers): Headers {
+  const headers = new Headers(raw);
+  const authz = headers.get("authorization");
+  if (authz?.toLowerCase().startsWith("bearer ") && !headers.get("cookie")) {
+    const token = authz.slice(7).trim();
+    if (token) headers.set("cookie", `zaqone.session_token=${token}`);
+  }
+  return headers;
+}
+
 export type Role =
   | "super_admin"
   | "management"
@@ -26,11 +48,10 @@ export const ROLES: Role[] = [
  */
 export async function requireStaffSession(c: Context<AuthEnv>, next: Next) {
   const auth = getAuth(c);
-  // The bearer plugin (see server/lib/auth.ts) converts a mobile client's
-  // `Authorization: Bearer <token>` header into a session cookie before the
-  // getSession endpoint runs, so session resolution works even when mobile
-  // browsers block the third-party session cookie.
-  const session = await auth.api.getSession({ headers: c.req.raw.headers });
+  // See authHeadersWithBearer above — supports cookie-blocked mobile clients.
+  const session = await auth.api.getSession({
+    headers: authHeadersWithBearer(c.req.raw.headers),
+  });
 
   if (!session?.user) {
     return c.json({ error: "unauthorized", message: "Sign-in required" }, 401);
@@ -71,7 +92,7 @@ export function requireRole(...allowed: Role[]): MiddlewareHandler {
     try {
       const auth = getAuth(c as unknown as Context<AuthEnv>);
       const session = await auth.api.getSession({
-        headers: c.req.raw.headers,
+        headers: authHeadersWithBearer(c.req.raw.headers),
       });
 
       if (session?.user) {
