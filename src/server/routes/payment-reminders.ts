@@ -26,6 +26,31 @@ const DEFAULT_TEMPLATE =
   "Halo {customer}, ini pengingat pembayaran untuk invoice {invoice} " +
   "sebesar {balance}, jatuh tempo {due}. Terima kasih!";
 
+/** Render a message from a DB notification template or the built-in default. */
+function renderReminder(
+  template: string | undefined,
+  invoice: typeof schema.invoices.$inferSelect,
+): string {
+  const balance = `RM ${new Intl.NumberFormat("ms-MY").format(Math.round(invoice.balanceDue / 3000))}`;
+  if (template && template.includes("{{")) {
+    const values: Record<string, string> = {
+      customer_name: invoice.customerName,
+      booking_ref: invoice.number,
+      amount: balance,
+      due_date: invoice.dueDate ?? "—",
+    };
+    return template.replace(/\{\{\s*(\w+)\s*\}\}/g, (_m, key: string) =>
+      values[key] !== undefined ? values[key]! : `{{${key}}}`,
+    );
+  }
+  const source = template ?? DEFAULT_TEMPLATE;
+  return source
+    .replaceAll("{customer}", invoice.customerName)
+    .replaceAll("{invoice}", invoice.number)
+    .replaceAll("{balance}", balance)
+    .replaceAll("{due}", invoice.dueDate ?? "—");
+}
+
 /**
  * GET /payment-reminders/due — invoices needing attention:
  * balanceDue > 0, not draft/void, due within 30 days or overdue.
@@ -57,6 +82,19 @@ paymentRemindersRouter.get(
       .limit(200)
       .all();
 
+    // Active payment_reminder template (DB), falling back to the default.
+    const tplRows = await db
+      .select({ body: schema.notificationTemplates.body })
+      .from(schema.notificationTemplates)
+      .where(
+        and(
+          eq(schema.notificationTemplates.code, "payment_reminder"),
+          eq(schema.notificationTemplates.enabled, true),
+        ),
+      )
+      .limit(1);
+    const templateBody = tplRows[0]?.body;
+
     const data = rows.map((invoice) => {
       const overdue = !!invoice.dueDate && invoice.dueDate < today;
       const daysUntil = invoice.dueDate
@@ -69,16 +107,7 @@ paymentRemindersRouter.get(
         ...invoice,
         overdue,
         daysUntil,
-        message: DEFAULT_TEMPLATE.replaceAll(
-          "{customer}",
-          invoice.customerName,
-        )
-          .replaceAll("{invoice}", invoice.number)
-          .replaceAll(
-            "{balance}",
-            `RM ${new Intl.NumberFormat("ms-MY").format(Math.round(invoice.balanceDue / 3000))}`,
-          )
-          .replaceAll("{due}", invoice.dueDate ?? "—"),
+        message: renderReminder(templateBody, invoice),
       };
     });
 
@@ -87,20 +116,33 @@ paymentRemindersRouter.get(
 );
 
 /**
- * GET /payment-reminders/template — the default message template plus the
- * customer/invoice data used by the frontend composer.
+ * GET /payment-reminders/template — the active DB template (payment_reminder)
+ * when configured, plus the customer/invoice data used by the frontend
+ * composer. Falls back to the built-in default template.
  */
 paymentRemindersRouter.get(
   "/template",
   requireRole("sales", "management", "finance"),
-  (c) =>
-    c.json({
+  async (c) => {
+    const db = c.get("db");
+    const rows = await db
+      .select()
+      .from(schema.notificationTemplates)
+      .where(eq(schema.notificationTemplates.code, "payment_reminder"))
+      .limit(1);
+    const tpl = rows[0];
+    return c.json({
       success: true,
       data: {
-        template: DEFAULT_TEMPLATE,
-        placeholders: ["{customer}", "{invoice}", "{balance}", "{due}"],
+        template: tpl?.body ?? DEFAULT_TEMPLATE,
+        placeholders: tpl
+          ? ["{{customer_name}}", "{{booking_ref}}", "{{amount}}", "{{due_date}}"]
+          : ["{customer}", "{invoice}", "{balance}", "{due}"],
+        channel: tpl?.channel ?? "whatsapp",
+        source: tpl ? "db" : "builtin",
       },
-    }),
+    });
+  },
 );
 
 /**
