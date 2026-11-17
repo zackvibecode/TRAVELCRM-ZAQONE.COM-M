@@ -283,6 +283,7 @@ mcpRouter.post("/", async (c) => {
 
   // notifications/initialized — no response body required by JSON-RPC.
   if (method === "notifications/initialized") {
+    await audit("notifications/initialized", "success");
     return c.json(rpcResult(id, {}));
   }
 
@@ -751,6 +752,7 @@ mcpRouter.post("/", async (c) => {
     }
   }
 
+  await audit(String(method ?? "unknown"), "error", "unknown method");
   return c.json(rpcError(id, -32601, `Method not found: ${method}`));
 });
 
