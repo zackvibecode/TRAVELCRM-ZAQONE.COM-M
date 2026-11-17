@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { NavLink, Outlet } from "react-router-dom";
+import { NavLink, Outlet, useNavigate } from "react-router-dom";
 import {
   LayoutDashboard,
   Users,
@@ -17,14 +17,43 @@ import {
   Languages,
   Bot,
   ScrollText,
+  ChevronDown,
+  LogOut,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useLang, type Lang } from "@/lib/i18n";
+import { getSession, logout, type StaffRole } from "@/lib/auth";
+
+const ROLE_BADGE: Record<StaffRole, { ms: string; en: string }> = {
+  super_admin: { ms: "Super Admin", en: "Super Admin" },
+  management: { ms: "Pengurusan", en: "Management" },
+  sales: { ms: "Jualan", en: "Sales" },
+  finance: { ms: "Kewangan", en: "Finance" },
+  operations: { ms: "Operasi", en: "Operations" },
+};
+
+function initials(name: string): string {
+  return name
+    .split(/\s+/)
+    .filter(Boolean)
+    .slice(0, 2)
+    .map((w) => w[0]!.toUpperCase())
+    .join("");
+}
 
 export default function AppShell() {
   const [collapsed, setCollapsed] = useState(false);
   const [mobileOpen, setMobileOpen] = useState(false);
+  const [userMenuOpen, setUserMenuOpen] = useState(false);
   const { lang, setLang, t } = useLang();
+  const navigate = useNavigate();
+  const session = getSession();
+
+  const handleSignOut = () => {
+    logout();
+    setUserMenuOpen(false);
+    navigate("/login", { replace: true });
+  };
 
   const navSections = [
     {
@@ -165,8 +194,50 @@ export default function AppShell() {
                 </button>
               ))}
             </div>
-            <div className="flex h-8 w-8 items-center justify-center rounded-full bg-primary/10 text-sm font-semibold text-primary">
-              SA
+            {/* User menu with sign-out */}
+            <div className="relative">
+              <button
+                onClick={() => setUserMenuOpen((o) => !o)}
+                className="flex items-center gap-2 rounded-full border px-2 py-1 hover:bg-muted/50"
+              >
+                <span className="flex h-7 w-7 items-center justify-center rounded-full bg-primary/10 text-xs font-semibold text-primary">
+                  {session ? initials(session.name) : "SA"}
+                </span>
+                <span className="hidden text-xs font-medium sm:inline">
+                  {session ? session.name.split("(")[0].trim() : "Staff"}
+                </span>
+                <ChevronDown className="h-3.5 w-3.5 text-muted-foreground" />
+              </button>
+              {userMenuOpen && (
+                <>
+                  <div
+                    className="fixed inset-0 z-30"
+                    onClick={() => setUserMenuOpen(false)}
+                  />
+                  <div className="absolute right-0 top-full z-40 mt-1 w-56 rounded-lg border bg-white p-1 shadow-lg">
+                    <div className="border-b px-3 py-2">
+                      <div className="text-sm font-semibold">
+                        {session?.name ?? "Staff"}
+                      </div>
+                      <div className="text-xs text-muted-foreground">
+                        {session?.email ?? ""}
+                      </div>
+                      {session && (
+                        <span className="mt-1 inline-flex rounded-full bg-primary/10 px-2 py-0.5 text-[11px] font-semibold text-primary">
+                          {t(ROLE_BADGE[session.role].ms, ROLE_BADGE[session.role].en)}
+                        </span>
+                      )}
+                    </div>
+                    <button
+                      onClick={handleSignOut}
+                      className="mt-1 flex w-full items-center gap-2 rounded-md px-3 py-2 text-sm text-red-600 hover:bg-red-50"
+                    >
+                      <LogOut className="h-4 w-4" />
+                      {t("Log Keluar", "Sign Out")}
+                    </button>
+                  </div>
+                </>
+              )}
             </div>
           </div>
         </header>
