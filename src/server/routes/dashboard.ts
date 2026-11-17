@@ -70,6 +70,13 @@ dashboardRouter.get("/kpi", async (c) => {
       AND due_date < date('now')
   `);
 
+  // Cash actually collected = verified payments only (pending/rejected excluded).
+  const paymentRows = await db.all<{ collected: number }>(sql`
+    SELECT COALESCE(SUM(amount), 0) AS collected
+    FROM payments
+    WHERE status = 'verified'
+  `);
+
   const leads = leadRows[0] ?? { total: 0, open: 0, won: 0, lost: 0 };
   const customers = customerRows[0] ?? { total: 0 };
   const bookings = bookingRows[0] ?? {
@@ -79,6 +86,7 @@ dashboardRouter.get("/kpi", async (c) => {
     outstanding: 0,
   };
   const overdue = overdueRows[0] ?? { count: 0, amount: 0 };
+  const payments = paymentRows[0] ?? { collected: 0 };
 
   const decided = Number(leads.won) + Number(leads.lost);
   const winRate = decided > 0 ? Math.round((Number(leads.won) / decided) * 100) : 0;
@@ -97,6 +105,9 @@ dashboardRouter.get("/kpi", async (c) => {
       confirmed: Number(bookings.confirmed),
       collected: Number(bookings.collected),
       outstanding: Number(bookings.outstanding),
+    },
+    payments: {
+      collected: Number(payments.collected),
     },
     invoices: {
       overdueCount: Number(overdue.count),
