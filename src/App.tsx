@@ -3,6 +3,8 @@ import AppShell from "@/components/AppShell";
 import ProtectedRoute from "@/components/ProtectedRoute";
 import RoleRoute from "@/components/RoleRoute";
 import LoginPage from "@/pages/LoginPage";
+import ForgotPasswordPage from "@/pages/ForgotPasswordPage";
+import ResetPasswordPage from "@/pages/ResetPasswordPage";
 import BookingWorkspace from "@/pages/BookingWorkspace";
 import TripsDashboard from "@/pages/TripsDashboard";
 import PackageCatalog from "@/pages/PackageCatalog";
@@ -26,8 +28,10 @@ import StaffRoles from "@/pages/StaffRoles";
 export default function App() {
   return (
     <Routes>
-      {/* Staff login (mock auth) */}
+      {/* Staff login & password recovery (mock auth) */}
       <Route path="/login" element={<LoginPage />} />
+      <Route path="/forgot-password" element={<ForgotPasswordPage />} />
+      <Route path="/reset-password" element={<ResetPasswordPage />} />
 
       {/* Admin workspace (requires session) */}
       <Route element={<ProtectedRoute />}>

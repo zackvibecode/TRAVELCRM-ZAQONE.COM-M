@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { useLocation, useNavigate } from "react-router-dom";
+import { useLocation, useNavigate, Link } from "react-router-dom";
 import { Languages, Lock, LogIn, Mail, Plane, Eye, EyeOff, ShieldCheck } from "lucide-react";
 import { useLang } from "@/lib/i18n";
 import { loginMock, listDemoAccounts, type StaffRole } from "@/lib/auth";
@@ -124,6 +124,15 @@ export default function LoginPage() {
                 {error}
               </div>
             )}
+
+            <div className="text-right">
+              <Link
+                to="/forgot-password"
+                className="text-xs font-medium text-primary hover:underline"
+              >
+                {t("Lupa kata laluan?", "Forgot password?")}
+              </Link>
+            </div>
 
             <button
               type="submit"
