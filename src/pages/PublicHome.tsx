@@ -4,7 +4,7 @@ import { MapPin, CalendarDays, Users, ShieldCheck, Headset, Sparkles, ArrowRight
 import { mockPackages } from "@/lib/mock-data";
 import { cn , formatRinggit } from "@/lib/utils";
 import { activeBanners, applySeo } from "@/lib/site-config";
-import { useLang } from "@/lib/i18n";
+import { useLang, useLocalePath } from "@/lib/i18n";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import {
@@ -56,10 +56,11 @@ const VALUE_PROPS = [
 ];
 
 export default function PublicHome() {
-  const { t } = useLang();
+  const { t, lang } = useLang();
+  const lp = useLocalePath();
 
   useEffect(() => {
-    applySeo("home");
+    applySeo("home", lang);
     return () => {
       document.title = "ZAQONE TRAVEL CRM";
     };
@@ -132,13 +133,13 @@ export default function PublicHome() {
             </p>
             <div className="mt-6 flex flex-wrap gap-3">
               <Button asChild size="lg">
-                <Link to="/site/packages">
+                <Link to={lp("/site/packages")}>
                   {t("Lihat Pakej Pelancongan", "View Tour Packages")}
                   <ArrowRight className="ml-2 h-4 w-4" />
                 </Link>
               </Button>
               <Button asChild size="lg" variant="outline">
-                <Link to="/site/contact">{t("Konsultasi Percuma", "Free Consultation")}</Link>
+                <Link to={lp("/site/contact")}>{t("Konsultasi Percuma", "Free Consultation")}</Link>
               </Button>
             </div>
 
@@ -162,7 +163,7 @@ export default function PublicHome() {
             {featured.slice(0, 2).map((pkg, idx) => (
               <Link
                 key={pkg.id}
-                to="/site/packages"
+                to={lp("/site/packages")}
                 className={cn(
                   "group relative overflow-hidden rounded-2xl border bg-gradient-to-br p-5 transition-shadow hover:shadow-lg",
                   idx === 0
@@ -237,7 +238,7 @@ export default function PublicHome() {
               </p>
             </div>
             <Button asChild variant="ghost" size="sm">
-              <Link to="/site/packages">
+              <Link to={lp("/site/packages")}>
                 {t("Semua pakej", "All packages")}
                 <ArrowRight className="ml-1.5 h-3.5 w-3.5" />
               </Link>
@@ -246,7 +247,7 @@ export default function PublicHome() {
 
           <div className="mt-6 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
             {featured.map((pkg) => (
-              <Link key={pkg.id} to="/site/packages">
+              <Link key={pkg.id} to={lp("/site/packages")}>
                 <Card className="h-full transition-shadow hover:shadow-md">
                   <CardContent className="flex h-full flex-col p-5">
                     <span className="flex items-center gap-1 text-xs font-medium text-stone-500">
@@ -297,7 +298,7 @@ export default function PublicHome() {
             {destinations.map((dest) => (
               <Link
                 key={dest.name}
-                to="/site/packages"
+                to={lp("/site/packages")}
                 className={cn(
                   "group relative overflow-hidden rounded-xl border p-4 transition-shadow hover:shadow-md",
                   dest.featured
@@ -350,7 +351,7 @@ export default function PublicHome() {
           </p>
           <div className="flex flex-wrap justify-center gap-3">
             <Button asChild size="lg">
-              <Link to="/site/contact">{t("Hubungi Kami", "Contact Us")}</Link>
+              <Link to={lp("/site/contact")}>{t("Hubungi Kami", "Contact Us")}</Link>
             </Button>
             <Button
               asChild
@@ -358,7 +359,7 @@ export default function PublicHome() {
               variant="outline"
               className="border-stone-700 bg-transparent text-white hover:bg-stone-800 hover:text-white"
             >
-              <Link to="/site/packages">{t("Terokai Pakej", "Explore Packages")}</Link>
+              <Link to={lp("/site/packages")}>{t("Terokai Pakej", "Explore Packages")}</Link>
             </Button>
           </div>
         </div>

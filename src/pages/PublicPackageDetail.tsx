@@ -11,7 +11,7 @@ import {
   Users,
 } from "lucide-react";
 import { mockDepartures, mockPackages } from "@/lib/mock-data";
-import { useLang } from "@/lib/i18n";
+import { useLang, useLocalePath } from "@/lib/i18n";
 import { formatRinggit } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -29,6 +29,7 @@ function formatRupiah(value: number): string {
 export default function PublicPackageDetail() {
   const { id } = useParams<{ id: string }>();
   const { t, lang } = useLang();
+  const lp = useLocalePath();
   const pkg = useMemo(
     () => mockPackages.find((p) => p.id === id),
     [id],
@@ -55,7 +56,7 @@ export default function PublicPackageDetail() {
           )}
         </p>
         <Button asChild variant="outline">
-          <Link to="/site/packages">
+          <Link to={lp("/site/packages")}>
             <ArrowLeft className="mr-1.5 h-4 w-4" />
             {t("Kembali ke Katalog", "Back to Catalog")}
           </Link>
@@ -73,7 +74,7 @@ export default function PublicPackageDetail() {
       <section className="bg-gradient-to-b from-stone-100 to-white">
         <div className="mx-auto max-w-6xl px-4 py-10">
           <Link
-            to="/site/packages"
+            to={lp("/site/packages")}
             className="mb-4 inline-flex items-center gap-1 text-xs font-medium text-stone-500 hover:text-red-600"
           >
             <ArrowLeft className="h-3 w-3" />
@@ -224,7 +225,7 @@ export default function PublicPackageDetail() {
                   </div>
 
                   <Button asChild className="mt-5 w-full" size="lg">
-                    <Link to="/site/contact">
+                    <Link to={lp("/site/contact")}>
                       {t("Tempahkan Sekarang", "Book Now")}
                       <ArrowRight className="ml-2 h-4 w-4" />
                     </Link>

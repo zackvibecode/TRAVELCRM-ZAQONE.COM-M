@@ -70,7 +70,7 @@ export default function App() {
         </Route>
       </Route>
 
-      {/* Public website */}
+      {/* Public website — default locale + explicit locale-prefixed URLs */}
       <Route path="/site" element={<PublicSiteShell />}>
         <Route index element={<PublicHome />} />
         <Route path="promos" element={<PublicPromos />} />
@@ -79,6 +79,20 @@ export default function App() {
         <Route path="contact" element={<PublicContact />} />
         <Route path="about" element={<PublicHome />} />
       </Route>
+      {(["ms", "en"] as const).map((locale) => (
+        <Route
+          key={locale}
+          path={`/site/${locale}`}
+          element={<PublicSiteShell />}
+        >
+          <Route index element={<PublicHome />} />
+          <Route path="promos" element={<PublicPromos />} />
+          <Route path="packages" element={<PublicPackages />} />
+          <Route path="packages/:id" element={<PublicPackageDetail />} />
+          <Route path="contact" element={<PublicContact />} />
+          <Route path="about" element={<PublicHome />} />
+        </Route>
+      ))}
     </Routes>
   );
 }

@@ -1,0 +1,404 @@
+﻿# PRD — Project Requirements Document
+
+## 1. Overview
+
+**ZAQONE TRAVEL CRM** is an all-in-one management system for travel agencies: a public travel website on the outside, and a secure admin workspace on the inside, both running on the same live database.
+
+**The problem it solves**
+Most small and mid-size travel agencies run their business across WhatsApp chats, Excel spreadsheets, and invoices typed by hand. Packages, departure dates, seat availability, customer details, payments, and supplier costs live in separate places. The result is double-booked seats, missed follow-ups, unpaid balances nobody notices, and hours wasted every day re-checking numbers.
+
+**The goal**
+Give the agency **one place for everything** — from the first website enquiry to the passenger manifest and the final profit number — so the team can work faster, sell more, and stop losing money to manual mistakes.
+
+**Primary users**
+- **Agency owner / manager** — needs a clear view of sales, occupancy, cash collected, and profit per trip.
+- **Sales agents** — need to follow up on leads and turn them into bookings quickly.
+- **Finance staff** — need accurate invoices, verified payments, and outstanding balances.
+- **Operations staff** — need passenger lists, documents, rooming, flights, and trip checklists.
+- **Website visitors** — need to browse packages, see real departure dates and remaining seats, and send an enquiry.
+
+**Why the team keeps coming back**
+ZAQONE TRAVEL CRM is a shared workspace: sales, finance, and operations work from the same bookings and the same numbers. The first win is simple — **create a booking in under two minutes** — and every following day the dashboard tells the team what needs attention.
+
+---
+
+## 2. Requirements
+
+### Functional requirements
+1. **Shared data layer** — the public website and the admin dashboard must read and write the same production database. No mock data, no placeholder screens.
+2. **Real CRUD everywhere** — every list, form, and status change must actually persist and reload correctly.
+3. **Accurate seat inventory** — confirmed, held, and available seats must always be correct, using atomic database operations so two agents can never sell the same seat.
+4. **Temporary seat holds** — a held seat must expire automatically and release back to inventory.
+5. **Separate statuses** — booking status and payment status are tracked independently (a confirmed booking can still be unpaid).
+6. **Document generation** — quotations, invoices, and receipts must be generated as branded PDFs from real records.
+7. **Role-based access** — Super Admin, Management, Sales, Finance, Operations — enforced on the server, not just hidden in the UI.
+8. **Public website driven by admin data** — packages, prices, departure dates, seat availability, banners, and page content are all editable in the admin panel.
+9. **Enquiry capture** — every website enquiry becomes a lead in the CRM automatically.
+10. **Reporting and export** — sales, finance, occupancy, and profit reports, exportable to CSV/Excel.
+11. **Audit trail** — important staff actions recorded with user, action, and timestamp.
+12. **MCP access for AI agents** — an official Model Context Protocol (MCP) server must expose CRM data and selected actions to AI clients (Claude Desktop, IDE coding agents, internal automations) using token-authenticated, role-scoped tools. Every MCP tool call is permission-checked server-side and written to the audit log; write tools must never bypass the same validation used by the dashboard.
+13. **Central settings page** — a single admin settings area must own all global configuration (company profile, document numbering, booking defaults, notification templates, API tokens) so values are edited in one place and read consistently by every module. Settings changes are restricted to Super Admin, validated server-side, and written to the audit log.
+14. **Bilingual interface (English + Bahasa Malaysia)** — the entire CRM and the entire public website must be available in **English** and **Bahasa Malaysia** only. No other language, including Indonesian, may ship. Every interface string, validation message, email/WhatsApp template, PDF label, and public page comes from translation files — never hardcoded in components. Language is a user preference stored per account, switchable at any time without losing context, and the public website exposes a visible language switcher with indexable URLs per language.
+
+### Non-functional requirements
+- **Security** — authentication on every admin route, server-side permission checks, signed/expiring links for stored files, and restricted access to passport details and payment proofs.
+- **Performance** — dashboard and package pages should feel instant; list screens should support search, filters, and pagination.
+- **Reliability** — seat deduction and payment recording must be transactional; no partial writes.
+- **Responsiveness** — full admin dashboard usable on mobile and tablet.
+- **Usability** — clean, premium SaaS look: white background, dark text, red accent, Montserrat or Inter typeface, collapsible sidebar, KPI cards, charts, badges, modals. No cluttered layouts or heavy gradients.
+- **Localization** — exactly two locales ship: `en` (English) and `ms` (Bahasa Malaysia). English is the system default. Adding a third locale must require only a new translation file, not code changes. Dates, numbers, and currency follow the active locale (e.g. `12 Feb 2026` / `12 Feb 2026`, `1,250.00`), while stored values stay locale-neutral.
+- **Scalability** — serverless deployment that handles peaks (campaign launches) without manual scaling.
+
+### Delivery requirements
+Build incrementally in five phases (see Core Features). Phase 1 must produce a working application with real database schema, real APIs, real authorization, and real workflows — not a demo. Phase 5 (MCP) ships only after Phases 1–4 are stable, because the MCP tools reuse the same authorization and validation paths.
+
+---
+
+## 3. Core Features
+
+### Phase 1 — Booking Workspace, Trips & Seats, Package Catalog
+
+**Booking Workspace** — Create and manage customer bookings with passengers, pricing, status, and history in one place.
+- **Create Booking** — Start a new individual or group booking by choosing a customer, package, and departure.
+- **Passenger Details** — Add and edit passenger information for each booking quickly and accurately.
+- **Price & Discounts** — Calculate total price, apply discounts, and track deposit and balance amounts.
+- **Booking Status** — Move bookings through draft, hold, confirmed, cancelled, and completed stages.
+- **Cancellation & History** — Review past changes and handle cancellations while keeping a clear booking record.
+
+**Trips & Seats** — Plan departures, track seat availability, prepare passengers, and see trip profit.
+- **Departure Calendar** — View all upcoming and active departures in a simple calendar layout.
+- **Seat Availability** — See confirmed, held, and available seats so overbooking is avoided.
+- **Passenger Manifests** — View and export complete passenger lists for each departure.
+- **Trip Prep** — Keep travel documents, rooming details, flight info, and checklists organized.
+- **Trip Costs & Profit** — Record supplier costs and compare estimated versus actual profit per trip.
+
+**Package Catalog** — Manage travel packages, prices, itineraries, media, and departure dates.
+- **Package List** — Add, edit, duplicate, and archive travel packages in a clear list.
+- **Pricing Tiers** — Set adult, child, and infant prices along with inclusions and exclusions.
+- **Itinerary & Media** — Build package highlights, day-by-day itineraries, images, and PDFs.
+- **Departure Dates** — Attach multiple departure and return dates to each package.
+- **Publish Status** — Choose which packages are visible or hidden on the public website.
+
+### Phase 2 — Customers & Leads, Billing & Payments
+
+**Customers & Leads** — Capture leads, manage customer profiles, and follow up from first enquiry to booking.
+- **Lead Pipeline** — Track leads from new enquiry through quotation, follow-up, won, or lost.
+- **Customer Profiles** — Keep contact details, preferences, and booking history for every customer.
+- **Follow-ups & Notes** — Set reminders and record activity notes so no lead is forgotten.
+- **Lead Sources** — See where leads come from and track campaign or referral performance.
+- **WhatsApp Contact** — Open a direct WhatsApp chat with leads and customers from their profile.
+
+**Billing & Payments** — Create quotations, invoices, and receipts while tracking payments and refunds.
+- **Quotations** — Generate branded quotation PDFs and turn accepted quotes into bookings.
+- **Invoices** — Create numbered invoices and receipts with clear deposit and balance details.
+- **Payment Proof** — Let customers upload payment proof for finance staff to verify.
+- **Refunds & Credits** — Record refunds and credit notes with a complete payment history.
+- **Payment Reminders** — Send reminders for overdue balances and upcoming installments.
+
+### Phase 3 — Business Dashboard, Website Manager
+
+**Business Dashboard** — See business performance, sales, reports, and important alerts at a glance.
+- **KPI Overview** — View totals for leads, customers, bookings, sales, and outstanding balances.
+- **Revenue Charts** — Track monthly revenue, bookings, and top package performance visually.
+- **Sales Performance** — Compare agent activity, conversions, targets, and team results.
+- **Reports & Exports** — Generate sales, finance, occupancy, and staff reports and export them.
+- **Alerts & Reminders** — Get notified about new leads, payments, low seats, and upcoming departures.
+
+**Website Manager** — Run the public travel website, package catalogue, enquiry forms, and content.
+- **Public Pages** — Manage the homepage, destinations, and promotional pages visitors see.
+- **Package Catalogue** — Show published packages with prices, itineraries, and available seats.
+- **Enquiry Forms** — Send website enquiries directly into the CRM as new leads.
+- **Content Editor** — Edit website text, images, featured packages, and banners without technical help.
+- **SEO & Banners** — Control search settings and promotional banners to attract more visitors.
+- **Language Versions** — Publish every public page in **English** and **Bahasa Malaysia**, with a visible language switcher, separate URL per locale, and per-language SEO title/description. Visitors keep their choice for future visits.
+
+### Phase 4 — Staff Access & System Settings
+
+**Staff Access** — Give staff secure access with the right roles, permissions, and audit records.
+- **Staff Login** — Let staff sign in securely and stay logged in with protected sessions.
+- **Roles & Permissions** — Assign super admin, management, sales, finance, and operations access levels.
+- **Password Reset** — Allow staff to reset forgotten passwords safely.
+- **Audit Log** — Keep a clear record of important staff actions for accountability.
+
+**System Settings** — One settings area where a Super Admin configures how the whole CRM behaves, without editing code or the database.
+- **Company Profile** — Set company name, logo, address, phone, email, tax ID, and bank accounts used on every generated document.
+- **Document Numbering** — Define prefixes and running numbers for quotations, invoices, and receipts, plus payment terms and validity periods.
+- **Booking Defaults** — Configure seat hold duration, deposit percentage, cancellation policy text, default currency, and tax rate applied to new bookings.
+- **Notification Templates** — Edit the message templates and reminder cadence used for WhatsApp and email follow-ups, invoices, and departure notices.
+- **Language & Locale** — Set the default CRM language and the default public website language (**English** or **Bahasa Malaysia** only), plus timezone and date/number/currency formatting. Staff can override their own UI language from their profile; the choice persists across sessions.
+- **API Tokens** — Create, scope, and instantly revoke the MCP and API tokens introduced in Phase 5, with last-used timestamps per token.
+- **Data & Maintenance** — Export a full backup, review storage usage, and manage the guarded danger zone; every settings change is written to the audit log.
+
+### Phase 5 — MCP Integration (AI Agent Access)
+
+**MCP Server** — Expose ZAQONE TRAVEL CRM to AI clients through a governed Model Context Protocol server running alongside the existing API on Cloudflare Workers.
+- **MCP Endpoint & Transport** — Serve a spec-compliant MCP endpoint (streamable HTTP) at a dedicated path, versioned so clients can negotiate capabilities.
+- **Token Authentication** — Issue per-user API tokens with scopes and expiry; a token inherits the role of the staff member who created it, and can be revoked instantly from the admin panel.
+- **Read Tools** — Expose `list_leads`, `get_lead`, `list_bookings`, `get_booking`, `check_seat_availability`, `list_packages`, `list_departures`, `get_invoice_balance`, and `search_customers` with the same filters and pagination as the dashboard.
+- **Write Tools** — Expose `create_lead`, `log_lead_activity`, `create_booking_draft`, and `record_payment_note`, each validated by the same server-side rules as the UI and refusing silently-unsafe changes such as confirmed seat overbooking.
+- **Resource & Prompt Catalog** — Publish read-only resources for package catalog, departure calendar, and outstanding balances, plus ready-made prompts for daily follow-up lists and overdue-payment summaries.
+- **Safety Boundaries** — MCP can never read passport numbers, passport scans, or payment proofs unless the token's role explicitly allows it; destructive actions (cancel booking, void invoice, refund) are excluded from MCP entirely in Phase 5.
+- **Rate Limiting & Audit** — Per-token rate limits, request logging, and an MCP audit trail showing client, tool, arguments summary, and result status for every call.
+
+---
+
+## 4. User Flow
+
+### Visitor → Lead (public website, Phase 3)
+1. Visitor lands on the homepage, browses destinations or the package catalogue.
+2. Opens a package: sees itinerary, prices, departure dates, and **seats remaining**.
+3. Clicks **Enquire** (form) or **Chat on WhatsApp**.
+4. Submitted form creates a **Lead** with source/UTM data and notifies the assigned sales agent.
+
+### Sales agent → Booking (Phase 1 + 2)
+1. Agent signs in and lands on the dashboard.
+2. Opens **Leads**, picks a new lead, logs a follow-up note, and moves it through the pipeline (New → Contacted → Qualified → Quotation).
+3. Generates a **quotation PDF** and sends it to the customer.
+4. Customer accepts → agent clicks **Convert to Booking**.
+5. Agent selects package + departure, adds passengers, applies discount, sets deposit → booking created.
+6. System **holds the seats** for a limited window; if the deposit is not paid in time, the hold expires and seats are released automatically.
+7. Agent confirms the booking; seats move from *held* to *confirmed*. A booking reference is generated.
+
+### Finance → Payment (Phase 2)
+1. Invoice appears in Finance with issue date, due date, deposit, and balance.
+2. Customer transfers and uploads **proof of payment**.
+3. Finance verifies the proof → payment recorded → balance and status update automatically.
+4. Receipt PDF is generated; overdue balances appear in reminders and alerts.
+
+### Operations → Trip departure (Phase 1 + 3)
+1. Operations opens the **Departure Calendar** and selects an upcoming trip.
+2. Reviews occupancy bar, then opens the **Passenger Manifest** (with passport details and expiry warnings).
+3. Uploads travel documents, assigns rooms and hotels, records flights and transport, assigns a tour leader.
+4. Works through the **trip preparation checklist** until everything is ticked.
+5. Records supplier costs to compare estimated vs actual profit.
+
+### Management → Review (Phase 3 + 4)
+1. Opens the dashboard: leads, bookings, sales collected, outstanding balances.
+2. Reviews monthly revenue chart, top packages, and agent performance.
+3. Exports a finance or occupancy report.
+4. Every sensitive action taken along the way is visible in the **audit log**.
+
+### Super Admin → Settings (Phase 4)
+1. Opens **Settings** from the sidebar and sees grouped tabs: Company, Documents, Bookings, Notifications, API Tokens, Data.
+2. Updates the company profile and bank accounts; the next invoice PDF picks up the new details immediately.
+3. Adjusts invoice numbering prefix and hold duration; new bookings and invoices follow the new values, existing records keep theirs.
+4. Edits a reminder template and previews the rendered WhatsApp/email message before saving.
+5. Creates an API token with read-only scopes, copies it once, and can revoke it later; every settings change is recorded in the audit log.
+6. Sets the default CRM and website language; new and existing staff see the interface in the chosen language after refreshing.
+
+### Anyone → Switch language (all phases)
+1. A staff member opens their profile (or the language menu in the top bar) and picks **English** or **Bahasa Malaysia**.
+2. The interface re-renders immediately in the chosen language; no page reload loses unsaved form input.
+3. The choice is saved to their user record and applied on next sign-in from any device.
+4. A website visitor uses the language switcher on the public site; the page reloads on the same content in the other locale, and the choice is remembered for return visits.
+5. Generated documents (quotation, invoice, receipt) render in the language selected at generation time.
+
+---
+
+## 5. Architecture
+
+ZAQONE TRAVEL CRM is a single serverless application with two front doors: the public website and the admin dashboard. Both are served as a React single-page app, and both talk to the same API layer, which owns all business rules and database access.
+
+- **Frontend** — React + Vite + TypeScript, Tailwind CSS and shadcn/ui components, one codebase with public and admin route groups.
+- **Localization** — a single i18n layer (`en`, `ms`) shared by the public site, the admin dashboard, and the document templates. UI copy lives in typed translation files; no user-facing string is hardcoded. The active locale comes from the user record (admin) or the URL prefix plus stored preference (public). Backend error and validation messages return message keys, not English sentences, so the client renders them in the active locale.
+- **API layer** — Hono running on Cloudflare Workers, organized by domain (auth, leads, customers, packages, departures, bookings, billing, suppliers, reports, website, settings). Every route is authorized by role before touching data.
+- **Database** — Cloudflare D1 (SQLite) accessed through Drizzle ORM. Seat inventory and payment updates use atomic conditional updates and transactions so counters can never drift.
+- **Auth** — Better Auth on Workers, session cookies, role claims attached to the user record.
+- **Files** — Cloudflare R2 for package images, PDFs, payment proofs, and passport scans, served through short-lived signed URLs and never publicly listed.
+- **Documents** — PDF generation for quotations, invoices, and receipts directly from live records.
+- **MCP layer** — a Model Context Protocol endpoint served from the same Worker, reusing the Hono domain services rather than duplicating queries. Tokens are scoped to a user and role, every tool call is authorized, rate-limited, and audited, and sensitive fields (passports, payment proofs) are filtered out before a response leaves the server.
+
+```mermaid
+sequenceDiagram
+    autonumber
+    actor Agent as Sales Agent
+    participant UI as Admin Dashboard (React)
+    participant API as Hono API (Workers)
+    participant Auth as Better Auth
+    participant DB as D1 + Drizzle
+    participant R2 as R2 Storage
+
+    Agent->>UI: Open booking form (customer, package, departure)
+    UI->>API: GET /departures/:id/availability
+    API->>Auth: Verify session + role
+    Auth-->>API: Session valid (Sales)
+    API->>DB: Read capacity, booked, held seats
+    DB-->>API: Available seats
+    API-->>UI: Seats available
+
+    Agent->>UI: Submit booking with passengers + deposit
+    UI->>API: POST /bookings
+    API->>Auth: Permission check
+    API->>DB: BEGIN — atomic seat hold (capacity - booked - held >= pax)
+    alt Seats available
+        DB-->>API: Hold created (expires_at = now + 24h)
+        API->>DB: Insert booking + passengers, seats_held += pax
+        API->>DB: COMMIT
+        API-->>UI: Booking created (reference TRV-2025-0001)
+    else No seats left
+        DB-->>API: Conditional update affected 0 rows
+        API-->>UI: 409 Seats no longer available
+    end
+
+    Agent->>UI: Upload payment proof
+    UI->>API: POST /payments/proof
+    API->>R2: Store file (private key)
+    API->>DB: Insert payment (status = pending)
+    API-->>UI: Awaiting finance verification
+
+    Note over API,DB: Scheduled job expires stale holds, releases seats,<br/>and raises overdue payment notifications
+```
+
+**Data flow summary**
+
+```mermaid
+flowchart LR
+    V[Website Visitor] -->|Enquiry form| W[Public Website]
+    W --> API[Hono API on Workers]
+    A[Staff: Sales / Finance / Ops] --> D[Admin Dashboard]
+    D --> API
+    API --> AUTH[Better Auth + Roles]
+    API --> DB[(D1 Database)]
+    API --> R2[(R2: images, PDFs, proofs, passports)]
+    API --> PDF[PDF Generator]
+    API --> NOTIF[Notifications & Reminders]
+    DB --> REP[Reports & Exports]
+```
+
+---
+
+## 6. Database Schema
+
+All tables live in Cloudflare D1 (SQLite) and use foreign keys with indexes on lookup columns (status, dates, foreign keys). Every table carries `created_at` and `updated_at` timestamps.
+
+### Identity & audit
+| Table | Key fields | Purpose |
+|---|---|---|
+| **users** | `id` text PK, `name` text, `email` text unique, `password_hash` text, `role` text (super_admin, management, sales, finance, operations), `is_active` integer, `phone` text, `language` text (en, ms) default en | Staff accounts, their role, and preferred interface language |
+| **sessions** | `id` text PK, `user_id` text FK, `token` text, `expires_at` integer, `ip` text, `user_agent` text | Better Auth sessions |
+| **audit_logs** | `id` text PK, `user_id` text FK, `action` text, `entity_type` text, `entity_id` text, `meta` text (JSON), `created_at` integer | Accountability record of staff actions |
+| **settings** | `key` text PK, `value` text (JSON), `category` text, `updated_by` text FK users, `updated_at` integer | Global config edited from the System Settings page: company profile, document numbering, booking defaults, notification templates, currency and tax |
+
+### CRM
+| Table | Key fields | Purpose |
+|---|---|---|
+| **customers** | `id` text PK, `name` text, `email` text, `phone` text, `whatsapp` text, `address` text, `notes` text, `source` text, `created_at` | Customer profile and preferences |
+| **leads** | `id` text PK, `name` text, `email` text, `phone` text, `stage` text (new, contacted, qualified, quotation, follow_up, won, lost), `source` text, `campaign_id` text FK, `assigned_to` text FK users, `customer_id` text FK nullable, `estimated_value` real, `notes` text | Sales pipeline records |
+| **lead_activities** | `id` text PK, `lead_id` text FK, `user_id` text FK, `type` text (note, call, follow_up, whatsapp, email), `note` text, `due_at` integer, `completed_at` integer | Follow-up reminders and activity notes |
+| **campaigns** | `id` text PK, `name` text, `channel` text (meta_ads, whatsapp, referral, walk_in, website), `utm_source` text, `utm_medium` text, `utm_campaign` text, `start_date` date, `end_date` date, `budget` real | Lead source and campaign tracking |
+
+### Catalog & inventory
+| Table | Key fields | Purpose |
+|---|---|---|
+| **packages** | `id` text PK, `name` text, `slug` text unique, `destination` text, `duration_days` integer, `description` text, `highlights` text (JSON), `itinerary` text (JSON day-by-day), `inclusions` text (JSON), `exclusions` text (JSON), `adult_price` real, `child_price` real, `infant_price` real, `cover_image_key` text (R2), `pdf_key` text (R2), `status` text (draft, published, archived), `seo_title` text, `seo_description` text | Travel package master data |
+| **departures** | `id` text PK, `package_id` text FK, `departure_date` date, `return_date` date, `seat_capacity` integer, `seats_booked` integer default 0, `seats_held` integer default 0, `adult_price` real, `child_price` real, `status` text (open, almost_full, full, closed, cancelled), `tour_leader_id` text FK users, `notes` text | One trip instance with seat inventory |
+| **seat_holds** | `id` text PK, `departure_id` text FK, `booking_id` text FK, `seats` integer, `expires_at` integer, `status` text (active, released, converted), `created_at` | Temporary holds that auto-expire |
+| **suppliers** | `id` text PK, `name` text, `type` text (airline, hotel, transport, ground_agent, other), `contact_name` text, `phone` text, `email` text, `address` text, `notes` text | Supplier directory |
+| **departure_costs** | `id` text PK, `departure_id` text FK, `supplier_id` text FK, `category` text (flight, hotel, transport, meals, attraction, other), `description` text, `estimated_amount` real, `actual_amount` real, `status` text (estimated, committed, paid), `paid_at` integer | Trip expenses and profit inputs |
+
+### Bookings & billing
+| Table | Key fields | Purpose |
+|---|---|---|
+| **bookings** | `id` text PK, `reference` text unique, `customer_id` text FK, `package_id` text FK, `departure_id` text FK, `type` text (individual, group), `status` text (draft, hold, pending_deposit, confirmed, cancelled, completed), `pax_adult` integer, `pax_child` integer, `pax_infant` integer, `subtotal` real, `discount` real, `total_amount` real, `deposit_amount` real, `paid_amount` real, `balance_due` real, `created_by` text FK users, `cancelled_at` integer, `cancellation_reason` text | Core sales record |
+| **passengers** | `id` text PK, `booking_id` text FK, `customer_id` text FK nullable, `full_name` text, `type` text (adult, child, infant), `date_of_birth` date, `gender` text, `nationality` text, `passport_number` text, `passport_expiry` date, `passport_doc_key` text (R2), `phone` text, `room_type` text, `rooming_note` text, `dietary_note` text, `flight_info` text | Passenger manifest, rooming, documents |
+| **quotations** | `id` text PK, `number` text unique, `lead_id` text FK, `customer_id` text FK, `package_id` text FK, `departure_id` text FK, `valid_until` date, `subtotal` real, `discount` real, `total_amount` real, `status` text (draft, sent, accepted, rejected, expired), `pdf_key` text (R2), `created_by` text FK users | Quotation documents |
+| **quotation_items** | `id` text PK, `quotation_id` text FK, `description` text, `quantity` integer, `unit_price` real, `amount` real | Line items |
+| **invoices** | `id` text PK, `number` text unique, `booking_id` text FK, `customer_id` text FK, `type` text (invoice, receipt, credit_note), `issue_date` date, `due_date` date, `subtotal` real, `total_amount` real, `paid_amount` real, `status` text (unpaid, partial, paid, overdue, void), `pdf_key` text (R2) | Branded invoices and receipts |
+| **invoice_items** | `id` text PK, `invoice_id` text FK, `description` text, `quantity` integer, `unit_price` real, `amount` real | Line items |
+| **payments** | `id` text PK, `invoice_id` text FK, `booking_id` text FK, `amount` real, `method` text (bank_transfer, cash, card), `reference` text, `proof_key` text (R2), `status` text (pending, verified, rejected), `verified_by` text FK users, `paid_at` integer, `verified_at` integer, `notes` text | Deposits, installments, verification |
+| **refunds** | `id` text PK, `booking_id` text FK, `payment_id` text FK nullable, `type` text (refund, credit_note), `amount` real, `reason` text, `status` text (pending, approved, completed), `processed_by` text FK users, `processed_at` integer | Refunds and credit notes |
+
+### Website, documents & notifications
+| Table | Key fields | Purpose |
+|---|---|---|
+| **website_content** | `id` text PK, `key` text, `locale` text (en, ms), `title` text, `body` text (JSON blocks), `image_key` text (R2), `updated_by` text FK users | Editable homepage, destinations, banners, SEO — one row per page key per locale, unique on (`key`, `locale`) |
+| **documents** | `id` text PK, `owner_type` text (passenger, booking, departure, payment), `owner_id` text, `doc_type` text, `file_key` text (R2), `file_name` text, `mime_type` text, `size` integer, `uploaded_by` text FK users | Secure document storage index |
+| **notifications** | `id` text PK, `user_id` text FK nullable, `type` text (new_lead, payment, low_seat, departure, overdue), `title` text, `message` text, `entity_type` text, `entity_id` text, `is_read` integer, `created_at` integer | In-app alerts and reminders |
+
+### MCP & API access
+| Table | Key fields | Purpose |
+|---|---|---|
+| **api_tokens** | `id` text PK, `user_id` text FK, `name` text, `token_hash` text unique, `prefix` text, `scopes` text (JSON), `role` text (inherited snapshot), `last_used_at` integer, `expires_at` integer, `revoked_at` integer, `created_at` integer | Token-authenticated access for MCP clients and automations |
+| **mcp_audit_logs** | `id` text PK, `token_id` text FK api_tokens, `user_id` text FK, `client_name` text, `tool_name` text, `arguments` text (JSON, redacted), `result_status` text (success, denied, error), `duration_ms` integer, `created_at` integer | Every MCP tool call, for accountability and abuse detection |
+
+### Relationships
+
+```mermaid
+erDiagram
+    users ||--o{ sessions : "has"
+    users ||--o{ audit_logs : "performs"
+    users ||--o{ leads : "assigned to"
+    users ||--o{ bookings : "creates"
+    users ||--o{ notifications : "receives"
+
+    campaigns ||--o{ leads : "generates"
+    leads ||--o{ lead_activities : "has"
+    leads ||--o| customers : "converts to"
+    leads ||--o{ quotations : "requests"
+
+    customers ||--o{ bookings : "makes"
+    customers ||--o{ quotations : "receives"
+    customers ||--o{ invoices : "billed in"
+
+    packages ||--o{ departures : "scheduled as"
+    packages ||--o{ bookings : "sold in"
+    packages ||--o{ quotations : "quoted in"
+
+    departures ||--o{ bookings : "holds"
+    departures ||--o{ seat_holds : "reserves"
+    departures ||--o{ departure_costs : "incurs"
+    suppliers ||--o{ departure_costs : "supplies"
+    users ||--o{ departures : "leads tour"
+
+    bookings ||--o{ passengers : "includes"
+    bookings ||--o{ seat_holds : "creates"
+    bookings ||--o{ invoices : "generates"
+    bookings ||--o{ payments : "records"
+    bookings ||--o{ refunds : "issues"
+
+    quotations ||--o{ quotation_items : "contains"
+    quotations ||--o| bookings : "converts to"
+    invoices ||--o{ invoice_items : "contains"
+    invoices ||--o{ payments : "settled by"
+    payments ||--o{ refunds : "reversed by"
+
+    passengers ||--o{ documents : "owns"
+    bookings ||--o{ documents : "attaches"
+```
+
+**Data integrity rules**
+- `departures.seat_capacity - seats_booked - seats_held` must never go negative; enforced with a conditional atomic update (`WHERE seats_capacity - seats_booked - seats_held >= :pax`).
+- Unique constraints on `bookings.reference`, `invoices.number`, `quotations.number`, and `packages.slug`.
+- `website_content` is unique on (`key`, `locale`) so every public page key exists once per language (`en`, `ms`) and no third locale can be stored.
+- Bookings and payments keep separate status fields — a paid invoice never changes a cancelled booking.
+- Passport numbers, passport scans, and payment proofs are restricted: only Operations/Finance/Management roles may read them, delivered via short-lived signed URLs.
+
+---
+
+## 7. Tech Stack
+
+| Layer | Technology | Why |
+|---|---|---|
+| Frontend | **React + Vite + TypeScript** | Fast development, one codebase serving both public site and admin dashboard |
+| UI | **Tailwind CSS + shadcn/ui** | Premium dashboard look (white, dark text, red accent, Montserrat/Inter), accessible components, quick to build |
+| Charts | **Recharts** | KPI and revenue charts that fit the shadcn design language |
+| Backend | **Hono on Cloudflare Workers** | Lightweight, fast, edge-deployed API with clean routing and middleware for role checks |
+| Database | **Cloudflare D1 (SQLite)** | Relational data with foreign keys and transactions — required for accurate seats and payments |
+| ORM | **Drizzle ORM** | Typed schema and migrations, clean relational queries on D1 |
+| Auth | **Better Auth (Workers)** | Session-based staff login, roles, password reset |
+| File storage | **Cloudflare R2** | Package images, PDFs, payment proofs, passport scans with private signed access |
+| PDF | **Workers-compatible PDF generator** (e.g. `pdf-lib`) | Quotations, invoices, receipts generated from live data |
+| Export | **CSV/Excel export utilities** | Manifests, reports, and finance exports |
+| i18n | **Lightweight typed i18n** (e.g. `i18next` + `react-i18next`, translation JSON for `en` and `ms`) | One translation source for dashboard, public site, and PDF templates; English + Bahasa Malaysia only |
+| MCP | **Model Context Protocol SDK** (`@modelcontextprotocol/sdk`) served from the same Worker | Standards-compliant tools/resources for AI clients, reusing existing API authorization |
+| Deployment | **Cloudflare Workers** | Single deploy target for API and static frontend assets; global edge performance |
+| Hosting / DNS | **Cloudflare** | Custom domain, SSL, caching, and WAF in one place |
+
+**Explicitly excluded:** Supabase, Firebase, or any mock-only data layer. Every screen must read from and write to the real D1 database. Also excluded: any locale other than `en` and `ms` — in particular no Indonesian (`id`) interface, template, or public page may be added.
+
+**Build order**
+1. **Phase 1** — Auth, dashboard shell, customers, packages, departures, seat inventory, bookings, plus the `en`/`ms` i18n layer from day one (no screen ships with hardcoded copy). Ship a working app with real CRUD and server-side authorization.
+2. **Phase 2** — CRM pipeline, quotations, invoices, payments, refunds.
+3. **Phase 3** — Public website, CMS, passengers and trip operations, suppliers.
+4. **Phase 4** — Profit reporting, marketing/attribution, notifications and automation, audit trail.
+5. **Phase 5** — MCP server: token auth, read tools, gated write tools, resources/prompts, rate limiting, and MCP audit trail.

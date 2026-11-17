@@ -1,20 +1,88 @@
 import { Link, Outlet } from "react-router-dom";
 import { Plane, Menu, X, Phone, Mail, Instagram, Facebook } from "lucide-react";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { cn } from "@/lib/utils";
 import { useLang, type Lang } from "@/lib/i18n";
 import { Button } from "@/components/ui/button";
 
+const SITE_META: Record<
+  "home" | "packages" | "promos" | "contact" | "default",
+  { title: { ms: string; en: string }; description: { ms: string; en: string } }
+> = {
+  home: {
+    title: {
+      ms: "ZAQONE Travel — Pakej Umrah, Haji & Pelancongan",
+      en: "ZAQONE Travel — Umrah, Hajj & Tour Packages",
+    },
+    description: {
+      ms: "Agensi pelancongan berlesen KPL di Kuala Lumpur. Pakej umrah, haji dan pelancongan domestik serta antarabangsa.",
+      en: "KPL-licensed travel agency in Kuala Lumpur. Umrah, hajj, domestic and international tour packages.",
+    },
+  },
+  packages: {
+    title: {
+      ms: "Pakej Pelancongan — ZAQONE Travel",
+      en: "Tour Packages — ZAQONE Travel",
+    },
+    description: {
+      ms: "Lihat semua pakej pelancongan dan keberangkatan tersedia dengan harga dewasa dan kanak-kanak.",
+      en: "Browse all tour packages and available departures with adult and child pricing.",
+    },
+  },
+  promos: {
+    title: { ms: "Promosi Terkini — ZAQONE Travel", en: "Latest Promos — ZAQONE Travel" },
+    description: {
+      ms: "Promosi dan tawaran musim terkini daripada ZAQONE Travel.",
+      en: "Current seasonal offers and deals from ZAQONE Travel.",
+    },
+  },
+  contact: {
+    title: { ms: "Hubungi Kami — ZAQONE Travel", en: "Contact Us — ZAQONE Travel" },
+    description: {
+      ms: "Hubungi pasukan ZAQONE Travel untuk pertanyaan pakej dan tempahan.",
+      en: "Reach the ZAQONE Travel team for package enquiries and bookings.",
+    },
+  },
+  default: {
+    title: { ms: "ZAQONE Travel", en: "ZAQONE Travel" },
+    description: {
+      ms: "Agensi pelancongan berlesen di Kuala Lumpur.",
+      en: "Licensed travel agency in Kuala Lumpur.",
+    },
+  },
+};
+
+function metaKeyForPath(path: string): keyof typeof SITE_META {
+  if (path === "/site" || path === "/site/" || path.endsWith("/about")) return "home";
+  if (path.includes("/packages")) return "packages";
+  if (path.includes("/promos")) return "promos";
+  if (path.includes("/contact")) return "contact";
+  return "default";
+}
+
 export default function PublicSiteShell() {
   const [mobileOpen, setMobileOpen] = useState(false);
-  const { lang, setLang, t } = useLang();
+  const { lang, setLang, t, localePath } = useLang();
 
   const NAV_ITEMS = [
-    { to: "/site", label: t("Utama", "Home"), end: true },
-    { to: "/site/packages", label: t("Pakej Pelancongan", "Tour Packages") },
-    { to: "/site/promos", label: t("Promosi", "Promos") },
-    { to: "/site/contact", label: t("Hubungi Kami", "Contact Us") },
+    { to: localePath("/site"), label: t("Utama", "Home"), end: true },
+    { to: localePath("/site/packages"), label: t("Pakej Pelancongan", "Tour Packages") },
+    { to: localePath("/site/promos"), label: t("Promosi", "Promos") },
+    { to: localePath("/site/contact"), label: t("Hubungi Kami", "Contact Us") },
   ];
+
+  // Per-language SEO title & description on every public page.
+  useEffect(() => {
+    const meta = SITE_META[metaKeyForPath(window.location.pathname)];
+    document.title = meta.title[lang];
+    let tag = document.querySelector('meta[name="description"]');
+    if (!tag) {
+      tag = document.createElement("meta");
+      tag.setAttribute("name", "description");
+      document.head.appendChild(tag);
+    }
+    tag.setAttribute("content", meta.description[lang]);
+  }, [lang]);
 
   return (
     <div className="min-h-screen bg-white text-stone-900">
@@ -36,7 +104,7 @@ export default function PublicSiteShell() {
       {/* Header */}
       <header className="sticky top-0 z-40 border-b bg-white/95 backdrop-blur">
         <div className="mx-auto flex max-w-6xl items-center justify-between px-4 py-3">
-          <Link to="/site" className="flex items-center gap-2">
+          <Link to={localePath("/site")} className="flex items-center gap-2">
             <div className="rounded-lg bg-red-600 p-1.5">
               <Plane className="h-5 w-5 text-white" />
             </div>
@@ -65,7 +133,7 @@ export default function PublicSiteShell() {
           </nav>
 
           <div className="hidden items-center gap-2 md:flex">
-            {/* Language switcher */}
+            {/* Language switcher — swaps the locale in the URL, choice persists */}
             <div className="flex items-center rounded-full border p-0.5">
               {(["ms", "en"] as Lang[]).map((code) => (
                 <button
@@ -83,7 +151,7 @@ export default function PublicSiteShell() {
               ))}
             </div>
             <Button size="sm" asChild>
-              <Link to="/site/contact">
+              <Link to={localePath("/site/contact")}>
                 {t("Konsultasi Percuma", "Free Consultation")}
               </Link>
             </Button>

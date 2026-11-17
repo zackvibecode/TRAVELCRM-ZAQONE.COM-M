@@ -4,7 +4,7 @@ import { MapPin, Search, Clock, ArrowRight, CalendarDays, Flame } from "lucide-r
 import { mockDepartures, mockPackages } from "@/lib/mock-data";
 import { cn , formatRinggit } from "@/lib/utils";
 import { applySeo } from "@/lib/site-config";
-import { useLang } from "@/lib/i18n";
+import { useLang, useLocalePath } from "@/lib/i18n";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
@@ -19,11 +19,12 @@ function formatRupiah(value: number): string {
 
 export default function PublicPackages() {
   const { t, lang } = useLang();
+  const lp = useLocalePath();
   const [search, setSearch] = useState("");
   const [destination, setDestination] = useState<string>("all");
 
   useEffect(() => {
-    applySeo("packages");
+    applySeo("packages", lang);
     return () => {
       document.title = "ZAQONE TRAVEL CRM";
     };
@@ -222,7 +223,7 @@ export default function PublicPackages() {
                         </p>
                       </div>
                       <Button asChild size="sm">
-                        <Link to={`/site/packages/${pkg.id}`}>
+                        <Link to={lp(`/site/packages/${pkg.id}`)}>
                           {t("Lihat Butiran", "View Details")}
                           <ArrowRight className="ml-1.5 h-3.5 w-3.5" />
                         </Link>

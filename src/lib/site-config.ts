@@ -18,6 +18,10 @@ export interface SeoSettings {
   metaTitle: string;
   metaDescription: string;
   keywords: string;
+  /** English variant for the /site/en locale (falls back to the BM text). */
+  metaTitleEn?: string;
+  metaDescriptionEn?: string;
+  keywordsEn?: string;
 }
 
 export const siteBanners: Banner[] = [
@@ -72,12 +76,14 @@ export function activeBanners(): Banner[] {
   );
 }
 
-/** Applies SEO metadata (title + meta description) for the given page key. */
-export function applySeo(page: string): void {
+/** Applies SEO metadata (title + meta description) for the given page key,
+ *  localised to the active public language when an English variant exists. */
+export function applySeo(page: string, lang: "ms" | "en" = "ms"): void {
   const seo = siteSeo[page];
   if (!seo) return;
 
-  document.title = seo.metaTitle;
+  const en = lang === "en";
+  document.title = (en && seo.metaTitleEn) || seo.metaTitle;
 
   let desc = document.querySelector<HTMLMetaElement>(
     'meta[name="description"]',
@@ -87,5 +93,13 @@ export function applySeo(page: string): void {
     desc.name = "description";
     document.head.appendChild(desc);
   }
-  desc.content = seo.metaDescription;
+  desc.content = (en && seo.metaDescriptionEn) || seo.metaDescription;
+
+  let kw = document.querySelector<HTMLMetaElement>('meta[name="keywords"]');
+  if (!kw) {
+    kw = document.createElement("meta");
+    kw.name = "keywords";
+    document.head.appendChild(kw);
+  }
+  kw.content = (en && seo.keywordsEn) || seo.keywords;
 }

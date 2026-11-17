@@ -10,7 +10,7 @@ import {
 import { mockPackages, mockDepartures } from "@/lib/mock-data";
 import { cn , formatRinggit } from "@/lib/utils";
 import { applySeo } from "@/lib/site-config";
-import { useLang } from "@/lib/i18n";
+import { useLang, useLocalePath } from "@/lib/i18n";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import {
@@ -59,9 +59,10 @@ const PROMO_TYPES = [
 
 export default function PublicPromos() {
   const { t, lang } = useLang();
+  const lp = useLocalePath();
 
   useEffect(() => {
-    applySeo("promos");
+    applySeo("promos", lang);
     return () => {
       document.title = "ZAQONE TRAVEL CRM";
     };
@@ -173,7 +174,7 @@ export default function PublicPromos() {
                     </p>
 
                     <Button asChild className="mt-4 w-full" size="sm">
-                      <Link to="/site/contact">
+                      <Link to={lp("/site/contact")}>
                         {t("Ambil Promosi Ini", "Claim This Promo")}
                         <ArrowRight className="ml-1.5 h-3.5 w-3.5" />
                       </Link>
