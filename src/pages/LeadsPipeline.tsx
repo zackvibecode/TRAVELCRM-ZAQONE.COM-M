@@ -1,4 +1,4 @@
-﻿import { useMemo, useState } from "react";
+﻿import { useCallback, useEffect, useMemo, useState } from "react";
 import {
   Users,
   Search,
@@ -11,9 +11,11 @@ import {
   CalendarClock,
 } from "lucide-react";
 import { mockLeads } from "@/lib/mock-data";
+import { apiFetch } from "@/lib/api";
 import {
   LEAD_STAGES,
   type Lead,
+  type LeadActivity,
   type LeadStage,
   type LeadSource,
 } from "@/lib/types";
@@ -51,6 +53,27 @@ function formatRupiah(value: number): string {
   return formatRinggit(value);
 }
 
+/** Map a D1 lead row (snake_case-ish, nullable fields) to the UI Lead type. */
+function mapLead(row: Record<string, unknown>): Lead {
+  return {
+    id: String(row.id),
+    name: String(row.name ?? ""),
+    phone: String(row.phone ?? ""),
+    email: String(row.email ?? ""),
+    destination: String(row.destination ?? ""),
+    pax: Number(row.pax ?? 1),
+    budget: Number(row.budget ?? 0),
+    stage: (row.stage as LeadStage) ?? "new",
+    source: (row.sourceId as LeadSource) ?? "website",
+    assignedTo: String(row.assignedTo ?? ""),
+    nextFollowUp: row.nextFollowUp ? String(row.nextFollowUp) : undefined,
+    lastActivityAt: String(row.lastActivityAt ?? "").replace(" ", "T"),
+    notes: row.notes ? String(row.notes) : undefined,
+    activities: [],
+    createdAt: String(row.createdAt ?? "").replace(" ", "T"),
+  };
+}
+
 function stageBadgeClass(stage: LeadStage): string {
   switch (stage) {
     case "new":
@@ -71,6 +94,7 @@ function stageBadgeClass(stage: LeadStage): string {
 export default function LeadsPipeline() {
   const { t } = useLang();
   const [leads, setLeads] = useState<Lead[]>(mockLeads);
+  const [live, setLive] = useState(false);
   const [search, setSearch] = useState("");
   const [sourceFilter, setSourceFilter] = useState<LeadSource | "all">("all");
   const [assigneeFilter, setAssigneeFilter] = useState<string>("all");
@@ -78,17 +102,68 @@ export default function LeadsPipeline() {
   const [selectedLeadId, setSelectedLeadId] = useState<string | null>(null);
   const [drawerOpen, setDrawerOpen] = useState(false);
 
+  // Load real leads from D1; keep mock data as offline fallback.
+  const loadLeads = useCallback(async () => {
+    try {
+      const res = await apiFetch<{
+        success: boolean;
+        data: Record<string, unknown>[];
+      }>("/leads?limit=200");
+      if (res.success && Array.isArray(res.data)) {
+        setLeads(res.data.map(mapLead));
+        setLive(true);
+      }
+    } catch {
+      setLive(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    void loadLeads();
+  }, [loadLeads]);
+
   const selectedLead = useMemo(
     () => leads.find((l) => l.id === selectedLeadId) ?? null,
     [leads, selectedLeadId],
   );
 
-  function openLead(lead: Lead) {
+  async function openLead(lead: Lead) {
     setSelectedLeadId(lead.id);
     setDrawerOpen(true);
+    if (live) {
+      try {
+        const res = await apiFetch<{
+          success: boolean;
+          data: {
+            activities: {
+              id: string;
+              type: LeadActivity["type"];
+              text: string;
+              user: string;
+              at: string;
+            }[];
+          };
+        }>(`/leads/${lead.id}`);
+        if (res.success && Array.isArray(res.data.activities)) {
+          const acts: LeadActivity[] = res.data.activities.map((a) => ({
+            id: a.id,
+            type: a.type,
+            text: a.text,
+            user: a.user,
+            at: String(a.at).replace(" ", "T"),
+          }));
+          setLeads((p) =>
+            p.map((l) => (l.id === lead.id ? { ...l, activities: acts } : l)),
+          );
+        }
+      } catch {
+        // keep existing activities
+      }
+    }
   }
 
-  function handleStageChange(leadId: string, stage: LeadStage) {
+  async function handleStageChange(leadId: string, stage: LeadStage) {
+    const prevLead = leads.find((l) => l.id === leadId);
     setLeads((prev) =>
       prev.map((l) =>
         l.id === leadId
@@ -109,9 +184,20 @@ export default function LeadsPipeline() {
           : l,
       ),
     );
+    if (live) {
+      try {
+        await apiFetch(`/leads/${leadId}/stage`, {
+          method: "POST",
+          body: JSON.stringify({ stage }),
+        });
+      } catch {
+        if (prevLead) setLeads((p) => p.map((l) => (l.id === leadId ? prevLead : l)));
+      }
+    }
   }
 
-  function handleAssigneeChange(leadId: string, assignee: string) {
+  async function handleAssigneeChange(leadId: string, assignee: string) {
+    const prevLead = leads.find((l) => l.id === leadId);
     setLeads((prev) =>
       prev.map((l) =>
         l.id === leadId
@@ -132,9 +218,20 @@ export default function LeadsPipeline() {
           : l,
       ),
     );
+    if (live) {
+      try {
+        await apiFetch(`/leads/${leadId}`, {
+          method: "PATCH",
+          body: JSON.stringify({ assignedTo: assignee }),
+        });
+      } catch {
+        if (prevLead) setLeads((p) => p.map((l) => (l.id === leadId ? prevLead : l)));
+      }
+    }
   }
 
-  function handleFollowUpChange(leadId: string, date: string | null) {
+  async function handleFollowUpChange(leadId: string, date: string | null) {
+    const prevLead = leads.find((l) => l.id === leadId);
     setLeads((prev) =>
       prev.map((l) =>
         l.id === leadId
@@ -157,13 +254,24 @@ export default function LeadsPipeline() {
           : l,
       ),
     );
+    if (live) {
+      try {
+        await apiFetch(`/leads/${leadId}`, {
+          method: "PATCH",
+          body: JSON.stringify({ nextFollowUp: date }),
+        });
+      } catch {
+        if (prevLead) setLeads((p) => p.map((l) => (l.id === leadId ? prevLead : l)));
+      }
+    }
   }
 
-  function handleActivityAdd(
+  async function handleActivityAdd(
     leadId: string,
     type: "note" | "call" | "whatsapp" | "email" | "stage_change",
     text: string,
   ) {
+    const prevLead = leads.find((l) => l.id === leadId);
     setLeads((prev) =>
       prev.map((l) =>
         l.id === leadId
@@ -184,6 +292,16 @@ export default function LeadsPipeline() {
           : l,
       ),
     );
+    if (live && type !== "stage_change") {
+      try {
+        await apiFetch(`/leads/${leadId}/activities`, {
+          method: "POST",
+          body: JSON.stringify({ type, text }),
+        });
+      } catch {
+        if (prevLead) setLeads((p) => p.map((l) => (l.id === leadId ? prevLead : l)));
+      }
+    }
   }
 
   // Follow-up reminders: open leads with follow-up today or overdue.
