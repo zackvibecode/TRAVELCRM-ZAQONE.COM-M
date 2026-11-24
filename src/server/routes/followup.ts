@@ -2096,17 +2096,24 @@ followupRouter.post("/leads/bulk-delete", async (c) => {
     );
   }
 
-  // Existing lead ids only — deletes run in set-based chunks per table.
-  const existing = await db
-    .select({ id: schema.leads.id })
-    .from(schema.leads)
-    .where(inArray(schema.leads.id, ids));
-  const found = existing.map((r) => r.id);
+  // D1 limits bound parameters per statement, so run every query in small
+  // chunks. We first resolve which of the requested ids actually exist, then
+  // cascade-delete each chunk across all child tables before removing the
+  // leads themselves.
+  const chunk = 100; // D1 variable limit safety per statement
+  const found: string[] = [];
+  for (let i = 0; i < ids.length; i += chunk) {
+    const part = ids.slice(i, i + chunk);
+    const rows = await db
+      .select({ id: schema.leads.id })
+      .from(schema.leads)
+      .where(inArray(schema.leads.id, part));
+    for (const r of rows) found.push(r.id);
+  }
   if (found.length === 0) {
     return c.json({ success: true, data: { requested: ids.length, deleted: 0 } });
   }
 
-  const chunk = 120; // D1 variable limit safety per statement
   for (let i = 0; i < found.length; i += chunk) {
     const part = found.slice(i, i + chunk);
     await db.delete(schema.leadActivities).where(inArray(schema.leadActivities.leadId, part)).run();
