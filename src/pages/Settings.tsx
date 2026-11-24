@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import {
   AlertTriangle,
   Bell,
@@ -11,20 +11,34 @@ import {
   Save,
   ShieldCheck,
   SlidersHorizontal,
+  Sparkles,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useLang } from "@/lib/i18n";
+import { apiFetch } from "@/lib/api";
+import { invalidateBranding } from "@/lib/useBranding";
+import { Button } from "@/components/ui/button";
 
-type SettingsTab = "general" | "company" | "documents" | "booking" | "notifications" | "security";
+type SettingsTab =
+  | "general"
+  | "company"
+  | "site"
+  | "documents"
+  | "booking"
+  | "notifications"
+  | "security"
+  | "ai";
 
 // Mock state — backend settings API menyusul pada fasa backend.
 const TABS: { id: SettingsTab; label: { ms: string; en: string }; icon: typeof Globe }[] = [
   { id: "general", label: { ms: "Am", en: "General" }, icon: SlidersHorizontal },
   { id: "company", label: { ms: "Syarikat", en: "Company" }, icon: Building2 },
+  { id: "site", label: { ms: "Website", en: "Website" }, icon: Globe },
   { id: "documents", label: { ms: "Dokumen", en: "Documents" }, icon: FileDigit },
   { id: "booking", label: { ms: "Booking", en: "Booking" }, icon: CalendarClock },
   { id: "notifications", label: { ms: "Pemberitahuan", en: "Notifications" }, icon: Bell },
   { id: "security", label: { ms: "Keselamatan", en: "Security" }, icon: ShieldCheck },
+  { id: "ai", label: { ms: "AI", en: "AI" }, icon: Sparkles },
 ];
 
 const CURRENCIES = [
@@ -56,6 +70,13 @@ export default function Settings() {
   const [phone, setPhone] = useState("+60 3-2168 8888");
   const [email, setEmail] = useState("hello@zaqone.travel");
 
+  // Website chrome (shared with the public website)
+  const [site, setSite] = useState({
+    brandName: "ZAQONE Travel",
+    tagline: "Agensi pelancongan",
+    whatsapp: "60123880030",
+  });
+
   // Notifications
   const [notifyLowSeats, setNotifyLowSeats] = useState(true);
   const [notifyOverdue, setNotifyOverdue] = useState(true);
@@ -85,6 +106,114 @@ export default function Settings() {
     policy:
       "Pembatalan 14 hari sebelum keberangkatan: bayaran balik 50%. Kurang dari 14 hari: tiada bayaran balik.",
   });
+
+  // AI provider (OpenAI-compatible). The API key is write-only — the backend
+  // never sends it back, only a masked placeholder.
+  const [ai, setAi] = useState({
+    enabled: true,
+    baseUrl: "https://api.openai.com/v1",
+    apiKey: "",
+    model: "gpt-4o-mini",
+    temperature: "0.3",
+    maxTokens: "4000",
+  });
+  const [aiLoaded, setAiLoaded] = useState(false);
+  const [siteLoaded, setSiteLoaded] = useState(false);
+
+  useEffect(() => {
+    if (tab !== "ai" || aiLoaded) return;
+    (async () => {
+      try {
+        const res = await apiFetch<{ settings?: Record<string, unknown> }>("/settings");
+        const stored = res.settings?.ai as Record<string, unknown> | undefined;
+        if (stored) {
+          setAi((current) => ({
+            enabled: stored.enabled !== false,
+            baseUrl: String(stored.baseUrl ?? current.baseUrl),
+            apiKey: "",
+            model: String(stored.model ?? current.model),
+            temperature: String(stored.temperature ?? current.temperature),
+            maxTokens: String(stored.maxTokens ?? current.maxTokens),
+          }));
+        }
+      } catch {
+        /* keep defaults */
+      } finally {
+        setAiLoaded(true);
+      }
+    })();
+  }, [tab, aiLoaded]);
+
+  async function saveAi() {
+    setSaveState("saving");
+    try {
+      await apiFetch("/settings/ai", {
+        method: "PUT",
+        body: JSON.stringify({
+          enabled: ai.enabled,
+          baseUrl: ai.baseUrl.trim(),
+          apiKey: ai.apiKey,
+          model: ai.model.trim(),
+          temperature: Number(ai.temperature),
+          maxTokens: Number(ai.maxTokens),
+        }),
+      });
+      setAi((c) => ({ ...c, apiKey: "" }));
+      setSaveState("saved");
+      window.setTimeout(() => setSaveState("idle"), 2000);
+    } catch (e) {
+      setErrors({ ai: e instanceof Error ? e.message : t("Gagal menyimpan.", "Failed to save.") });
+      setSaveState("idle");
+    }
+  }
+
+  // Load the website chrome settings the first time the tab is opened.
+  useEffect(() => {
+    if (tab !== "site" || siteLoaded) return;
+    (async () => {
+      try {
+        const res = await apiFetch<{ settings?: Record<string, unknown> }>("/settings");
+        const stored = res.settings?.site as Record<string, unknown> | undefined;
+        if (stored) {
+          setSite((c) => ({
+            brandName: String(stored.brandName ?? c.brandName),
+            tagline: String(stored.tagline ?? c.tagline),
+            whatsapp: String(stored.whatsapp ?? c.whatsapp),
+          }));
+        }
+      } catch {
+        /* keep defaults */
+      } finally {
+        setSiteLoaded(true);
+      }
+    })();
+  }, [tab, siteLoaded]);
+
+  async function saveSite() {
+    const wa = site.whatsapp.replace(/\D/g, "");
+    if (wa.length < 8 || wa.length > 15) {
+      setErrors({ whatsapp: t("Nombor WhatsApp mesti 8–15 digit.", "WhatsApp number must be 8–15 digits.") });
+      return;
+    }
+    setErrors({});
+    setSaveState("saving");
+    try {
+      await apiFetch("/settings/site", {
+        method: "PUT",
+        body: JSON.stringify({
+          brandName: site.brandName.trim(),
+          tagline: site.tagline.trim(),
+          whatsapp: wa,
+        }),
+      });
+      invalidateBranding();
+      setSaveState("saved");
+      window.setTimeout(() => setSaveState("idle"), 2000);
+    } catch (e) {
+      setErrors({ whatsapp: e instanceof Error ? e.message : t("Gagal menyimpan.", "Failed to save.") });
+      setSaveState("idle");
+    }
+  }
 
   const handleSave = () => {
     // Validasi borang aktif sebelum simpan (mock backend).
@@ -295,6 +424,83 @@ export default function Settings() {
             />
             {errors.email && <p className="text-xs text-red-600">{errors.email}</p>}
           </div>
+        </div>
+      )}
+
+      {/* Website chrome — shared with the public website */}
+      {tab === "site" && (
+        <div className="space-y-4">
+          <section className="rounded-[var(--radius-panel)] border bg-[var(--color-surface)]">
+            <div className="flex items-center justify-between border-b px-5 py-3.5">
+              <h2 className="font-display text-[15px] font-bold">{t("Identiti Website", "Website Identity")}</h2>
+              <span className="text-xs text-muted-foreground">
+                {t("Digunakan pada header & footer website awam", "Used in the public site header & footer")}
+              </span>
+            </div>
+            <div className="flex flex-col gap-5 p-5">
+              <div className="grid gap-4 md:grid-cols-2">
+                <div className="space-y-1.5">
+                  <label htmlFor="site-brand" className="text-[12.5px] font-semibold text-muted-foreground">
+                    {t("Nama Jenama", "Brand Name")}
+                  </label>
+                  <input
+                    id="site-brand"
+                    value={site.brandName}
+                    onChange={(e) => setSite((c) => ({ ...c, brandName: e.target.value }))}
+                    className={cn(fieldCls, "bg-white")}
+                  />
+                </div>
+                <div className="space-y-1.5">
+                  <label htmlFor="site-tagline" className="text-[12.5px] font-semibold text-muted-foreground">
+                    {t("Tagline", "Tagline")}
+                  </label>
+                  <input
+                    id="site-tagline"
+                    value={site.tagline}
+                    onChange={(e) => setSite((c) => ({ ...c, tagline: e.target.value }))}
+                    className={cn(fieldCls, "bg-white")}
+                  />
+                </div>
+              </div>
+              <div className="space-y-1.5">
+                <label htmlFor="site-wa" className="text-[12.5px] font-semibold text-muted-foreground">
+                  {t("Nombor WhatsApp", "WhatsApp Number")}
+                </label>
+                <div className="flex items-center rounded-md border border-input bg-white shadow-sm focus-within:ring-1 focus-within:ring-ring">
+                  <span className="whitespace-nowrap pl-3 text-sm text-muted-foreground">+</span>
+                  <input
+                    id="site-wa"
+                    inputMode="numeric"
+                    value={site.whatsapp}
+                    aria-invalid={!!errors.whatsapp}
+                    onChange={(e) => setSite((c) => ({ ...c, whatsapp: e.target.value.replace(/\D/g, "") }))}
+                    className="h-9 min-w-0 flex-1 bg-transparent px-2 text-sm outline-none"
+                  />
+                </div>
+                {errors.whatsapp ? (
+                  <p className="text-xs text-red-600">{errors.whatsapp}</p>
+                ) : (
+                  <p className="text-[11px] text-muted-foreground">
+                    {t("Tanpa '+' atau ruang. Contoh: 60123880030", "Without '+' or spaces. Example: 60123880030")}
+                  </p>
+                )}
+              </div>
+              <div className="flex items-center justify-between border-t pt-4">
+                <p className="text-xs text-muted-foreground">
+                  {t(
+                    "Tetapan ini dikongsi — website awam dan shell CRM membaca nilai yang sama.",
+                    "These settings are shared — the public website and the CRM shell read the same values.",
+                  )}
+                </p>
+                <Button onClick={() => void saveSite()} disabled={saveState === "saving"}>
+                  <Save className="h-4 w-4" />
+                  {saveState === "saving"
+                    ? t("Menyimpan…", "Saving…")
+                    : t("Simpan Tetapan Website", "Save Website Settings")}
+                </Button>
+              </div>
+            </div>
+          </section>
         </div>
       )}
 
@@ -527,6 +733,127 @@ export default function Settings() {
               </span>
             </div>
           ))}
+        </div>
+      )}
+      {tab === "ai" && (
+        <div className="space-y-4 rounded-lg border bg-white p-4">
+          <div className="flex items-start justify-between gap-4">
+            <div>
+              <p className="text-sm font-medium">
+                {t("Pembantu AI (OpenAI-compatible)", "AI Assistant (OpenAI-compatible)")}
+              </p>
+              <p className="mt-0.5 text-xs text-muted-foreground">
+                {t(
+                  "Hubungkan mana-mana provider yang menyokong API OpenAI — OpenAI, OpenRouter, DeepSeek, Groq, atau model tempatan (Ollama, LM Studio). Base URL bolehtinger tanpa kunci API.",
+                  "Connect any provider that speaks the OpenAI API — OpenAI, OpenRouter, DeepSeek, Groq, or a local model (Ollama, LM Studio). A local base URL needs no API key.",
+                )}
+              </p>
+            </div>
+            <label className="flex cursor-pointer items-center gap-2 text-sm">
+              <input
+                type="checkbox"
+                checked={ai.enabled}
+                onChange={(e) => setAi({ ...ai, enabled: e.target.checked })}
+                className="h-4 w-4 rounded border-input"
+              />
+              {t("Aktif", "Enabled")}
+            </label>
+          </div>
+
+          <div className="grid gap-4 sm:grid-cols-2">
+            <div>
+              <label className="mb-1 block text-xs font-medium text-muted-foreground">
+                {t("Base URL", "Base URL")}
+              </label>
+              <input
+                value={ai.baseUrl}
+                onChange={(e) => setAi({ ...ai, baseUrl: e.target.value })}
+                placeholder="https://api.openai.com/v1"
+                className="w-full rounded-md border border-input bg-white px-3 py-2 text-sm"
+              />
+            </div>
+            <div>
+              <label className="mb-1 block text-xs font-medium text-muted-foreground">
+                {t("Model", "Model")}
+              </label>
+              <input
+                value={ai.model}
+                onChange={(e) => setAi({ ...ai, model: e.target.value })}
+                placeholder="gpt-4o-mini"
+                className="w-full rounded-md border border-input bg-white px-3 py-2 text-sm"
+              />
+            </div>
+            <div>
+              <label className="mb-1 block text-xs font-medium text-muted-foreground">
+                {t("API Key", "API Key")}
+              </label>
+              <input
+                type="password"
+                value={ai.apiKey}
+                onChange={(e) => setAi({ ...ai, apiKey: e.target.value })}
+                placeholder="sk-…"
+                autoComplete="off"
+                className="w-full rounded-md border border-input bg-white px-3 py-2 text-sm"
+              />
+              <p className="mt-1 text-[11px] text-muted-foreground">
+                {t(
+                  "Kunci disimpan di D1 dan tidak dipulangkan ke pelayar. Biarkan kosong untuk kekalkan kunci sedia ada.",
+                  "The key is stored in D1 and never sent back to the browser. Leave blank to keep the existing key.",
+                )}
+              </p>
+            </div>
+            <div className="grid grid-cols-2 gap-4">
+              <div>
+                <label className="mb-1 block text-xs font-medium text-muted-foreground">
+                  {t("Temperature", "Temperature")}
+                </label>
+                <input
+                  type="number"
+                  step="0.1"
+                  min="0"
+                  max="2"
+                  value={ai.temperature}
+                  onChange={(e) => setAi({ ...ai, temperature: e.target.value })}
+                  className="w-full rounded-md border border-input bg-white px-3 py-2 text-sm"
+                />
+              </div>
+              <div>
+                <label className="mb-1 block text-xs font-medium text-muted-foreground">
+                  {t("Max Tokens", "Max Tokens")}
+                </label>
+                <input
+                  type="number"
+                  step="256"
+                  min="256"
+                  max="32000"
+                  value={ai.maxTokens}
+                  onChange={(e) => setAi({ ...ai, maxTokens: e.target.value })}
+                  className="w-full rounded-md border border-input bg-white px-3 py-2 text-sm"
+                />
+              </div>
+            </div>
+          </div>
+
+          {errors.ai && (
+            <p className="rounded-md border border-red-200 bg-red-50 px-3 py-2 text-xs text-red-700">
+              {errors.ai}
+            </p>
+          )}
+
+          <div className="flex items-center justify-between border-t pt-4">
+            <p className="text-xs text-muted-foreground">
+              {t(
+                "Pembantu AI boleh membaca data CRM dan mencipta draf pakej, tempahan serta halaman web — tetapi tidak boleh-published tanpa semakan staf.",
+                "The assistant can read CRM data and create draft packages, bookings and web pages — but nothing is published without staff review.",
+              )}
+            </p>
+            <Button onClick={() => void saveAi()} disabled={saveState === "saving"}>
+              <Save className="h-4 w-4" />
+              {saveState === "saving"
+                ? t("Menyimpan…", "Saving…")
+                : t("Simpan Tetapan AI", "Save AI Settings")}
+            </Button>
+          </div>
         </div>
       )}
     </div>

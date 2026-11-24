@@ -3,6 +3,7 @@ import {
   ArrowRight,
   CalendarDays,
   PlaneTakeoff,
+  Plus,
   Search,
   UsersRound,
 } from "lucide-react";
@@ -10,6 +11,7 @@ import { Link } from "react-router-dom";
 import type { TravelPackage } from "@/lib/types";
 import { cn } from "@/lib/utils";
 import { useLang } from "@/lib/i18n";
+import CreatePackageDialog from "@/components/CreatePackageDialog";
 
 type TFn = (ms: string, en: string) => string;
 
@@ -34,14 +36,9 @@ interface PkgCard {
   status: PkgStatus;
 }
 
-/** Prototype catalog metadata: category, seats and copywriting. */
+/** Fallback metadata for packages that lack their own details. */
 const STATIC_META = [
-  { category: "Beach", quota: 18, filled: 14, next: "12 Jul 2025", description: "Cable car, island hopping and a sunset mangrove cruise, with 3 nights in a beachfront resort." },
-  { category: "Islands", quota: 12, filled: 9, next: "24 Jul 2025", description: "Four open-water dives, turtle point snorkelling and five nights on Besar island." },
-  { category: "Culture", quota: 24, filled: 24, next: "05 Jul 2025", description: "George Town street art, Kek Lok Si temple and a guided hawker food trail." },
-  { category: "Mountains", quota: 20, filled: 11, next: "09 Jul 2025", description: "Sunrise from Penanjakan viewpoint, the Bromo crater and the Sea of Sand jeep trail." },
-  { category: "Nature", quota: 16, filled: 6, next: "19 Jul 2025", description: "Kinabatangan river cruise, proboscis monkeys and an overnight at a rainforest lodge." },
-  { category: "Culture", quota: 22, filled: 13, next: "15 Jul 2025", description: "Jonker Street, A Famosa and a Peranakan cooking class in the old town." },
+  { category: "Umum", quota: 0, filled: 0, next: "—", description: "" },
 ];
 
 const STATUS_PILL: Record<PkgStatus, { bg: string; fg: string }> = {
@@ -56,10 +53,11 @@ const STATUS_LABEL: Record<PkgStatus, { ms: string; en: string }> = {
   archived: { ms: "Diarkib", en: "Archived" },
 };
 
-const CATEGORIES = ["All", "Beach", "Islands", "Culture", "Mountains", "Nature"];
+const CATEGORIES = ["All", "Umum", "Beach", "Islands", "Culture", "Mountains", "Nature"];
 
 const CATEGORY_LABEL: Record<string, { ms: string; en: string }> = {
   All: { ms: "Semua", en: "All" },
+  Umum: { ms: "Umum", en: "General" },
   Beach: { ms: "Pantai", en: "Beach" },
   Islands: { ms: "Kepulauan", en: "Islands" },
   Culture: { ms: "Budaya", en: "Culture" },
@@ -114,26 +112,26 @@ export default function PackageCatalog() {
   const [category, setCategory] = useState("All");
   const [query, setQuery] = useState("");
   const [selectedId, setSelectedId] = useState<string | null>(null);
+  const [createOpen, setCreateOpen] = useState(false);
+  const [editingId, setEditingId] = useState<string | null>(null);
 
   // Live packages from D1 (falls back to mock inside the loader).
-  useEffect(() => {
-    let cancelled = false;
+  const loadList = () => {
     (async () => {
       try {
         const { fetchPackages } = await import("@/lib/live-data");
         const res = await fetchPackages();
-        if (!cancelled) {
-          const cards = res.packages.map(buildCard);
-          setList(cards);
-          setSelectedId(cards[3]?.id ?? cards[0]?.id ?? null);
-        }
+        const cards = res.packages.map(buildCard);
+        setList(cards);
+        setSelectedId((prev) => prev ?? cards[0]?.id ?? null);
       } catch {
         /* live data unavailable — leave list empty */
       }
     })();
-    return () => {
-      cancelled = true;
-    };
+  };
+
+  useEffect(() => {
+    loadList();
   }, []);
 
   const filtered = useMemo(() => {
@@ -195,6 +193,14 @@ export default function PackageCatalog() {
             </button>
           ))}
         </div>
+        <button
+          type="button"
+          onClick={() => { setEditingId(null); setCreateOpen(true); }}
+          className="inline-flex h-9 flex-none cursor-pointer items-center gap-1.5 rounded-[var(--radius-control)] bg-[var(--color-primary)] px-3.5 text-[12.5px] font-semibold text-[var(--color-on-primary)] transition-opacity duration-150 hover:opacity-90 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--color-focus-ring)]"
+        >
+          <Plus className="h-3.5 w-3.5" aria-hidden="true" />
+          {t("Tambah Pakej", "New Package")}
+        </button>
         <label className="ml-auto flex h-9 min-w-0 flex-[1_1_220px] items-center gap-2 rounded-[var(--radius-control)] border border-[var(--color-border-strong)] bg-[var(--color-surface)] px-3 sm:max-w-[280px]">
           <Search
             className="h-4 w-4 flex-none text-muted-foreground"
@@ -379,6 +385,12 @@ export default function PackageCatalog() {
                   </span>
                 </div>
                 <div className="flex flex-col gap-2">
+                  <button type="button" onClick={() => { setEditingId(selected.id); setCreateOpen(true); }} className="cursor-pointer rounded-[var(--radius-control)] border border-[var(--color-border-strong)] bg-[var(--color-surface)] px-4 py-2 text-[12.5px] font-semibold text-foreground hover:bg-[var(--color-surface-muted)]">
+                    {t("Kemas kini pakej & itinerary", "Update package & itinerary")}
+                  </button>
+                  <a href={`/site/packages/${selected.id}`} target="_blank" rel="noreferrer" className="rounded-[var(--radius-control)] border border-[var(--color-border-strong)] bg-[var(--color-surface)] px-4 py-2 text-center text-[12.5px] font-medium text-foreground no-underline hover:bg-[var(--color-surface-muted)]">
+                    {t("Pratonton di website", "Preview on website")}
+                  </a>
                   {selected.status === "published" ? (
                     <button
                       type="button"
@@ -418,6 +430,13 @@ export default function PackageCatalog() {
           </div>
         </aside>
       </div>
+
+      <CreatePackageDialog
+        open={createOpen}
+        onOpenChange={setCreateOpen}
+        onCreated={loadList}
+        packageId={editingId}
+      />
     </div>
   );
 }

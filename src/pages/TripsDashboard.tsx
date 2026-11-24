@@ -33,60 +33,8 @@ interface PrototypeTrip {
   tone: Tone;
 }
 
-const TRIPS: PrototypeTrip[] = [
-  {
-    id: "DP-4471",
-    pkg: "Japan Sakura 8D7N",
-    route: "KUL → HND",
-    date: "12 Dec 2025",
-    leader: "Rina Pratiwi",
-    capacity: 18,
-    aircraft: "Airbus A320",
-    booked: ["1A", "1B", "1C", "2A", "2C", "2D", "3A", "3B", "3D", "4A", "4B", "4C", "5A"],
-    held: ["1D", "2B"],
-    status: "Almost full",
-    tone: "warning",
-  },
-  {
-    id: "DP-4482",
-    pkg: "Turkey Istanbul 9D8N",
-    route: "KUL → IST",
-    date: "18 Dec 2025",
-    leader: "Bagas Santoso",
-    capacity: 18,
-    aircraft: "Boeing 777",
-    booked: ["1A", "1B", "2A", "2B", "2C", "3A", "3C", "4A", "4B", "5C"],
-    held: ["3B"],
-    status: "On track",
-    tone: "success",
-  },
-  {
-    id: "DP-4490",
-    pkg: "Korea Autumn 6D5N",
-    route: "KUL → ICN",
-    date: "23 Dec 2025",
-    leader: "Dewi Lestari",
-    capacity: 18,
-    aircraft: "Airbus A330",
-    booked: ["1A", "1B", "1C", "1D", "2A", "2C", "2D", "3A", "3B", "3C", "4A", "4C", "5A", "5B", "5C"],
-    held: ["2B", "4B"],
-    status: "Almost full",
-    tone: "warning",
-  },
-  {
-    id: "DP-4501",
-    pkg: "Bali Premium 4D3N",
-    route: "KUL → DPS",
-    date: "28 Dec 2025",
-    leader: "Yoga Aditya",
-    capacity: 18,
-    aircraft: "Boeing 737",
-    booked: ["1A", "1B", "2A", "2C", "3A"],
-    held: [],
-    status: "On track",
-    tone: "success",
-  },
-];
+const TRIPS: PrototypeTrip[] = [];
+
 
 interface Passenger {
   seat: string;
@@ -94,32 +42,8 @@ interface Passenger {
   booking: string;
 }
 
-const PASSENGERS: Record<string, Passenger[]> = {
-  "DP-4471": [
-    { seat: "1A", name: "Hendra Wijaya", booking: "TRV-2025-0481" },
-    { seat: "1B", name: "Laras Wijaya", booking: "TRV-2025-0481" },
-    { seat: "2A", name: "Rani Puspita", booking: "TRV-2025-0477" },
-    { seat: "2B", name: "Dimas Saputra", booking: "TRV-2025-0477" },
-    { seat: "4A", name: "Siti Nurhaliza", booking: "TRV-2025-0464" },
-  ],
-  "DP-4482": [
-    { seat: "1A", name: "Siti Nurhaliza", booking: "TRV-2025-0480" },
-    { seat: "2A", name: "Bambang Sutrisno", booking: "TRV-2025-0475" },
-    { seat: "2B", name: "Sri Sutrisno", booking: "TRV-2025-0475" },
-    { seat: "3A", name: "Aditya Nugroho", booking: "TRV-2025-0461" },
-  ],
-  "DP-4490": [
-    { seat: "3A", name: "Kel. Gunawan", booking: "TRV-2025-0479" },
-    { seat: "1A", name: "Melati Kusuma", booking: "TRV-2025-0468" },
-    { seat: "1B", name: "Yusuf Kusuma", booking: "TRV-2025-0468" },
-    { seat: "2A", name: "Tegar Priambodo", booking: "TRV-2025-0459" },
-  ],
-  "DP-4501": [
-    { seat: "1A", name: "Andi Pratama", booking: "TRV-2025-0478" },
-    { seat: "2A", name: "Dewi Anggraini", booking: "TRV-2025-0467" },
-    { seat: "3A", name: "Fajar Ramadhan", booking: "TRV-2025-0452" },
-  ],
-};
+const PASSENGERS: Record<string, Passenger[]> = {};
+
 
 // ---------------------------------------------------------------- helpers
 
@@ -178,7 +102,7 @@ function CardHead({ title, aside }: { title: string; aside?: React.ReactNode }) 
 
 export default function TripsDashboard() {
   const { t } = useLang();
-  const [activeId, setActiveId] = useState<string>("DP-4471");
+  const [activeId, setActiveId] = useState<string>("");
   const [picked, setPicked] = useState<string | null>(null);
   const [seatStateMap, setSeatStateMap] = useState<Record<string, { booked: string[]; held: string[] }>>(() =>
     Object.fromEntries(TRIPS.map((trip) => [trip.id, { booked: trip.booked, held: trip.held }])),
@@ -208,18 +132,19 @@ export default function TripsDashboard() {
   // same id exists in D1, its seat counts override the static ones).
   const trips: PrototypeTrip[] = useMemo(
     () =>
-      TRIPS.map((trip) => {
-        const live = liveDepartures.find((d) => d.id === trip.id);
-        if (!live) return trip;
-        const capacity = live.seatCapacity || trip.capacity;
+      liveDepartures.map((live) => {
+        const capacity = live.seatCapacity;
         const used = Math.min(live.seatsBooked + live.seatsHeld, capacity);
         const bookedFromIndex = Math.min(live.seatsBooked, used);
         const seats = allSeats(capacity);
         return {
-          ...trip,
-          capacity,
+          id: live.id,
+          pkg: live.packageId,
+          route: live.packageId,
           date: formatDate(live.departureDate),
-          leader: live.tourLeader ?? trip.leader,
+          leader: live.tourLeader ?? "—",
+          capacity,
+          aircraft: "—",
           booked: seats.slice(0, bookedFromIndex),
           held: seats.slice(bookedFromIndex, used),
           status: live.status === "open" ? "On track" : "Almost full",
@@ -229,7 +154,29 @@ export default function TripsDashboard() {
     [liveDepartures],
   );
 
-  const active = trips.find((trip) => trip.id === activeId) ?? trips[0];
+  const active = trips.find((trip) => trip.id === activeId) ?? trips[0] ?? null;
+
+  if (!active) {
+    return (
+      <div className="flex min-w-0 flex-col gap-4 font-[var(--font-body)] text-[var(--color-text)]">
+        <h1 className="m-0 font-display text-2xl font-bold tracking-tight">Trip Operations</h1>
+        <div className="flex flex-col items-center justify-center gap-2 rounded-[var(--radius-panel)] border border-dashed border-[var(--color-border)] px-5 py-16 text-center">
+          <p className="m-0 font-semibold">No departures yet</p>
+          <p className="m-0 text-[13px] text-muted-foreground">Create a package and a departure first — trips will appear here.</p>
+          <button type="button" onClick={() => setShowNewDialog(true)} className="mt-2 rounded-lg border border-[var(--color-border)] px-3 py-1.5 text-[12px] font-semibold hover:bg-[var(--color-surface-muted)]">New departure</button>
+        </div>
+        <NewDepartureDialog
+          open={showNewDialog}
+          onOpenChange={setShowNewDialog}
+          onCreate={(departure) => {
+            setLiveDepartures((prev) => [departure, ...prev]);
+            setActiveId(departure.id);
+          }}
+        />
+      </div>
+    );
+  }
+
   const tripState = seatStateMap[active.id] ?? { booked: active.booked, held: active.held };
   const seats = useMemo(() => allSeats(active.capacity), [active.capacity]);
   const passengerFor = (seat: string) => (PASSENGERS[active.id] ?? []).find((person) => person.seat === seat);

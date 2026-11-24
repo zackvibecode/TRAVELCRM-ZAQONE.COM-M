@@ -11,8 +11,7 @@ import {
   Send,
 } from "lucide-react";
 import { useLang } from "@/lib/i18n";
-
-const WHATSAPP_URL = "https://wa.me/60123880030";
+import { useBranding, whatsappUrl } from "@/lib/useBranding";
 
 interface ContactCard {
   icon: typeof MessageCircle;
@@ -27,7 +26,6 @@ const CONTACT_CARDS: ContactCard[] = [
     icon: MessageCircle,
     title: { ms: "WhatsApp (terpantas)", en: "WhatsApp (fastest)" },
     value: "+60 12 388 0030",
-    href: WHATSAPP_URL,
     note: { ms: "Sembang terus dengan pasukan jualan", en: "Chat directly with our sales team" },
   },
   {
@@ -63,6 +61,8 @@ const EMPTY_FORM: MessageForm = { name: "", contact: "", subject: "", message: "
 
 export default function PublicContact() {
   const { t, localePath } = useLang();
+  const branding = useBranding();
+  const waUrl = whatsappUrl(branding);
   const [form, setForm] = useState<MessageForm>(EMPTY_FORM);
   const [errors, setErrors] = useState<Partial<Record<keyof MessageForm, string>>>({});
   const [submitted, setSubmitted] = useState(false);
@@ -103,7 +103,7 @@ export default function PublicContact() {
 
   if (submitted) {
     return (
-      <div className="mx-auto max-w-site px-4">
+      <div className="mx-auto max-w-site px-4 md:px-6">
         <div className="flex max-w-xl flex-col items-center gap-[var(--space-5)] py-[var(--space-9)] text-center">
           <span
             aria-hidden="true"
@@ -117,8 +117,8 @@ export default function PublicContact() {
             </h1>
             <p className="text-body-md m-0 mt-2 leading-[var(--leading-relaxed)] text-[var(--color-text-secondary)]">
               {t(
-                "Mesej anda telah kami terima. Pasukan ZAQONE Travel akan menghubungi anda melalui",
-                "Your message has been received. The ZAQONE Travel team will reach you at",
+                "Mesej anda telah kami terima. Pasukan kami akan menghubungi anda melalui",
+                "Your message has been received. Our team will reach you at",
               )}{" "}
               <strong>{form.contact}</strong>{" "}
               {t("dalam 1×24 jam bekerja.", "within 1 business day.")}
@@ -152,7 +152,7 @@ export default function PublicContact() {
     <div className="bg-[var(--color-surface)]">
       {/* Hero kecil — gaya prototaip public site */}
       <section className="border-b border-[var(--color-border)] bg-[var(--color-surface-raised)]">
-        <div className="mx-auto max-w-site px-4 py-[var(--space-8)]">
+        <div className="mx-auto max-w-site px-4 md:px-6 py-[var(--space-8)]">
           <nav aria-label="Breadcrumb" className="text-caption mb-2 text-[var(--color-text-muted)]">
             <Link
               to={localePath("/site")}
@@ -179,7 +179,7 @@ export default function PublicContact() {
         </div>
       </section>
 
-      <div className="mx-auto max-w-site px-4">
+      <div className="mx-auto max-w-site px-4 md:px-6">
         <div className="flex flex-col gap-[var(--space-9)] py-[var(--space-9)]">
           <section
             aria-label={t("Maklumat kontak", "Contact information")}
@@ -187,6 +187,20 @@ export default function PublicContact() {
           >
             {CONTACT_CARDS.map((item) => {
               const label = t(item.title.ms, item.title.en);
+              // Shared branding values replace the hardcoded defaults.
+              const value = (() => {
+                if (item.icon === MessageCircle) return `+${branding.whatsapp}`;
+                if (item.icon === Phone) return branding.phone;
+                if (item.icon === Mail) return branding.email;
+                if (item.icon === MapPin) return branding.address;
+                return item.value;
+              })();
+              const href = (() => {
+                if (item.icon === MessageCircle) return waUrl;
+                if (item.icon === Phone) return `tel:${branding.phone.replace(/\s/g, "")}`;
+                if (item.icon === Mail) return `mailto:${branding.email}`;
+                return item.href;
+              })();
               const body = (
                 <>
                   <span
@@ -198,7 +212,7 @@ export default function PublicContact() {
                   <span className="flex min-w-0 flex-col gap-1">
                     <span className="text-label-md text-[var(--color-text)]">{label}</span>
                     <span className="text-body-sm font-semibold [overflow-wrap:anywhere] text-[var(--color-text)]">
-                      {item.value}
+                      {value}
                     </span>
                     <span className="text-caption text-[var(--color-text-muted)]">
                       {t(item.note.ms, item.note.en)}
@@ -206,12 +220,12 @@ export default function PublicContact() {
                   </span>
                 </>
               );
-              return item.href ? (
+              return href ? (
                 <a
                   key={label}
-                  href={item.href}
-                  target={item.href.startsWith("http") ? "_blank" : undefined}
-                  rel={item.href.startsWith("http") ? "noreferrer" : undefined}
+                  href={href}
+                  target={href.startsWith("http") ? "_blank" : undefined}
+                  rel={href.startsWith("http") ? "noreferrer" : undefined}
                   className="flex min-w-0 items-start gap-3 rounded-[var(--radius-card)] border border-[var(--color-border)] bg-[var(--color-surface)] p-4 no-underline transition-colors hover:border-[var(--color-border-strong)] hover:shadow-[0_10px_24px_-18px_rgba(20,23,31,0.5)] focus-ring"
                 >
                   {body}

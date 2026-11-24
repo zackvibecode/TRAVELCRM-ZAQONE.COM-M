@@ -5,6 +5,7 @@ import * as schema from "../db/schema";
 import { auditMcpCall } from "../middleware/mcp-auth";
 import { holdSeats } from "../lib/seat-availability";
 import { generateBookingReference } from "../lib/reference";
+import { firstFollowupAt } from "../lib/followup-schedule";
 
 type Env = {
   Variables: {
@@ -93,6 +94,30 @@ const TOOLS = [
     requiredScope: "packages:read",
   },
   {
+    name: "manage_package",
+    description: "SUPER ADMIN ONLY: create or update a travel package. Itinerary is an array of {day,title,description,meals}. Use status published to make it live immediately.",
+    inputSchema: {
+      type: "object",
+      properties: {
+        id: { type: "string" },
+        name: { type: "string" },
+        destination: { type: "string" },
+        durationDays: { type: "number" },
+        description: { type: "string" },
+        highlights: { type: "array", items: { type: "string" } },
+        itinerary: { type: "array", items: { type: "object" } },
+        inclusions: { type: "array", items: { type: "string" } },
+        exclusions: { type: "array", items: { type: "string" } },
+        adultPrice: { type: "number" },
+        childPrice: { type: "number" },
+        infantPrice: { type: "number" },
+        status: { type: "string", enum: ["draft", "published", "archived"] },
+      },
+      required: ["name", "destination", "durationDays"],
+    },
+    requiredScope: "admin:write",
+  },
+  {
     name: "get_seat_availability",
     description: "Confirmed/held/available seats for one departure.",
     inputSchema: {
@@ -171,7 +196,85 @@ const TOOLS = [
     },
     requiredScope: "invoices:write",
   },
+  {
+    name: "update_booking_status",
+    description:
+      "SUPER ADMIN ONLY: change a booking's status (draft → confirmed → completed, or cancel).",
+    inputSchema: {
+      type: "object",
+      properties: {
+        reference: { type: "string" },
+        status: { type: "string", enum: ["draft", "confirmed", "completed", "cancelled"] },
+      },
+      required: ["reference", "status"],
+    },
+    requiredScope: "admin:write",
+  },
+  {
+    name: "verify_payment",
+    description:
+      "SUPER ADMIN ONLY: verify or reject a pending payment. Finance normally does this; super admin can override.",
+    inputSchema: {
+      type: "object",
+      properties: {
+        paymentId: { type: "string" },
+        decision: { type: "string", enum: ["verified", "rejected"] },
+      },
+      required: ["paymentId", "decision"],
+    },
+    requiredScope: "admin:write",
+  },
+  {
+    name: "list_audit_logs",
+    description: "SUPER ADMIN ONLY: recent staff/MCP audit log entries.",
+    inputSchema: {
+      type: "object",
+      properties: { limit: { type: "number" } },
+    },
+    requiredScope: "admin:read",
+  },
+  {
+    name: "manage_website_page",
+    description:
+      "SUPER ADMIN ONLY: create or update a CMS page. id is optional for new pages (defaults to slug). status defaults to draft.",
+    inputSchema: {
+      type: "object",
+      properties: {
+        id: { type: "string" },
+        slug: { type: "string" },
+        title: { type: "string" },
+        content: { type: "string", description: "JSON string of content blocks" },
+        status: { type: "string", enum: ["draft", "published"] },
+      },
+      required: ["slug", "title", "content"],
+    },
+    requiredScope: "admin:write",
+  },
 ];
+
+/**
+ * Purge the public content cache so a CMS write is visible on the website
+ * immediately. Best-effort — a cache failure must never fail the mutation.
+ */
+async function purgeMcpContentCache(c: { req: { url: string } }): Promise<void> {
+  try {
+    const cache = (globalThis as unknown as { caches?: CacheStorage }).caches?.default;
+    if (!cache) return;
+    const origin = new URL(c.req.url).origin;
+    const paths = [
+      "/website/pages",
+      "/website/banners",
+      "/website/seo",
+      "/website/packages",
+      "/website/featured",
+    ];
+    await Promise.all(
+      paths.map((p) => cache.delete(new Request(`${origin}${p}`)).catch(() => false)),
+    );
+  } catch {
+    // best-effort
+  }
+}
 
 function rpcResult(id: RpcRequest["id"], result: unknown) {
   return { jsonrpc: "2.0", id: id ?? null, result };
@@ -522,6 +625,92 @@ mcpRouter.post("/", async (c) => {
         } else {
           text = JSON.stringify({ error: "package not found" });
         }
+      } else if (name === "manage_package") {
+        if (token.role !== "super_admin") {
+          await audit(name, "denied", "super_admin role required");
+          return c.json(rpcResult(id, {
+            content: [{ type: "text", text: "Forbidden: super_admin role required" }],
+            isError: true,
+          }));
+        }
+        const packageName = String(args.name ?? "").trim();
+        const destination = String(args.destination ?? "").trim();
+        const durationDays = Number(args.durationDays);
+        if (!packageName || !destination || !Number.isInteger(durationDays) || durationDays < 1) {
+          return c.json(rpcResult(id, {
+            content: [{ type: "text", text: "Invalid: name, destination and positive durationDays are required" }],
+            isError: true,
+          }));
+        }
+        const packageId = String(args.id ?? "").trim() || crypto.randomUUID();
+        const status = ["draft", "published", "archived"].includes(String(args.status))
+          ? String(args.status)
+          : "draft";
+        const existingPackage = await db.get<{ id: string }>(sql`
+          SELECT id FROM packages WHERE id = ${packageId} LIMIT 1
+        `);
+        const list = (key: string) => Array.isArray(args[key])
+          ? (args[key] as unknown[]).filter((v) => typeof v === "string").map(String)
+          : [];
+        const values = {
+          name: packageName,
+          destination,
+          durationDays,
+          description: String(args.description ?? ""),
+          highlights: JSON.stringify(list("highlights")),
+          inclusions: JSON.stringify(list("inclusions")),
+          exclusions: JSON.stringify(list("exclusions")),
+          adultPrice: Math.max(0, Number(args.adultPrice) || 0),
+          childPrice: Math.max(0, Number(args.childPrice) || 0),
+          infantPrice: Math.max(0, Number(args.infantPrice) || 0),
+        };
+        if (existingPackage) {
+          await db.run(sql`
+            UPDATE packages SET name = ${values.name}, destination = ${values.destination},
+              duration_days = ${values.durationDays}, description = ${values.description},
+              highlights = ${values.highlights}, inclusions = ${values.inclusions},
+              exclusions = ${values.exclusions}, adult_price = ${values.adultPrice},
+              child_price = ${values.childPrice}, infant_price = ${values.infantPrice},
+              publish_status = ${status}, updated_at = datetime('now')
+            WHERE id = ${packageId}
+          `);
+        } else {
+          await db.run(sql`
+            INSERT INTO packages (id, name, destination, duration_days, description,
+              highlights, itinerary, inclusions, exclusions, adult_price, child_price,
+              infant_price, images, featured, publish_status, created_at, updated_at)
+            VALUES (${packageId}, ${values.name}, ${values.destination}, ${values.durationDays},
+              ${values.description}, ${values.highlights}, '[]', ${values.inclusions},
+              ${values.exclusions}, ${values.adultPrice}, ${values.childPrice},
+              ${values.infantPrice}, '[]', 0, ${status}, datetime('now'), datetime('now'))
+          `);
+        }
+        if (Array.isArray(args.itinerary)) {
+          const days = args.itinerary as Array<Record<string, unknown>>;
+          await db.run(sql`DELETE FROM package_itinerary_items WHERE package_id = ${packageId}`);
+          for (const [index, day] of days.entries()) {
+            const meals = Array.isArray(day.meals) ? JSON.stringify(day.meals.map(String)) : "[]";
+            await db.run(sql`
+              INSERT INTO package_itinerary_items (id, package_id, day_number, title,
+                description, meal_included, sort_order, created_at)
+              VALUES (${crypto.randomUUID()}, ${packageId}, ${index + 1},
+                ${String(day.title ?? "")}, ${String(day.description ?? "")},
+                ${meals}, ${index + 1}, datetime('now'))
+            `);
+          }
+        }
+        await db.run(sql`
+          INSERT INTO audit_logs (id, actor, role, action, entity_type, entity_id, detail, at)
+          VALUES (${crypto.randomUUID()}, ${`mcp:${token.id}`}, ${token.role},
+            'mcp_manage_package', 'packages', ${packageId},
+            ${`${existingPackage ? "updated" : "created"};status:${status}`}, datetime('now'))
+        `).catch(() => undefined);
+        text = JSON.stringify({
+          id: packageId,
+          name: packageName,
+          status,
+          url: `/site/packages/${packageId}`,
+        });
       } else if (name === "get_seat_availability") {
         const departureId = String(args.departureId ?? "");
         const rows = await db.all<{
@@ -581,6 +770,11 @@ mcpRouter.post("/", async (c) => {
           );
         }
         const leadId = crypto.randomUUID();
+        // MCP tools have no staff session — mandatory owner falls back to
+        // the first super_admin (same rule as the 0027 backfill).
+        const ownerRows = await db.all<{ id: string }>(sql`
+          SELECT id FROM user WHERE role = 'super_admin' ORDER BY id LIMIT 1
+        `);
         await db.insert(schema.leads).values({
           id: leadId,
           name: leadName,
@@ -589,6 +783,13 @@ mcpRouter.post("/", async (c) => {
           destination: args.destination ? String(args.destination) : null,
           notes: args.notes ? String(args.notes) : null,
           stage: "new",
+          ownerUserId: ownerRows[0]?.id ?? "unassigned",
+          followupStatus: "new",
+          followupState: "active",
+          followupStage: "FU1",
+          followupStageAt: new Date().toISOString(),
+          // FU1 from config, snapped to KL business hours.
+          nextFollowupAt: (await firstFollowupAt(db)).toISOString(),
         }).run();
         await db.run(sql`
           INSERT INTO audit_logs (id, actor, role, action, entity_type, entity_id, at)
@@ -738,6 +939,153 @@ mcpRouter.post("/", async (c) => {
           status: "pending_verification",
           note: "Finance staff must verify before it counts as collected.",
         });
+      } else if (name === "update_booking_status") {
+        if (token.role !== "super_admin") {
+          await audit(name, "denied", "super_admin role required");
+          return c.json(
+            rpcResult(id, {
+              content: [{ type: "text", text: "Forbidden: super_admin role required" }],
+              isError: true,
+            }),
+          );
+        }
+        const reference = String(args.reference ?? "");
+        const status = String(args.status ?? "");
+        const valid = ["draft", "confirmed", "completed", "cancelled"];
+        if (!reference || !valid.includes(status)) {
+          await audit(name, "error", "invalid parameters");
+          return c.json(
+            rpcResult(id, {
+              content: [{ type: "text", text: `Invalid: reference and status (${valid.join("|")}) are required` }],
+              isError: true,
+            }),
+          );
+        }
+        const updated = await db.all<{ id: string }>(sql`
+          UPDATE bookings SET status = ${status}, updated_at = datetime('now')
+          WHERE reference = ${reference}
+          RETURNING id
+        `);
+        if (!updated.length) {
+          await audit(name, "error", "booking not found");
+          return c.json(
+            rpcResult(id, { content: [{ type: "text", text: "Booking not found" }], isError: true }),
+          );
+        }
+        await db.run(sql`
+          INSERT INTO audit_logs (id, actor, role, action, entity_type, entity_id, detail, at)
+          VALUES (${crypto.randomUUID()}, ${`mcp:${token.id}`}, ${token.role}, 'mcp_update_booking_status', 'bookings', ${updated[0].id}, ${`status:${status}`}, datetime('now'))
+        `).catch(() => undefined);
+        text = JSON.stringify({ reference, status, updated: true });
+      } else if (name === "verify_payment") {
+        if (token.role !== "super_admin") {
+          await audit(name, "denied", "super_admin role required");
+          return c.json(
+            rpcResult(id, {
+              content: [{ type: "text", text: "Forbidden: super_admin role required" }],
+              isError: true,
+            }),
+          );
+        }
+        const paymentId = String(args.paymentId ?? "");
+        const decision = String(args.decision ?? "");
+        if (!paymentId || !["verified", "rejected"].includes(decision)) {
+          await audit(name, "error", "invalid parameters");
+          return c.json(
+            rpcResult(id, {
+              content: [{ type: "text", text: "Invalid: paymentId and decision (verified|rejected) are required" }],
+              isError: true,
+            }),
+          );
+        }
+        const updated = await db.all<{ id: string }>(sql`
+          UPDATE payments SET status = ${decision}, verified_at = datetime('now'),
+            verified_by = ${`mcp:${token.id}`}
+          WHERE id = ${paymentId} AND status = 'pending_verification'
+          RETURNING id
+        `);
+        if (!updated.length) {
+          await audit(name, "error", "pending payment not found");
+          return c.json(
+            rpcResult(id, { content: [{ type: "text", text: "Pending payment not found" }], isError: true }),
+          );
+        }
+        await db.run(sql`
+          INSERT INTO audit_logs (id, actor, role, action, entity_type, entity_id, detail, at)
+          VALUES (${crypto.randomUUID()}, ${`mcp:${token.id}`}, ${token.role}, 'mcp_verify_payment', 'payments', ${paymentId}, ${`decision:${decision}`}, datetime('now'))
+        `).catch(() => undefined);
+        text = JSON.stringify({ paymentId, status: decision });
+      } else if (name === "list_audit_logs") {
+        if (token.role !== "super_admin") {
+          await audit(name, "denied", "super_admin role required");
+          return c.json(
+            rpcResult(id, {
+              content: [{ type: "text", text: "Forbidden: super_admin role required" }],
+              isError: true,
+            }),
+          );
+        }
+        const limit = Math.min(Number(args.limit) || 50, 200);
+        const rows = await db.all(sql`
+          SELECT id, actor, role, action, entity_type AS entityType, entity_id AS entityId, detail, at
+          FROM audit_logs ORDER BY at DESC LIMIT ${limit}
+        `);
+        text = JSON.stringify(rows);
+      } else if (name === "manage_website_page") {
+        if (token.role !== "super_admin") {
+          await audit(name, "denied", "super_admin role required");
+          return c.json(
+            rpcResult(id, {
+              content: [{ type: "text", text: "Forbidden: super_admin role required" }],
+              isError: true,
+            }),
+          );
+        }
+        const slug = String(args.slug ?? "").trim();
+        const pageId = String(args.id ?? slug).trim();
+        const pageTitle = String(args.title ?? "");
+        const content = String(args.content ?? "");
+        const status = args.status === "published" ? "published" : "draft";
+        if (!pageId || !slug || !pageTitle || !content) {
+          await audit(name, "error", "invalid parameters");
+          return c.json(
+            rpcResult(id, {
+              content: [{ type: "text", text: "Invalid: id, slug, title and content (JSON string) are required" }],
+              isError: true,
+            }),
+          );
+        }
+        // Validate content parses as JSON before writing.
+        try {
+          JSON.parse(content);
+        } catch {
+          await audit(name, "error", "content is not valid JSON");
+          return c.json(
+            rpcResult(id, { content: [{ type: "text", text: "content must be valid JSON" }], isError: true }),
+          );
+        }
+        const existing = await db.all<{ id: string }>(sql`
+          SELECT id FROM site_pages WHERE id = ${pageId} OR slug = ${slug} LIMIT 1
+        `);
+        if (existing.length) {
+          // A different page may already own this slug — release it first so the
+          // UNIQUE index on site_pages.slug does not abort the update.
+          await db.run(sql`
+            UPDATE site_pages SET slug = ${slug}, title = ${pageTitle}, content = ${content},
+              status = ${status}, updated_at = datetime('now') WHERE id = ${existing[0].id}
+          `);
+        } else {
+          await db.run(sql`
+            INSERT INTO site_pages (id, slug, title, content, status, updated_at)
+            VALUES (${pageId}, ${slug}, ${pageTitle}, ${content}, ${status}, datetime('now'))
+          `);
+        }
+        await purgeMcpContentCache(c);
+        await db.run(sql`
+          INSERT INTO audit_logs (id, actor, role, action, entity_type, entity_id, detail, at)
+          VALUES (${crypto.randomUUID()}, ${`mcp:${token.id}`}, ${token.role}, 'mcp_manage_website_page', 'site_pages', ${pageId}, ${`status:${status}`}, datetime('now'))
+        `).catch(() => undefined);
+        text = JSON.stringify({ id: pageId, slug, title: pageTitle, status });
       } else {
         text = "[]";
       }
@@ -748,7 +1096,9 @@ mcpRouter.post("/", async (c) => {
       );
     } catch (err) {
       await audit(name, "error", String(err));
-      return c.json(rpcError(id, -32000, "tool execution failed"));
+      const detail = err instanceof Error ? err.message : String(err);
+      await audit(name, "error", detail);
+      return c.json(rpcError(id, -32000, `tool execution failed: ${detail}`));
     }
   }
 

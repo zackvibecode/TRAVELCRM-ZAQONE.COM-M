@@ -1,22 +1,64 @@
 import { Hono } from "hono";
+import type { MiddlewareHandler } from "hono";
 import { and, asc, desc, eq, gte, like, or } from "drizzle-orm";
 import type { DrizzleD1Database } from "drizzle-orm/d1";
 import * as schema from "../db/schema";
 import { logAudit } from "../lib/audit";
 import { requireRole } from "../middleware/auth";
 import { normalizePhone, whatsappLink } from "../lib/phone";
+import { followupAccessRole } from "../lib/owned-lead";
+import { firstFollowupAt } from "../lib/followup-schedule";
 export type LeadsEnv = {
   DB: D1Database;
 };
 
 type Variables = {
   db: DrizzleD1Database<typeof schema>;
+  staff?: { id: string; name: string; email: string; role: string };
+  lead?: schema.LeadRow;
 };
 
 const leadsRouter = new Hono<{
   Bindings: LeadsEnv;
   Variables: Variables;
 }>();
+
+/**
+ * Ownership guard for every lead-scoped route: SALES may only touch their
+ * own leads (owner_user_id), ADMIN (super_admin/management) passes, and
+ * anything else — missing lead, other roles, someone else's lead — answers
+ * a neutral 404 so data existence never leaks. Loads the lead into
+ * c.var.lead for the handler.
+ */
+const ownedLead: MiddlewareHandler<{
+  Bindings: LeadsEnv;
+  Variables: Variables;
+}> = async (c, next) => {
+  const db = c.get("db");
+  const id = c.req.param("id") ?? "";
+  const [lead] = await db
+    .select()
+    .from(schema.leads)
+    .where(eq(schema.leads.id, id))
+    .all();
+
+  const staff = c.get("staff");
+  const access = staff
+    ? followupAccessRole(staff.role as Parameters<typeof followupAccessRole>[0])
+    : null;
+  const callerId = staff?.id ?? c.req.header("x-user-id");
+
+  if (
+    !lead ||
+    access === null ||
+    (access === "SALES" && lead.ownerUserId !== callerId)
+  ) {
+    return c.json({ success: false, error: "Lead not found" }, 404);
+  }
+
+  c.set("lead", lead);
+  await next();
+};
 
 const LEAD_STAGES = [
   "new",
@@ -48,6 +90,8 @@ interface CreateLeadInput {
   stage?: LeadStage;
   sourceId?: string;
   assignedTo?: string;
+  /** Optional explicit owner; defaults to the creating staff member. */
+  ownerUserId?: string;
   nextFollowUp?: string;
   notes?: string;
   createdBy?: string;
@@ -106,11 +150,23 @@ leadsRouter.get(
 
   const where = conditions.length > 0 ? and(...conditions) : undefined;
 
+  // Ownership filter: SALES only ever see their own leads in the list.
+  const staff = c.get("staff");
+  const access = staff
+    ? followupAccessRole(staff.role as Parameters<typeof followupAccessRole>[0])
+    : null;
+  const ownerWhere =
+    access === "SALES"
+      ? where
+        ? and(where, eq(schema.leads.ownerUserId, staff!.id))
+        : eq(schema.leads.ownerUserId, staff!.id)
+      : where;
+
   const [rows, total] = await Promise.all([
     db
       .select()
       .from(schema.leads)
-      .where(where)
+      .where(ownerWhere)
       .orderBy(desc(schema.leads.lastActivityAt))
       .limit(limit)
       .offset(offset)
@@ -118,7 +174,7 @@ leadsRouter.get(
     db
       .select({ count: schema.leads.id })
       .from(schema.leads)
-      .where(where)
+      .where(ownerWhere)
       .all(),
   ]);
 
@@ -202,18 +258,11 @@ leadsRouter.get(
 leadsRouter.get(
   "/:id",
   requireRole("sales", "management", "finance", "operations"),
+  ownedLead,
   async (c) => {
   const db = c.get("db");
-  const id = c.req.param("id");
-
-  const [lead] = await db
-    .select()
-    .from(schema.leads)
-    .where(eq(schema.leads.id, id))
-    .all();
-  if (!lead) {
-    return c.json({ success: false, error: "Lead not found" }, 404);
-  }
+  const lead = c.get("lead")!;
+  const id = lead.id;
 
   const [activities, followUps] = await Promise.all([
     db
@@ -250,6 +299,7 @@ leadsRouter.get(
 leadsRouter.post("/", requireRole("sales", "management"), async (c) => {
   const db = c.get("db");
   const body = (await c.req.json<CreateLeadInput>()) as CreateLeadInput;
+  const staff = c.get("staff");
 
   if (!body.name?.trim() || !body.phone?.trim()) {
     return c.json(
@@ -269,6 +319,23 @@ leadsRouter.post("/", requireRole("sales", "management"), async (c) => {
     );
   }
 
+  // Mandatory owner: explicit body value wins, else the creating staff,
+  // else assignedTo (admin creating on behalf of a salesperson).
+  const ownerId =
+    body.ownerUserId ??
+    staff?.id ??
+    body.assignedTo ??
+    null;
+  if (!ownerId) {
+    return c.json(
+      {
+        success: false,
+        error: "owner is required: sign in or pass ownerUserId",
+      },
+      400,
+    );
+  }
+
   const lead: schema.NewLeadRow = {
     id: body.id ?? crypto.randomUUID(),
     name: body.name.trim(),
@@ -283,6 +350,15 @@ leadsRouter.post("/", requireRole("sales", "management"), async (c) => {
     nextFollowUp: body.nextFollowUp ?? null,
     notes: body.notes ?? null,
     customerId: null,
+    ownerUserId: ownerId,
+    followupStatus: "new",
+    followupState: "active",
+    followupStage: "FU1",
+    followupStageAt: new Date().toISOString(),
+    // FU1 is scheduled from the admin-editable followup_stages config, snapped
+    // to KL business hours (unless the caller pinned an exact time).
+    nextFollowupAt:
+      body.nextFollowUp ?? (await firstFollowupAt(db)).toISOString(),
   };
 
   await db.insert(schema.leads).values(lead).run();
@@ -299,19 +375,15 @@ leadsRouter.post("/", requireRole("sales", "management"), async (c) => {
 });
 
 // PATCH /leads/:id — update lead fields (incl. assignment).
-leadsRouter.patch("/:id", requireRole("sales", "management"), async (c) => {
+leadsRouter.patch(
+  "/:id",
+  requireRole("sales", "management"),
+  ownedLead,
+  async (c) => {
   const db = c.get("db");
   const id = c.req.param("id");
+  const existing = c.get("lead")!;
   const body = (await c.req.json<UpdateLeadInput>()) as UpdateLeadInput;
-
-  const [existing] = await db
-    .select()
-    .from(schema.leads)
-    .where(eq(schema.leads.id, id))
-    .all();
-  if (!existing) {
-    return c.json({ success: false, error: "Lead not found" }, 404);
-  }
 
   const patch: Partial<schema.NewLeadRow> = {
     updatedAt: new Date().toISOString().replace("T", " ").slice(0, 19),
@@ -371,28 +443,22 @@ leadsRouter.patch("/:id", requireRole("sales", "management"), async (c) => {
     .where(eq(schema.leads.id, id))
     .all();
   return c.json({ success: true, data: updated });
-});
+},
+);
 
 // POST /leads/:id/stage — dedicated stage transition endpoint.
 leadsRouter.post(
   "/:id/stage",
   requireRole("sales", "management"),
+  ownedLead,
   async (c) => {
   const db = c.get("db");
   const id = c.req.param("id");
+  const existing = c.get("lead")!;
   const body = (await c.req.json<{ stage: LeadStage; by?: string }>());
 
   if (!isLeadStage(body.stage)) {
     return c.json({ success: false, error: "Invalid stage" }, 400);
-  }
-
-  const [existing] = await db
-    .select()
-    .from(schema.leads)
-    .where(eq(schema.leads.id, id))
-    .all();
-  if (!existing) {
-    return c.json({ success: false, error: "Lead not found" }, 404);
   }
 
   const now = new Date().toISOString().replace("T", " ").slice(0, 19);
@@ -425,6 +491,7 @@ leadsRouter.post(
 leadsRouter.post(
   "/:id/activities",
   requireRole("sales", "management"),
+  ownedLead,
   async (c) => {
   const db = c.get("db");
   const id = c.req.param("id");
@@ -442,15 +509,6 @@ leadsRouter.post(
   }
   if (!body.text?.trim()) {
     return c.json({ success: false, error: "text is required" }, 400);
-  }
-
-  const [existing] = await db
-    .select()
-    .from(schema.leads)
-    .where(eq(schema.leads.id, id))
-    .all();
-  if (!existing) {
-    return c.json({ success: false, error: "Lead not found" }, 404);
   }
 
   const activity: schema.NewLeadActivityRow = {
@@ -476,9 +534,10 @@ leadsRouter.post(
 leadsRouter.get(
   "/:id/activities",
   requireRole("sales", "management", "finance", "operations"),
+  ownedLead,
   async (c) => {
   const db = c.get("db");
-  const id = c.req.param("id");
+  const id = c.get("lead")!.id;
 
   const rows = await db
     .select()
@@ -495,6 +554,7 @@ leadsRouter.get(
 leadsRouter.post(
   "/:id/follow-ups",
   requireRole("sales", "management"),
+  ownedLead,
   async (c) => {
   const db = c.get("db");
   const id = c.req.param("id");
@@ -507,15 +567,6 @@ leadsRouter.post(
 
   if (!body.dueAt) {
     return c.json({ success: false, error: "dueAt is required" }, 400);
-  }
-
-  const [existing] = await db
-    .select()
-    .from(schema.leads)
-    .where(eq(schema.leads.id, id))
-    .all();
-  if (!existing) {
-    return c.json({ success: false, error: "Lead not found" }, 404);
   }
 
   const followUp: schema.NewLeadFollowUpRow = {
@@ -542,9 +593,10 @@ leadsRouter.post(
 leadsRouter.get(
   "/:id/follow-ups",
   requireRole("sales", "management", "finance", "operations"),
+  ownedLead,
   async (c) => {
   const db = c.get("db");
-  const id = c.req.param("id");
+  const id = c.get("lead")!.id;
 
   const rows = await db
     .select()
@@ -574,6 +626,26 @@ leadsRouter.post(
     return c.json({ success: false, error: "Follow-up not found" }, 404);
   }
 
+  // Ownership: the follow-up's parent lead must belong to the caller
+  // (SALES) or the caller must be ADMIN — neutral 404 otherwise.
+  const [parentLead] = await db
+    .select()
+    .from(schema.leads)
+    .where(eq(schema.leads.id, existing.leadId))
+    .all();
+  const staff = c.get("staff");
+  const access = staff
+    ? followupAccessRole(staff.role as Parameters<typeof followupAccessRole>[0])
+    : null;
+  const callerId = staff?.id ?? c.req.header("x-user-id");
+  if (
+    !parentLead ||
+    access === null ||
+    (access === "SALES" && parentLead.ownerUserId !== callerId)
+  ) {
+    return c.json({ success: false, error: "Follow-up not found" }, 404);
+  }
+
   const now = new Date().toISOString().replace("T", " ").slice(0, 19);
   await db
     .update(schema.leadFollowUps)
@@ -585,19 +657,16 @@ leadsRouter.post(
   },
 );
 
-// DELETE /leads/:id — hard delete (audit logged).
-leadsRouter.delete("/:id", requireRole("management"), async (c) => {
+// DELETE /leads/:id — hard delete (audit logged). ADMIN-only route, still
+// routed through ownedLead for the uniform 404 contract on missing leads.
+leadsRouter.delete(
+  "/:id",
+  requireRole("management"),
+  ownedLead,
+  async (c) => {
   const db = c.get("db");
   const id = c.req.param("id");
-
-  const [existing] = await db
-    .select()
-    .from(schema.leads)
-    .where(eq(schema.leads.id, id))
-    .all();
-  if (!existing) {
-    return c.json({ success: false, error: "Lead not found" }, 404);
-  }
+  const existing = c.get("lead")!;
 
   await db.delete(schema.leads).where(eq(schema.leads.id, id)).run();
   await db
@@ -607,6 +676,14 @@ leadsRouter.delete("/:id", requireRole("management"), async (c) => {
   await db
     .delete(schema.leadFollowUps)
     .where(eq(schema.leadFollowUps.leadId, id))
+    .run();
+  await db
+    .delete(schema.followupActivities)
+    .where(eq(schema.followupActivities.leadId, id))
+    .run();
+  await db
+    .delete(schema.customerNotes)
+    .where(eq(schema.customerNotes.leadId, id))
     .run();
   await logAudit(db, {
     actor: c.req.query("by") ?? null,
@@ -618,6 +695,7 @@ leadsRouter.delete("/:id", requireRole("management"), async (c) => {
   });
 
   return c.json({ success: true, data: { id } });
-});
+},
+);
 
 export default leadsRouter;

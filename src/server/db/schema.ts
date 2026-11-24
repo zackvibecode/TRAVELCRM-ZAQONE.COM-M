@@ -1,5 +1,5 @@
 import { sql } from "drizzle-orm";
-import { index, integer, sqliteTable, text } from "drizzle-orm/sqlite-core";
+import { index, integer, sqliteTable, text, uniqueIndex } from "drizzle-orm/sqlite-core";
 
 // ---------------------------------------------------------------------------
 // Booking Workspace — bookings, passengers, and booking history.
@@ -680,6 +680,44 @@ export const leads = sqliteTable(
       .default(sql`(datetime('now'))`),
     notes: text("notes"),
     customerId: text("customer_id"),
+    // --- WhatsApp Follow-Up CRM (Phase 6) additions ---
+    /** Mandatory lead owner (owner_user_id per plan) — sales user id. */
+    ownerUserId: text("owner_user_id").notNull(),
+    /** Overall lead status for the follow-up CRM (new/responded/won/lost/paused). */
+    followupStatus: text("followup_status", {
+      enum: ["new", "responded", "won", "lost", "paused"],
+    }),
+    /** Three-stage engine state: active / paused / done / escalated. */
+    followupState: text("followup_state", {
+      enum: ["active", "paused", "done", "escalated"],
+    }),
+    /** Next scheduled follow-up instant (ISO 8601, Asia/Kuala_Lumpur based). */
+    nextFollowupAt: text("next_followup_at"),
+    /**
+     * Current engine stage (FU1/FU2/FU3), denormalised from the latest
+     * confirmed followup_activities row for fast per-stage queries. The
+     * activities table remains the source of truth for advancement.
+     */
+    followupStage: text("followup_stage", {
+      enum: ["FU1", "FU2", "FU3"],
+    }),
+    /** When the lead entered the current stage. */
+    followupStageAt: text("followup_stage_at"),
+    /** When the sequence was paused (null while running). */
+    pausedAt: text("paused_at"),
+    /** Optional reason for the last pause. */
+    pauseReason: text("pause_reason"),
+    /** When the lead was escalated for admin review after FU3. */
+    escalatedAt: text("escalated_at"),
+    /** Last time the sales rep made contact (drives auto-pause). */
+    lastContactedAt: text("last_contacted_at"),
+    /** When the whole sequence was completed / closed out. */
+    followupCompletedAt: text("followup_completed_at"),
+    /**
+     * Normalized phone (digits only, +60-prefixed for Malaysian numbers) —
+     * the duplicate-detection key for CSV/Excel import (Phase 6).
+     */
+    phoneNormalized: text("phone_normalized"),
     createdAt: text("created_at")
       .notNull()
       .default(sql`(datetime('now'))`),
@@ -692,6 +730,21 @@ export const leads = sqliteTable(
     sourceIdx: index("leads_source_idx").on(table.sourceId),
     assignedIdx: index("leads_assigned_idx").on(table.assignedTo),
     nextFollowUpIdx: index("leads_next_follow_up_idx").on(table.nextFollowUp),
+    ownerIdx: index("leads_owner_idx").on(table.ownerUserId),
+    followupStateIdx: index("leads_followup_state_idx").on(table.followupState),
+    nextFollowupAtIdx: index("leads_next_followup_at_idx").on(table.nextFollowupAt),
+    followupStageIdx: index("leads_followup_stage_idx").on(table.followupStage),
+    ownerStageIdx: index("leads_owner_stage_idx").on(table.ownerUserId, table.followupStage),
+    lastContactedIdx: index("leads_last_contacted_idx").on(table.lastContactedAt),
+    phoneNormalizedIdx: index("leads_phone_normalized_idx").on(table.phoneNormalized),
+    // Dashboard & Ranking (Phase 6): pipeline per owner by state + schedule.
+    ownerStateNextIdx: index("leads_owner_state_next_idx").on(
+      table.ownerUserId,
+      table.followupState,
+      table.nextFollowupAt,
+    ),
+    // "Won within period" outcome counts on the dashboard.
+    followupCompletedAtIdx: index("leads_followup_completed_at_idx").on(table.followupCompletedAt),
   }),
 );
 
@@ -701,7 +754,20 @@ export const leadActivities = sqliteTable(
     id: text("id").primaryKey(),
     leadId: text("lead_id").notNull(),
     type: text("type", {
-      enum: ["note", "call", "whatsapp", "email", "stage_change"],
+      enum: [
+        "note",
+        "call",
+        "whatsapp",
+        "email",
+        "stage_change",
+        // Follow-up engine bookkeeping that is NOT a stage confirmation.
+        "transfer",
+        "pause",
+        "resume",
+        "postpone",
+        "escalation",
+        "review",
+      ],
     }).notNull(),
     text: text("text").notNull(),
     user: text("user").notNull().default("system"),
@@ -742,6 +808,175 @@ export const leadFollowUps = sqliteTable(
   }),
 );
 
+// ---------------------------------------------------------------------------
+// WhatsApp Follow-Up CRM (Phase 6) — three-stage follow-up engine tables.
+// FU1/FU2/FU3 scheduling with manual confirmation only (no auto-sending),
+// per-lead notes, WhatsApp templates, and Excel/CSV import batches.
+// ---------------------------------------------------------------------------
+
+/** Configurable follow-up stages (FU1/FU2/FU3 defaults, admin-editable). */
+export const followupStages = sqliteTable(
+  "followup_stages",
+  {
+    id: text("id").primaryKey(),
+    /** Stage code, e.g. FU1 / FU2 / FU3. */
+    code: text("code").notNull().unique(),
+    nameMs: text("name_ms").notNull(),
+    nameEn: text("name_en").notNull(),
+    /** Offset in days from the previous stage (or lead creation for FU1). */
+    offsetDays: integer("offset_days").notNull().default(1),
+    /** KL hour of day (0-23) when the stage becomes due. */
+    dueHourKl: integer("due_hour_kl").notNull().default(10),
+    /** Message template id used for this stage's WhatsApp message. */
+    templateId: text("template_id"),
+    /** Stage order for sorting (1 = FU1). */
+    order: integer("order").notNull().default(1),
+    active: integer("active", { mode: "boolean" }).notNull().default(true),
+    createdAt: text("created_at")
+      .notNull()
+      .default(sql`(datetime('now'))`),
+    updatedAt: text("updated_at")
+      .notNull()
+      .default(sql`(datetime('now'))`),
+  },
+  (table) => ({
+    orderIdx: index("followup_stages_order_idx").on(table.order),
+  }),
+);
+
+/** Manual follow-up activities — completed only by sales confirmation. */
+export const followupActivities = sqliteTable(
+  "followup_activities",
+  {
+    id: text("id").primaryKey(),
+    leadId: text("lead_id").notNull(),
+    /** FU1 / FU2 / FU3 stage code this activity belongs to. */
+    stage: text("stage", { enum: ["FU1", "FU2", "FU3"] }).notNull(),
+    type: text("type", {
+      enum: ["whatsapp", "call", "note", "stage_change", "pause", "resume", "escalation"],
+    }).notNull(),
+    text: text("text").notNull(),
+    /** True only after manual sales confirmation (never auto). */
+    confirmed: integer("confirmed", { mode: "boolean" }).notNull().default(false),
+    user: text("user").notNull().default("system"),
+    at: text("at")
+      .notNull()
+      .default(sql`(datetime('now'))`),
+  },
+  (table) => ({
+    leadIdx: index("followup_activities_lead_idx").on(table.leadId),
+    /** One activity row per (lead, stage) — unique index per the plan. */
+    leadStageUnique: uniqueIndex("followup_activities_lead_stage_unique").on(
+      table.leadId,
+      table.stage,
+    ),
+    atIdx: index("followup_activities_at_idx").on(table.at),
+    // Dashboard & Ranking (Phase 6): confirmed follow-ups inside a date
+    // window (trend) and the per-rep slice of that window (leaderboard).
+    confirmedAtIdx: index("followup_activities_confirmed_at_idx").on(
+      table.confirmed,
+      table.at,
+    ),
+    userConfirmedAtIdx: index("followup_activities_user_confirmed_at_idx").on(
+      table.user,
+      table.confirmed,
+      table.at,
+    ),
+  }),
+);
+
+/** Per-lead customer notes, readable by both sales and admin. */
+export const customerNotes = sqliteTable(
+  "customer_notes",
+  {
+    id: text("id").primaryKey(),
+    leadId: text("lead_id").notNull(),
+    text: text("text").notNull(),
+    createdBy: text("created_by").notNull(),
+    createdAt: text("created_at")
+      .notNull()
+      .default(sql`(datetime('now'))`),
+  },
+  (table) => ({
+    leadIdx: index("customer_notes_lead_idx").on(table.leadId),
+    createdIdx: index("customer_notes_created_idx").on(table.createdAt),
+  }),
+);
+
+/** WhatsApp click-to-chat message templates (EN/MS, placeholder-based). */
+export const whatsappTemplates = sqliteTable(
+  "whatsapp_templates",
+  {
+    id: text("id").primaryKey(),
+    /**
+     * Logical template code (e.g. "fu1-intro"). Groups the EN and MS
+     * variants of the same template; unique per locale, not globally.
+     */
+    code: text("code").notNull(),
+    name: text("name").notNull(),
+    /** Template body with {{placeholders}}; one row per locale. */
+    locale: text("locale", { enum: ["en", "ms"] }).notNull(),
+    body: text("body").notNull(),
+    /** Stage this template serves (FU1/FU2/FU3) or free-form campaign. */
+    stage: text("stage"),
+    active: integer("active", { mode: "boolean" }).notNull().default(true),
+    createdBy: text("created_by"),
+    createdAt: text("created_at")
+      .notNull()
+      .default(sql`(datetime('now'))`),
+    updatedAt: text("updated_at")
+      .notNull()
+      .default(sql`(datetime('now'))`),
+  },
+  (table) => ({
+    codeLocaleUnique: uniqueIndex("whatsapp_templates_code_locale_unique").on(table.code, table.locale),
+    localeIdx: index("whatsapp_templates_locale_idx").on(table.locale),
+    stageIdx: index("whatsapp_templates_stage_idx").on(table.stage),
+  }),
+);
+
+/** One row per Excel/CSV import run with its summary counts. */
+export const importBatches = sqliteTable(
+  "import_batches",
+  {
+    id: text("id").primaryKey(),
+    fileName: text("file_name").notNull(),
+    /** Row counts: inserted / duplicate / failed / total. */
+    totalRows: integer("total_rows").notNull().default(0),
+    insertedRows: integer("inserted_rows").notNull().default(0),
+    duplicateRows: integer("duplicate_rows").notNull().default(0),
+    failedRows: integer("failed_rows").notNull().default(0),
+    createdBy: text("created_by").notNull(),
+    createdAt: text("created_at")
+      .notNull()
+      .default(sql`(datetime('now'))`),
+  },
+  (table) => ({
+    createdIdx: index("import_batches_created_idx").on(table.createdAt),
+    creatorIdx: index("import_batches_creator_idx").on(table.createdBy),
+  }),
+);
+
+/** Failed rows from an import batch, kept for correction & re-import. */
+export const importErrors = sqliteTable(
+  "import_errors",
+  {
+    id: text("id").primaryKey(),
+    batchId: text("batch_id").notNull(),
+    /** 1-based row number in the source file. */
+    rowNumber: integer("row_number").notNull(),
+    /** Raw row data (JSON) so the user can fix and re-import. */
+    rawData: text("raw_data"),
+    reason: text("reason").notNull(),
+    createdAt: text("created_at")
+      .notNull()
+      .default(sql`(datetime('now'))`),
+  },
+  (table) => ({
+    batchIdx: index("import_errors_batch_idx").on(table.batchId),
+  }),
+);
+
 export type CustomerRow = typeof customers.$inferSelect;
 export type NewCustomerRow = typeof customers.$inferInsert;
 export type LeadSourceRow = typeof leadSources.$inferSelect;
@@ -752,6 +987,18 @@ export type LeadActivityRow = typeof leadActivities.$inferSelect;
 export type NewLeadActivityRow = typeof leadActivities.$inferInsert;
 export type LeadFollowUpRow = typeof leadFollowUps.$inferSelect;
 export type NewLeadFollowUpRow = typeof leadFollowUps.$inferInsert;
+export type FollowupStageRow = typeof followupStages.$inferSelect;
+export type NewFollowupStageRow = typeof followupStages.$inferInsert;
+export type FollowupActivityRow = typeof followupActivities.$inferSelect;
+export type NewFollowupActivityRow = typeof followupActivities.$inferInsert;
+export type CustomerNoteRow = typeof customerNotes.$inferSelect;
+export type NewCustomerNoteRow = typeof customerNotes.$inferInsert;
+export type WhatsappTemplateRow = typeof whatsappTemplates.$inferSelect;
+export type NewWhatsappTemplateRow = typeof whatsappTemplates.$inferInsert;
+export type ImportBatchRow = typeof importBatches.$inferSelect;
+export type NewImportBatchRow = typeof importBatches.$inferInsert;
+export type ImportErrorRow = typeof importErrors.$inferSelect;
+export type NewImportErrorRow = typeof importErrors.$inferInsert;
 
 // ---------------------------------------------------------------------------
 // Billing & Payments — quotations, invoices, payments, reminders, refunds.
@@ -1436,3 +1683,48 @@ export const notificationTemplates = sqliteTable(
 );
 
 export type NotificationTemplateRow = typeof notificationTemplates.$inferSelect;
+
+// ---------------------------------------------------------------------------
+// AI Assistant — persisted chat history. One conversation per staff member
+// thread; every user/assistant message is stored so history survives reloads.
+// ---------------------------------------------------------------------------
+
+export const aiConversations = sqliteTable(
+  "ai_conversations",
+  {
+    id: text("id").primaryKey(),
+    staffId: text("staff_id").notNull(),
+    title: text("title").notNull().default("New chat"),
+    createdAt: text("created_at")
+      .notNull()
+      .default(sql`(datetime('now'))`),
+    updatedAt: text("updated_at")
+      .notNull()
+      .default(sql`(datetime('now'))`),
+  },
+  (table) => ({
+    staffIdx: index("ai_conversations_staff_idx").on(table.staffId),
+  }),
+);
+
+export const aiMessages = sqliteTable(
+  "ai_messages",
+  {
+    id: text("id").primaryKey(),
+    conversationId: text("conversation_id")
+      .notNull()
+      .references(() => aiConversations.id, { onDelete: "cascade" }),
+    role: text("role", { enum: ["user", "assistant"] }).notNull(),
+    content: text("content").notNull(),
+    toolCalls: text("tool_calls", { mode: "json" }).$type<Array<Record<string, unknown>>>(),
+    createdAt: text("created_at")
+      .notNull()
+      .default(sql`(datetime('now'))`),
+  },
+  (table) => ({
+    conversationIdx: index("ai_messages_conversation_idx").on(table.conversationId),
+  }),
+);
+
+export type AiConversationRow = typeof aiConversations.$inferSelect;
+export type AiMessageRow = typeof aiMessages.$inferSelect;

@@ -1,6 +1,8 @@
-import { useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { Building2, Check, ImagePlus, Save, UploadCloud } from "lucide-react";
 import { useLang } from "@/lib/i18n";
+import { apiFetch } from "@/lib/api";
+import { invalidateBranding } from "@/lib/useBranding";
 
 // Mock data — backend company profile API menyusul pada fasa backend.
 const INITIAL = {
@@ -11,7 +13,7 @@ const INITIAL = {
   licenseExpiry: "2028-06-30",
   phone: "+60 3-2168 8888",
   email: "hello@zaqone.travel",
-  website: "https://zaqone.travel",
+  website: "https://travelcrm.zaqone.com",
   address: "Lot 12, Jalan Sultan Ismail, 50250 Kuala Lumpur",
   city: "Kuala Lumpur",
   state: "Wilayah Persekutuan",
@@ -41,15 +43,52 @@ export default function CompanyProfile() {
   const { t } = useLang();
   const [form, setForm] = useState(INITIAL);
   const [saved, setSaved] = useState(false);
+  const [loading, setLoading] = useState(true);
+  const [logoUrl, setLogoUrl] = useState("");
   const [logoName, setLogoName] = useState("zaqone-logo.png");
   const [errors, setErrors] = useState<Record<string, string>>({});
+
+  // Load the stored profile so the website and the CRM render the SAME
+  // settings. The public website reads the same `company` settings key
+  // through GET /public/branding.
+  useEffect(() => {
+    let alive = true;
+    (async () => {
+      try {
+        const res = await apiFetch<{ company?: Record<string, unknown> | null }>(
+          "/settings/company",
+        );
+        const stored = res.company ?? {};
+        if (alive) {
+          setForm((prev) => {
+            const next = { ...prev };
+            for (const key of Object.keys(next) as FormKey[]) {
+              const v = stored[key];
+              if (typeof v === "string" && v.trim()) next[key] = v;
+            }
+            return next;
+          });
+          const logo = typeof stored.logoUrl === "string" ? stored.logoUrl : "";
+          setLogoUrl(logo);
+          if (logo) setLogoName(logo.split("/").pop() ?? "logo");
+        }
+      } catch {
+        // keep defaults — the page still works read-only
+      } finally {
+        if (alive) setLoading(false);
+      }
+    })();
+    return () => {
+      alive = false;
+    };
+  }, []);
 
   const set = (key: FormKey, value: string) => {
     setForm((prev) => ({ ...prev, [key]: value }));
     setErrors((prev) => ({ ...prev, [key]: "" }));
   };
 
-  const handleSave = () => {
+  const handleSave = async () => {
     const errs: Record<string, string> = {};
     if (!form.name.trim()) errs.name = t("Nama syarikat wajib diisi.", "Company name is required.");
     if (form.email && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(form.email)) errs.email = t("Format emel tidak sah.", "Invalid email format.");
@@ -57,9 +96,45 @@ export default function CompanyProfile() {
     if (form.licenseExpiry && new Date(form.licenseExpiry) < new Date("2020-01-01")) errs.licenseExpiry = t("Tarikh lesen tidak sah.", "Invalid licence date.");
     setErrors(errs);
     if (Object.keys(errs).length > 0) return;
+
     setSaved(true);
+    try {
+      await apiFetch("/settings/company", {
+        method: "PUT",
+        body: JSON.stringify(form),
+      });
+      // The website reads the same settings — drop the cached copy so the
+      // next read refetches the new values.
+      invalidateBranding();
+    } catch {
+      setSaved(false);
+      setErrors({
+        name: t("Gagal menyimpan. Periksa andaian anda.", "Failed to save. Check your permissions."),
+      });
+      return;
+    }
     window.setTimeout(() => setSaved(false), 2000);
   };
+
+  const handleLogoUpload = useCallback(async (file: File) => {
+    setLogoName(file.name);
+    const body = new FormData();
+    body.append("file", file);
+    try {
+      const res = await apiFetch<{ logoUrl?: string }>("/settings/company/logo", {
+        method: "POST",
+        body,
+      });
+      if (res.logoUrl) {
+        setLogoUrl(res.logoUrl);
+        invalidateBranding();
+      }
+    } catch {
+      setErrors({
+        name: t("Gagal memuat naik logo.", "Failed to upload the logo."),
+      });
+    }
+  }, [t]);
 
   const field = (
     key: FormKey,
@@ -131,17 +206,26 @@ export default function CompanyProfile() {
           <span className="text-[12px] text-[var(--color-text-muted)]">PNG / JPG · 2MB</span>
         </div>
         <div className="flex flex-wrap items-center gap-4 px-5 py-5">
-          <div
-            aria-hidden="true"
-            className="grid h-[56px] w-[56px] place-items-center rounded-[var(--radius-card)]"
-            style={{ background: "var(--color-primary)", color: "var(--color-on-primary)" }}
-          >
-            <Building2 size={26} />
-          </div>
+          {logoUrl ? (
+            <img
+              src={logoUrl}
+              alt={t("Logo syarikat", "Company logo")}
+              className="h-[56px] w-[56px] flex-none rounded-[var(--radius-card)] object-contain"
+              style={{ background: "var(--color-surface-muted)" }}
+            />
+          ) : (
+            <div
+              aria-hidden="true"
+              className="grid h-[56px] w-[56px] flex-none place-items-center rounded-[var(--radius-card)]"
+              style={{ background: "var(--color-primary)", color: "var(--color-on-primary)" }}
+            >
+              <Building2 size={26} />
+            </div>
+          )}
           <div className="min-w-0" style={{ flex: "1 1 220px" }}>
             <p className="m-0 text-[13.5px] font-semibold text-[var(--color-text)]">{logoName}</p>
             <p className="m-0 mt-0.5 text-[11.5px] text-[var(--color-text-muted)]">
-              {t("PNG atau JPG · maks. 2MB (mock upload)", "PNG or JPG · max 2MB (mock upload)")}
+              {t("PNG atau JPG · maks. 2MB", "PNG or JPG · max 2MB")}
             </p>
           </div>
           <label
@@ -152,11 +236,12 @@ export default function CompanyProfile() {
             {t("Tukar Logo", "Change Logo")}
             <input
               type="file"
-              accept="image/png,image/jpeg"
+              accept="image/png,image/jpeg,image/webp,image/svg+xml"
               className="hidden"
+              disabled={loading}
               onChange={(e) => {
                 const f = e.target.files?.[0];
-                if (f) setLogoName(f.name);
+                if (f) void handleLogoUpload(f);
               }}
             />
           </label>
@@ -232,8 +317,8 @@ export default function CompanyProfile() {
 
       <p className="m-0 text-[11.5px] text-[var(--color-text-muted)]">
         {t(
-          "Data olok-olok — profil syarikat sebenar akan didayakan pada fasa backend.",
-          "Mock data — real company profile will be enabled in the backend phase.",
+          "Tetapan ini dikongsi — perubahan di sini kekal terpakai pada website awam dan shell CRM.",
+          "These settings are shared — a change here applies to the public website and the CRM shell.",
         )}
       </p>
     </div>

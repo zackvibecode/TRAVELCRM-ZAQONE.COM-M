@@ -9,12 +9,13 @@ import {
   MessageCircle,
   Minus,
   Plus,
-  Sun,
   Users,
 } from "lucide-react";
 import type { Departure, TravelPackage } from "@/lib/types";
 import { formatRinggit } from "@/lib/utils";
 import { useLang } from "@/lib/i18n";
+import { useBranding, whatsappUrl } from "@/lib/useBranding";
+import { apiFetch } from "@/lib/api";
 
 const COVER =
   "https://images.unsplash.com/photo-1493780474015-ba834fd0ce2f?auto=format&fit=crop&w=1400&q=72";
@@ -29,91 +30,7 @@ const IMG_BY_DEST: Record<string, string> = {
   Turkey: "https://images.unsplash.com/photo-1524231757912-21f4fe3a7200?auto=format&fit=crop&w=1400&q=72",
 };
 
-const STATIC_PRICE = { adult: 6290, child: 5140, infant: 830 };
-
-const STATIC_ITINERARY = [
-  {
-    title: { ms: "Kuala Lumpur → Tokyo", en: "Kuala Lumpur → Tokyo" },
-    body: {
-      ms: "Bertemu di KLIA tiga jam sebelum keberangkatan untuk penerbangan malam ke Narita. Ketua rombongan berkongsi itinerary, kad hotel dan nombor kecemasan.",
-      en: "Meet at Kuala Lumpur International Airport three hours before departure for the overnight flight to Narita. Your tour leader shares the itinerary, hotel cards and emergency numbers.",
-    },
-    tags: ["Flight", "Tour leader"],
-  },
-  {
-    title: { ms: "Lawatan bandar Tokyo", en: "Tokyo city tour" },
-    body: {
-      ms: "Senso-ji Asakusa, jalan beli-belah Nakamise, Shibuya Crossing dan Shinjuku. Makan malal halal di kawasan Okachimachi.",
-      en: "Asakusa Senso-ji, Nakamise shopping street, Shibuya Crossing and Shinjuku. Halal dinner in the Okachimachi area.",
-    },
-    tags: ["Breakfast", "Dinner"],
-  },
-  {
-    title: { ms: "Fuji & Kawaguchiko", en: "Fuji & Kawaguchiko" },
-    body: {
-      ms: "Pergi ke Kawaguchiko untuk pemandangan Gunung Fuji, Oshino Hakkai dan Gotemba Premium Outlets. Menginap di hotel onsen.",
-      en: "Travel to Kawaguchiko for views of Mount Fuji, Oshino Hakkai and Gotemba Premium Outlets. Overnight at an onsen hotel.",
-    },
-    tags: ["Onsen", "Optional Fuji 5th Station"],
-  },
-  {
-    title: { ms: "Tokyo → Kyoto", en: "Tokyo → Kyoto" },
-    body: {
-      ms: "Naik Shinkansen ke Kyoto. Lawat Fushimi Inari, Gion dan Kiyomizu-dera dengan masa bebas di Pasar Nishiki.",
-      en: "Take the Shinkansen to Kyoto. Visit Fushimi Inari, Gion and Kiyomizu-dera with free time at Nishiki Market.",
-    },
-    tags: ["Shinkansen", "Breakfast"],
-  },
-  {
-    title: { ms: "Kyoto & Nara", en: "Kyoto & Nara" },
-    body: {
-      ms: "Taman Nara dengan rusa bebas, Todai-ji, kemudian kembali ke Kyoto untuk Hutan Buluh Arashiyama.",
-      en: "Nara Park with its free-roaming deer, Todai-ji, then back to Kyoto for the Arashiyama Bamboo Grove.",
-    },
-    tags: ["Breakfast", "Dinner"],
-  },
-  {
-    title: { ms: "Hari bebas di Osaka", en: "Free day in Osaka" },
-    body: {
-      ms: "Dotonbori, Shinsaibashi dan Istana Osaka. Masa bebas untuk membeli-belah sebelum berkemas pada petang.",
-      en: "Dotonbori, Shinsaibashi and Osaka Castle. Free time for shopping before packing in the evening.",
-    },
-    tags: ["Free time"],
-  },
-  {
-    title: { ms: "Osaka → Kuala Lumpur", en: "Osaka → Kuala Lumpur" },
-    body: {
-      ms: "Check-out pagi, pemindahan ke Lapangan Terbang Antarabangsa Kansai dan penerbangan pulang ke Kuala Lumpur, tiba hari yang sama.",
-      en: "Morning check-out, transfer to Kansai International Airport and the return flight to Kuala Lumpur, arriving the same day.",
-    },
-    tags: ["Flight"],
-  },
-];
-
-const STATIC_HIGHLIGHTS = [
-  "Tokyo · Kyoto · Osaka",
-  "4-star hotels & 1 night at an onsen",
-  "Shinkansen Tokyo–Kyoto",
-  "English speaking tour leader",
-  "6 halal meals & daily breakfast",
-  "Travel insurance cover of RM 80,000",
-];
-
-const INCLUSIONS = [
-  "Return economy flight tickets",
-  "6 nights twin-sharing accommodation",
-  "Transport & entrance fees per itinerary",
-  "Tour leader & local guide",
-  "Travel insurance",
-  "Daily bottled water",
-];
-const EXCLUSIONS = [
-  "Personal expenses",
-  "Tour leader tipping ¥3,000/day",
-  "Japan visa (application support provided)",
-  "Single room surcharge",
-  "Optional activities outside the itinerary",
-];
+const STATIC_PRICE = { adult: 0, child: 0, infant: 0 };
 
 function ringgit(value: number): string {
   return formatRinggit(value);
@@ -172,6 +89,8 @@ function Field({
 export default function PublicPackageDetail() {
   const { id } = useParams();
   const { t, lang } = useLang();
+  const branding = useBranding();
+  const waUrl = whatsappUrl(branding);
   const locale = lang === "ms" ? "ms-MY" : "en-GB";
 
   const [pkg, setPkg] = useState<TravelPackage | null>(null);
@@ -183,16 +102,19 @@ export default function PublicPackageDetail() {
   const [form, setForm] = useState({ name: "", phone: "", email: "", note: "" });
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [lead, setLead] = useState<{ ref: string; dep: string; pax: number } | null>(null);
+  const [sending, setSending] = useState(false);
 
-  // Live package + departures from D1 (falls back to mock inside loaders).
+  // Live package + departures from D1.
   useEffect(() => {
     let cancelled = false;
     (async () => {
       try {
-        const { fetchPackages, fetchDepartures } = await import("@/lib/live-data");
-        const [p, d] = await Promise.all([fetchPackages(), fetchDepartures()]);
+        const { fetchPackage, fetchDepartures } = await import("@/lib/live-data");
+        const [found, d] = await Promise.all([
+          id ? fetchPackage(id) : Promise.resolve(null),
+          fetchDepartures(),
+        ]);
         if (cancelled) return;
-        const found = p.packages.find((item) => item.id === id) ?? p.packages[0] ?? null;
         setPkg(found);
         const rows = d.departures
           .filter((dep) => !found || dep.packageId === found.id)
@@ -200,7 +122,7 @@ export default function PublicPackageDetail() {
         setDepartures(rows);
         setSelectedDep(rows.find((row) => seatsLeft(row) > 0)?.id ?? rows[0]?.id ?? "");
       } catch {
-        /* live data unavailable — static prototype data remains */
+        /* live data unavailable — show empty state */
       } finally {
         if (!cancelled) setLoading(false);
       }
@@ -219,24 +141,20 @@ export default function PublicPackageDetail() {
   const totalPax = pax.adult + pax.child + pax.infant;
   const subtotal = pax.adult * prices.adult + pax.child * prices.child + pax.infant * prices.infant;
   const deposit = Math.round(subtotal * 0.3);
-  const availableSeats = dep ? seatsLeft(dep) : 3;
-  const melebihiKursi = totalPax > availableSeats;
+  const availableSeats = dep ? seatsLeft(dep) : null;
+  const exceedsSeats = availableSeats !== null && totalPax > availableSeats;
 
   const itinerary = pkg?.itinerary?.length
     ? pkg.itinerary.map((d) => ({
         title: d.title,
         body: d.description,
-        tags: [] as string[],
+        tags: d.meals ?? [],
       }))
-    : STATIC_ITINERARY.map((d) => ({
-        title: t(d.title.ms, d.title.en),
-        body: t(d.body.ms, d.body.en),
-        tags: d.tags,
-      }));
+    : [];
 
-  const highlights = pkg?.highlights?.length ? pkg.highlights : STATIC_HIGHLIGHTS;
-  const inclusions = pkg?.inclusions?.length ? pkg.inclusions : INCLUSIONS;
-  const exclusions = pkg?.exclusions?.length ? pkg.exclusions : EXCLUSIONS;
+  const highlights = pkg?.highlights?.length ? pkg.highlights : [];
+  const inclusions = pkg?.inclusions?.length ? pkg.inclusions : [];
+  const exclusions = pkg?.exclusions?.length ? pkg.exclusions : [];
   const name = pkg?.name ?? "Japan Sakura 7D6N";
   const destination = pkg?.destination ?? "Japan";
   const durationDays = pkg?.durationDays ?? 7;
@@ -259,7 +177,7 @@ export default function PublicPackageDetail() {
     setForm((current) => ({ ...current, [key]: value }));
   }
 
-  function kirim(event: React.FormEvent) {
+  async function kirim(event: React.FormEvent) {
     event.preventDefault();
     const next: Record<string, string> = {};
     if (form.name.trim().length < 3)
@@ -274,17 +192,86 @@ export default function PublicPackageDetail() {
       next.email = t("Alamat emel tidak sah.", "That email address is not valid.");
     setErrors(next);
     if (Object.keys(next).length > 0) return;
-    setLead({
-      ref: "LD-2026-0148",
-      dep: dep ? fmtDate(dep.departureDate, locale) : "4 Apr 2026",
-      pax: totalPax,
-    });
-    setForm({ name: "", phone: "", email: "", note: "" });
+
+    // Send the real enquiry to the CRM as a Website lead (PRD req #9).
+    setSending(true);
+    try {
+      const res = await apiFetch<{ lead?: { id?: string } }>(
+        "/website/enquiries",
+        {
+          method: "POST",
+          body: JSON.stringify({
+            name: form.name.trim(),
+            phone: form.phone.trim(),
+            email: form.email.trim() || undefined,
+            packageName: name,
+            pax: totalPax,
+            message: [
+              form.note.trim(),
+              `Departure: ${dep ? fmtDate(dep.departureDate, locale) : "—"}`,
+              `Est. total: ${ringgit(subtotal)}`,
+            ]
+              .filter(Boolean)
+              .join(" · "),
+          }),
+        },
+      );
+      setLead({
+        ref: res.lead?.id ?? "—",
+        dep: dep ? fmtDate(dep.departureDate, locale) : "—",
+        pax: totalPax,
+      });
+      setForm({ name: "", phone: "", email: "", note: "" });
+    } catch {
+      setErrors((prev) => ({
+        ...prev,
+        name: t(
+          "Gagal menghantar pertanyaan. Sila cuba lagi atau hubungi kami di WhatsApp.",
+          "Failed to send the enquiry. Please try again or reach us on WhatsApp.",
+        ),
+      }));
+    } finally {
+      setSending(false);
+    }
+  }
+
+  if (loading) {
+    return (
+      <div className="bg-[var(--color-surface)]">
+        <div className="mx-auto max-w-site px-4 md:px-6 py-24 text-center text-sm text-[var(--color-text-muted)]">
+          {t("Sedang memuatkan pakej…", "Loading package…")}
+        </div>
+      </div>
+    );
+  }
+
+  if (!pkg) {
+    return (
+      <div className="bg-[var(--color-surface)]">
+        <div className="mx-auto max-w-site px-4 md:px-6 py-24 text-center">
+          <h1 className="font-display text-2xl font-bold">
+            {t("Pakej tidak dijumpai", "Package not found")}
+          </h1>
+          <p className="mt-2 text-sm text-[var(--color-text-secondary)]">
+            {t(
+              "Pakej ini mungkin telah ditarik balik daripada laman awam.",
+              "This package may have been unpublished from the public site.",
+            )}
+          </p>
+          <Link
+            to="/site/packages"
+            className="mt-6 inline-flex items-center justify-center rounded-[var(--radius-control)] border border-[var(--color-primary)] bg-[var(--color-primary)] px-4 py-2.5 text-sm font-semibold text-[var(--color-on-primary)] no-underline transition-colors hover:bg-[var(--color-primary-hover)]"
+          >
+            {t("Lihat pakej lain", "Browse other packages")}
+          </Link>
+        </div>
+      </div>
+    );
   }
 
   return (
     <div className="bg-[var(--color-surface)]">
-      <div className="mx-auto max-w-site px-4">
+      <div className="mx-auto max-w-site px-4 md:px-6">
         <div className="flex flex-col gap-[var(--space-9)] py-[var(--space-9)]">
           {/* Header */}
           <header className="flex flex-col gap-3 min-w-0">
@@ -315,26 +302,22 @@ export default function PublicPackageDetail() {
                   </span>
                   <span className="inline-flex items-center gap-1.5 rounded-[var(--radius-pill)] border border-[var(--color-border)] bg-[var(--color-surface-raised)] px-2.5 py-1 text-[13px] font-medium text-[var(--color-text-secondary)]">
                     <Users className="h-3.5 w-3.5" aria-hidden="true" />
-                    {t("Maks", "Max")} {dep?.seatCapacity ?? 28} pax
-                  </span>
-                  <span className="inline-flex items-center gap-1.5 rounded-[var(--radius-pill)] border border-[var(--color-border)] bg-[var(--color-surface-raised)] px-2.5 py-1 text-[13px] font-medium text-[var(--color-text-secondary)]">
-                    <Sun className="h-3.5 w-3.5" aria-hidden="true" />
-                    {t("Musim sakura", "Sakura season")}
+                    {t("Maks", "Max")} {dep?.seatCapacity ?? "—"} pax
                   </span>
                 </div>
                 <h1 className="dtl-title m-0 mt-2 text-balance font-display text-[clamp(26px,3.4vw,38px)] font-extrabold leading-[1.12] tracking-[-0.02em]">
                   {name}
                 </h1>
                 <p className="dtl-note text-body-lg m-0 mt-2 max-w-[60ch] text-[var(--color-text-secondary)]">
-                  {t(
-                    "Tokyo, Kyoto dan Osaka semasa musim sakura dengan ketua rombongan berbahasa Inggeris. Satu keberangkatan April masih terbuka.",
-                    "Tokyo, Kyoto and Osaka during sakura season with an English speaking tour leader. One April departure is still open.",
+                  {pkg.description ?? t(
+                    "Terokai destinasi menarik bersama pasukan pelancongan kami.",
+                    "Explore memorable destinations with our travel team.",
                   )}
                 </p>
               </div>
               <div className="flex flex-wrap gap-2">
                 <a
-                  href="https://wa.me/60123880030"
+                  href={waUrl}
                   target="_blank"
                   rel="noreferrer"
                   className="inline-flex h-auto items-center justify-center gap-2 rounded-[var(--radius-control)] border border-[var(--color-border-strong)] bg-[var(--color-surface)] px-4 py-2.5 text-sm font-semibold text-[var(--color-text)] no-underline transition-colors hover:border-[var(--color-text)] focus-ring"
@@ -671,7 +654,9 @@ export default function PublicPackageDetail() {
                       {t("Kerusi tinggal", "Seats left")}
                     </span>
                     <span className="dtl-num font-semibold tabular-nums">
-                      {availableSeats} {t("daripada", "of")} {dep?.seatCapacity ?? 28}
+                      {availableSeats === null
+                        ? "—"
+                        : `${availableSeats} ${t("daripada", "of")} ${dep?.seatCapacity ?? "—"}`}
                     </span>
                   </div>
                 </div>
@@ -704,7 +689,7 @@ export default function PublicPackageDetail() {
                         <button
                           type="button"
                           aria-label={t(`Tambah satu ${row.label}`, `Add one ${row.label}`)}
-                          disabled={totalPax >= availableSeats}
+                          disabled={availableSeats !== null && totalPax >= availableSeats}
                           onClick={() => ubahPax(row.key, 1)}
                           className="grid h-8 w-8 cursor-pointer place-items-center border-0 bg-[var(--color-surface)] text-[var(--color-text)] hover:bg-[var(--color-surface-muted)] disabled:cursor-not-allowed disabled:text-[var(--color-border-strong)] focus-ring"
                         >
@@ -734,7 +719,7 @@ export default function PublicPackageDetail() {
                     <span className="dtl-num text-[20px] font-bold tabular-nums">{ringgit(subtotal)}</span>
                   </div>
                 </div>
-                {melebihiKursi ? (
+                {exceedsSeats ? (
                   <p role="alert" className="dtl-err m-0 mt-2 text-caption text-[var(--color-danger)]">
                     {t(
                       "Bilangan pengembara melebihi kerusi yang tinggal pada tarikh ini. Sila pilih tarikh lain.",
@@ -750,7 +735,7 @@ export default function PublicPackageDetail() {
                     {t("Hantar pertanyaan", "Send an enquiry")}
                   </a>
                   <a
-                    href="https://wa.me/60123880030"
+                    href={waUrl}
                     target="_blank"
                     rel="noreferrer"
                     className="dtl-btn inline-flex w-full items-center justify-center gap-2 rounded-[var(--radius-control)] border border-[var(--color-border-strong)] bg-[var(--color-surface)] px-4 py-3 text-[15px] font-semibold text-[var(--color-text)] no-underline transition-colors hover:border-[var(--color-text)] focus-ring"
@@ -851,9 +836,12 @@ export default function PublicPackageDetail() {
                     </p>
                     <button
                       type="submit"
-                      className="dtl-btn dtl-btn--primary inline-flex w-full cursor-pointer items-center justify-center gap-2 rounded-[var(--radius-control)] border border-[var(--color-primary)] bg-[var(--color-primary)] px-4 py-3 text-[15px] font-semibold text-[var(--color-on-primary)] transition-colors hover:bg-[var(--color-primary-hover)] hover:border-[var(--color-primary-hover)] focus-ring"
+                      disabled={sending}
+                      className="dtl-btn dtl-btn--primary inline-flex w-full cursor-pointer items-center justify-center gap-2 rounded-[var(--radius-control)] border border-[var(--color-primary)] bg-[var(--color-primary)] px-4 py-3 text-[15px] font-semibold text-[var(--color-on-primary)] transition-colors hover:bg-[var(--color-primary-hover)] hover:border-[var(--color-primary-hover)] focus-ring disabled:cursor-not-allowed disabled:opacity-60"
                     >
-                      {t("Hantar pertanyaan", "Send enquiry")}
+                      {sending
+                        ? t("Sedang menghantar…", "Sending…")
+                        : t("Hantar pertanyaan", "Send enquiry")}
                     </button>
                   </form>
                 )}

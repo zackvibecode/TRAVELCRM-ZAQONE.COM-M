@@ -29,6 +29,7 @@ export function createAuth(db: DrizzleD1Database<typeof schema>, env: Env) {
     // Without this, credentialed requests from the Pages frontend are 403'd
     // (curl works because it sends no Origin header).
     trustedOrigins: [
+      "https://travelcrm.zaqone.com",
       "https://travelos-suite-web.pages.dev",
       "https://*.travelos-suite-web.pages.dev",
       "https://travelos-suite-api.zarulzaqwan1234.workers.dev",

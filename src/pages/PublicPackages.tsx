@@ -9,6 +9,7 @@ import {
 import type { Departure, TravelPackage } from "@/lib/types";
 import { cn, formatRinggit } from "@/lib/utils";
 import { useLang } from "@/lib/i18n";
+import { useBranding, whatsappUrl } from "@/lib/useBranding";
 
 const IMG_BY_DEST: Record<string, string> = {
   Japan: "https://images.unsplash.com/photo-1493780474015-ba834fd0ce2f?auto=format&fit=crop&w=900&q=70",
@@ -65,6 +66,8 @@ function fmtDate(value: string, locale: string): string {
 
 export default function PublicPackages() {
   const { t, lang } = useLang();
+  const branding = useBranding();
+  const waUrl = whatsappUrl(branding);
   const locale = lang === "ms" ? "ms-MY" : "en-GB";
   const [query, setQuery] = useState("");
   const [destination, setDestination] = useState("all");
@@ -152,7 +155,7 @@ export default function PublicPackages() {
 
   return (
     <div className="bg-[var(--color-surface)]">
-      <div className="mx-auto max-w-site px-4">
+      <div className="mx-auto max-w-site px-4 md:px-6">
         <div className="flex flex-col gap-[var(--space-9)] py-[var(--space-9)]">
           {/* Header */}
           <header className="flex flex-wrap items-end justify-between gap-4 min-w-0">
@@ -187,7 +190,7 @@ export default function PublicPackages() {
               </p>
             </div>
             <a
-              href="https://wa.me/60123880030"
+              href={waUrl}
               target="_blank"
               rel="noreferrer"
               className="inline-flex items-center justify-center gap-2 whitespace-nowrap rounded-[var(--radius-control)] border border-[var(--color-primary)] bg-[var(--color-primary)] px-4 py-2.5 text-sm font-semibold text-[var(--color-on-primary)] no-underline transition-colors hover:bg-[var(--color-primary-hover)] hover:border-[var(--color-primary-hover)] focus-ring"
@@ -314,7 +317,7 @@ export default function PublicPackages() {
                     {t("Tunjukkan semua pakej", "Show all packages")}
                   </button>
                   <a
-                    href="https://wa.me/60123880030"
+                    href={waUrl}
                     target="_blank"
                     rel="noreferrer"
                     className="inline-flex items-center justify-center gap-2 rounded-[var(--radius-control)] border border-[var(--color-border-strong)] bg-[var(--color-surface)] px-4 py-2.5 text-sm font-semibold text-[var(--color-text)] no-underline transition-colors hover:border-[var(--color-text)] focus-ring"
@@ -447,7 +450,7 @@ export default function PublicPackages() {
             </div>
             <div className="flex flex-wrap gap-2">
               <a
-                href="https://wa.me/60123880030"
+                href={waUrl}
                 target="_blank"
                 rel="noreferrer"
                 className="inline-flex items-center justify-center gap-2 rounded-[var(--radius-control)] border border-[var(--color-primary)] bg-[var(--color-primary)] px-4 py-2.5 text-sm font-semibold text-[var(--color-on-primary)] no-underline transition-colors hover:bg-[var(--color-primary-hover)] hover:border-[var(--color-primary-hover)] focus-ring"

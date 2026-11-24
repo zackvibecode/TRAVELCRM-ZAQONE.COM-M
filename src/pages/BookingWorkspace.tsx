@@ -220,30 +220,11 @@ interface Toast {
 
 // --------------------------------------------- static prototype seed data
 
-const PAKET: BwPackage[] = [
-  { id: "jp-sakura", nama: "Langkawi Island Escape 4D3N", harga: { dewasa: 3890, anak: 2990, bayi: 690 } },
-  { id: "tr-istanbul", nama: "Perhentian Dive Retreat 5D4N", harga: { dewasa: 3450, anak: 2690, bayi: 590 } },
-  { id: "kr-autumn", nama: "Penang Heritage & Food 3D2N", harga: { dewasa: 1890, anak: 1390, bayi: 390 } },
-  { id: "bali-prem", nama: "Borneo Wildlife Discovery 6D5N", harga: { dewasa: 5280, anak: 3990, bayi: 790 } },
-];
+const PAKET: BwPackage[] = [];
 
-const KEBERANGKATAN: BwDeparture[] = [
-  { id: "DP-4471", paket: "jp-sakura", label: "12–15 Dec 2025", sisa: 4, kapasitas: 32 },
-  { id: "DP-4473", paket: "jp-sakura", label: "9–12 Jan 2026", sisa: 18, kapasitas: 32 },
-  { id: "DP-4482", paket: "tr-istanbul", label: "18–22 Dec 2025", sisa: 9, kapasitas: 40 },
-  { id: "DP-4485", paket: "tr-istanbul", label: "22–26 Jan 2026", sisa: 26, kapasitas: 40 },
-  { id: "DP-4490", paket: "kr-autumn", label: "23–25 Dec 2025", sisa: 2, kapasitas: 28 },
-  { id: "DP-4501", paket: "bali-prem", label: "28 Dec 2025–2 Jan 2026", sisa: 14, kapasitas: 24 },
-];
+const KEBERANGKATAN: BwDeparture[] = [];
 
-const PELANGGAN: BwCustomer[] = [
-  { id: "c1", nama: "Hendra Wijaya", email: "hendra.w@mail.com", wa: "+60 12-330 1141" },
-  { id: "c2", nama: "Siti Nurhaliza", email: "siti.nur@mail.com", wa: "+60 13-224 8890" },
-  { id: "c3", nama: "Gunawan Family", email: "gunawan.fam@mail.com", wa: "+60 11-907 2200" },
-  { id: "c4", nama: "Andi Pratama", email: "andi.pratama@mail.com", wa: "+60 18-112 3344" },
-  { id: "c5", nama: "Rani & Dimas", email: "rani.dimas@mail.com", wa: "+60 12-661 0099" },
-  { id: "c6", nama: "Bambang Sutrisno", email: "b.sutrisno@mail.com", wa: "+60 16-445 7712" },
-];
+const PELANGGAN: BwCustomer[] = [];
 
 const STATUS: Record<BookingStatus, { label: Bilingual; tone: Tone }> = {
   draft: { label: { ms: "Draf", en: "Draft" }, tone: "neutral" },
@@ -275,84 +256,8 @@ const TIPE_PENUMPANG: { id: PaxType; label: Bilingual }[] = [
   { id: "bayi", label: { ms: "Bayi", en: "Infant" } },
 ];
 
-const AWAL_BOOKING: BwBooking[] = [
-  {
-    ref: "TRV-2025-0481", pelanggan: "c1", paket: "jp-sakura", keberangkatan: "DP-4471", tipe: "individu",
-    status: "confirmed", dibuat: "16 Nov 2025", diskon: 0, dibayar: 15560,
-    penumpang: [
-      { id: "p1", nama: "Hendra Wijaya", tipe: "dewasa" },
-      { id: "p2", nama: "Lina Wijaya", tipe: "dewasa" },
-      { id: "p3", nama: "Raka Wijaya", tipe: "anak" },
-      { id: "p4", nama: "Nadia Wijaya", tipe: "anak" },
-    ],
-    riwayat: [
-      { id: "r1", teks: "Booking created from the website", ket: "16 Nov 2025 · Sales: Ayu Rahma", tone: "var(--color-primary)" },
-      { id: "r2", teks: "Deposit of RM 4,670 verified by finance", ket: "18 Nov 2025", tone: "var(--color-success)" },
-      { id: "r3", teks: "Final payment received, booking confirmed", ket: "2 Dec 2025", tone: "var(--color-success)" },
-    ],
-  },
-  {
-    ref: "TRV-2025-0480", pelanggan: "c2", paket: "tr-istanbul", keberangkatan: "DP-4482", tipe: "individu",
-    status: "pending_deposit", dibuat: "15 Nov 2025", diskon: 0, dibayar: 2070,
-    penumpang: [
-      { id: "p1", nama: "Siti Nurhaliza", tipe: "dewasa" },
-      { id: "p2", nama: "Fajar Hidayat", tipe: "dewasa" },
-    ],
-    riwayat: [
-      { id: "r1", teks: "Booking created · seats held for 24 hours", ket: "15 Nov 2025 · Sales: Bayu Saputra", tone: "var(--color-primary)" },
-      { id: "r2", teks: "Deposit of RM 2,070 recorded, awaiting verification", ket: "17 Nov 2025", tone: "var(--color-warning)" },
-    ],
-  },
-  {
-    ref: "TRV-2025-0479", pelanggan: "c3", paket: "kr-autumn", keberangkatan: "DP-4490", tipe: "grup",
-    status: "hold", dibuat: "15 Nov 2025", diskon: 450, dibayar: 0,
-    penumpang: [
-      { id: "p1", nama: "Gunawan", tipe: "dewasa" },
-      { id: "p2", nama: "Ratna Gunawan", tipe: "dewasa" },
-      { id: "p3", nama: "Bima Gunawan", tipe: "dewasa" },
-      { id: "p4", nama: "Citra Gunawan", tipe: "anak" },
-      { id: "p5", nama: "Dewi Gunawan", tipe: "anak" },
-      { id: "p6", nama: "Kirana Gunawan", tipe: "bayi" },
-    ],
-    riwayat: [
-      { id: "r1", teks: "Group booking created", ket: "15 Nov 2025 · Sales: Ayu Rahma", tone: "var(--color-primary)" },
-      { id: "r2", teks: "6 seats held until 18 Nov, 20:00", ket: "15 Nov 2025", tone: "var(--color-warning)" },
-    ],
-  },
-  {
-    ref: "TRV-2025-0478", pelanggan: "c4", paket: "bali-prem", keberangkatan: "DP-4501", tipe: "individu",
-    status: "confirmed", dibuat: "14 Nov 2025", diskon: 0, dibayar: 5280,
-    penumpang: [{ id: "p1", nama: "Andi Pratama", tipe: "dewasa" }],
-    riwayat: [
-      { id: "r1", teks: "Booking created from the website", ket: "14 Nov 2025 · Sales: Bayu Saputra", tone: "var(--color-primary)" },
-      { id: "r2", teks: "Full payment received", ket: "14 Nov 2025", tone: "var(--color-success)" },
-    ],
-  },
-  {
-    ref: "TRV-2025-0475", pelanggan: "c6", paket: "tr-istanbul", keberangkatan: "DP-4482", tipe: "grup",
-    status: "draft", dibuat: "12 Nov 2025", diskon: 300, dibayar: 0,
-    penumpang: [
-      { id: "p1", nama: "Bambang Sutrisno", tipe: "dewasa" },
-      { id: "p2", nama: "Sri Sutrisno", tipe: "dewasa" },
-      { id: "p3", nama: "Yoga Sutrisno", tipe: "anak" },
-    ],
-    riwayat: [{ id: "r1", teks: "Draft created over the phone", ket: "12 Nov 2025 · Sales: Ayu Rahma", tone: "var(--color-primary)" }],
-  },
-  {
-    ref: "TRV-2025-0469", pelanggan: "c5", paket: "bali-prem", keberangkatan: "DP-4501", tipe: "individu",
-    status: "completed", dibuat: "10 Nov 2025", diskon: 0, dibayar: 18540,
-    penumpang: [
-      { id: "p1", nama: "Dimas Saputra", tipe: "dewasa" },
-      { id: "p2", nama: "Rani Saputra", tipe: "dewasa" },
-      { id: "p3", nama: "Alif Saputra", tipe: "anak" },
-      { id: "p4", nama: "Sari Saputra", tipe: "anak" },
-    ],
-    riwayat: [
-      { id: "r1", teks: "Booking created", ket: "10 Nov 2025", tone: "var(--color-primary)" },
-      { id: "r2", teks: "Trip completed, booking closed", ket: "9 Dec 2025", tone: "var(--color-success)" },
-    ],
-  },
-];
+const AWAL_BOOKING: BwBooking[] = [];
+
 
 const PESAN: Record<ErrorKey, Bilingual> = {
   pelanggan: { ms: "Pilih pelanggan yang membuat tempahan ini.", en: "Select the customer making this booking." },
@@ -374,14 +279,18 @@ function singkat(nilai: number): string {
   }
   return `RM ${Math.round(nilai).toLocaleString("en-MY")}`;
 }
+const PAKET_KOSONG: BwPackage = { id: "", nama: "—", harga: { dewasa: 0, anak: 0, bayi: 0 } };
+const PELANGGAN_KOSONG: BwCustomer = { id: "", nama: "—", email: "", wa: "" };
+const KEBERANGKATAN_KOSONG: BwDeparture = { id: "", paket: "", label: "—", sisa: 0, kapasitas: 0 };
+
 function ambilPaket(id: string, senarai: BwPackage[]): BwPackage {
-  return senarai.find((item) => item.id === id) ?? senarai[0];
+  return senarai.find((item) => item.id === id) ?? senarai[0] ?? PAKET_KOSONG;
 }
 function ambilPelanggan(id: string, senarai: BwCustomer[]): BwCustomer {
-  return senarai.find((item) => item.id === id) ?? senarai[0];
+  return senarai.find((item) => item.id === id) ?? senarai[0] ?? PELANGGAN_KOSONG;
 }
 function ambilKeberangkatan(id: string, senarai: BwDeparture[]): BwDeparture {
-  return senarai.find((item) => item.id === id) ?? senarai[0];
+  return senarai.find((item) => item.id === id) ?? senarai[0] ?? KEBERANGKATAN_KOSONG;
 }
 function hitung(booking: BwBooking, senaraiPaket: BwPackage[]) {
   const harga = ambilPaket(booking.paket, senaraiPaket).harga;
@@ -550,8 +459,8 @@ export default function BookingWorkspace() {
             return {
               ref: b.reference || b.id || `LIVE-${i + 1}`,
               pelanggan: `live-c${i + 1}`,
-              paket: paketMatch?.id ?? PAKET[0].id,
-              keberangkatan: depMatch?.id ?? KEBERANGKATAN[0].id,
+              paket: paketMatch?.id ?? "",
+              keberangkatan: depMatch?.id ?? "",
               tipe: b.type === "group" ? "grup" : "individu",
               status: b.status,
               dibuat: b.createdAt ? b.createdAt.slice(0, 10) : "",
@@ -621,10 +530,10 @@ export default function BookingWorkspace() {
     return hasil;
   }, [bookings]);
 
-  const aktif = bookings.find((item) => item.ref === dipilih) ?? terlihat[0] ?? bookings[0];
-  const aktifHitung = hitung(aktif, paketList) as Kalkulasi;
-  const aktifPelanggan = ambilPelanggan(aktif.pelanggan, pelangganList);
-  const aktifKeberangkatan = ambilKeberangkatan(aktif.keberangkatan, keberangkatanList);
+  const aktif = bookings.find((item) => item.ref === dipilih) ?? terlihat[0] ?? bookings[0] ?? null;
+  const aktifHitung = aktif ? (hitung(aktif, paketList) as Kalkulasi) : null;
+  const aktifPelanggan = aktif ? ambilPelanggan(aktif.pelanggan, pelangganList) : PELANGGAN_KOSONG;
+  const aktifKeberangkatan = aktif ? ambilKeberangkatan(aktif.keberangkatan, keberangkatanList) : KEBERANGKATAN_KOSONG;
 
   const ringkasan = useMemo(() => {
     const aktifList = bookings.filter((item) => item.status !== "cancelled" && item.status !== "completed");
@@ -761,6 +670,7 @@ export default function BookingWorkspace() {
   };
 
   const ubahStatus = (target: BookingStatus, extra = "") => {
+    if (!aktif) return;
     setBookings((prev) =>
       prev.map((item) => {
         if (item.ref !== aktif.ref) return item;
@@ -984,7 +894,7 @@ export default function BookingWorkspace() {
                       key={item.ref}
                       type="button"
                       className="bw-row"
-                      aria-current={aktif.ref === item.ref ? "true" : undefined}
+                      aria-current={aktif?.ref === item.ref ? "true" : undefined}
                       data-action="bw:open"
                       data-node-id={`bw.row.${item.ref}`}
                       onClick={() => setDipilih(item.ref)}
@@ -1007,6 +917,7 @@ export default function BookingWorkspace() {
           </div>
         </section>
 
+        {aktif && aktifHitung && aktifPelanggan && aktifKeberangkatan ? (
         <section className="bw-card" data-node-id="bw.detail" aria-labelledby="bw-detail-title">
           <div className="bw-card__head">
             <div style={{ minWidth: 0 }}>
@@ -1128,6 +1039,14 @@ export default function BookingWorkspace() {
             </div>
           </div>
         </section>
+        ) : (
+          <section className="bw-card" data-node-id="bw.detail-empty">
+            <div className="bw-empty">
+              <Inbox />
+              <p style={{ margin: 0 }}>{t("Pilih tempahan untuk lihat butiran, atau cipta tempahan baharu.", "Select a booking to see details, or create a new booking.")}</p>
+            </div>
+          </section>
+        )}
       </div>
 
       {/* Create booking dialog */}
@@ -1381,7 +1300,7 @@ export default function BookingWorkspace() {
               <h2 style={{ margin: 0, fontFamily: "var(--font-display)", fontSize: "17px", fontWeight: 700, letterSpacing: "-0.01em" }} id="bw-cancel-title">
                 {t("Batalkan tempahan", "Cancel booking")}
               </h2>
-              <p style={{ margin: "4px 0 0", fontSize: "12.5px", color: "var(--color-text-muted)" }}>{aktif.ref} · {aktifPelanggan.nama}</p>
+              <p style={{ margin: "4px 0 0", fontSize: "12.5px", color: "var(--color-text-muted)" }}>{aktif?.ref} · {aktifPelanggan?.nama}</p>
             </div>
             <button type="button" className="bw-close" aria-label={t("Tutup dialog pembatalan", "Close cancellation dialog")} onClick={() => dialogBatal.current?.close()}>
               <Ikon icon={X} />
@@ -1394,7 +1313,7 @@ export default function BookingWorkspace() {
                 {t(
                   "{n} kerusi akan dilepaskan semula ke keberangkatan {dep}. Ini direkodkan dalam sejarah tempahan.",
                   "{n} seats will be released back to departure {dep}. This is recorded in the booking history.",
-                ).replace("{n}", String(aktif.penumpang.length)).replace("{dep}", aktifKeberangkatan.id)}
+                ).replace("{n}", String(aktif?.penumpang.length ?? 0)).replace("{dep}", aktifKeberangkatan?.id ?? "—")}
               </span>
             </div>
             <Medan id="bw-alasan" label={t("Sebab pembatalan", "Cancellation reason")} wide error={galatBatal || undefined}>

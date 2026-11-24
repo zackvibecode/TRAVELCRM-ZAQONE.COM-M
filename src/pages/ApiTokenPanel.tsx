@@ -18,12 +18,8 @@ interface ApiToken {
 
 const SCOPES = ["bookings:read", "bookings:write", "customers:read", "invoices:read", "webhooks:write"];
 
-// Mock data — backend API token service menyusul pada fasa backend.
-const STUB: ApiToken[] = [
-  { id: "apit_01", name: "Website Booking Widget", preview: "zqk_api_7f3a…9d21", createdBy: "Zack (Owner)", scopes: ["bookings:read", "bookings:write"], status: "active", createdAt: "2026-11-02", lastUsed: "2026-11-17 14:22", expiresAt: "2027-11-02" },
-  { id: "apit_02", name: "Accounting Sync (Xero)", preview: "zqk_api_b8e2…41cc", createdBy: "Melati (Finance)", scopes: ["invoices:read"], status: "active", createdAt: "2026-10-15", lastUsed: "2026-11-16 08:30", expiresAt: "2027-10-15" },
-  { id: "apit_03", name: "Legacy Mobile App", preview: "zqk_api_44f0…e102", createdBy: "Farah (Management)", scopes: ["customers:read", "bookings:read"], status: "revoked", createdAt: "2026-06-12", lastUsed: "2026-08-20 08:22", expiresAt: "2027-06-12" },
-];
+// Empty until the backend API token service is wired up.
+const STUB: ApiToken[] = [];
 
 const STATUS_PILL: Record<TokenStatus, string> = {
   active: "bg-[var(--color-success-soft)] text-[var(--color-success)]",

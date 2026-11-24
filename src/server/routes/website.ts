@@ -3,6 +3,7 @@ import { sql } from "drizzle-orm";
 import type { DrizzleD1Database } from "drizzle-orm/d1";
 import * as schema from "../db/schema";
 import { requireRole } from "../middleware/auth";
+import { firstFollowupAt } from "../lib/followup-schedule";
 
 type Env = {
   Bindings: {
@@ -196,6 +197,11 @@ websiteRouter.post("/enquiries", async (c) => {
     .filter(Boolean)
     .join("\n");
 
+  // Website form submissions have no session — mandatory owner falls
+  // back to the first super_admin (same rule as the 0027 backfill).
+  const ownerRows = await db.all<{ id: string }>(sql`
+    SELECT id FROM user WHERE role = 'super_admin' ORDER BY id LIMIT 1
+  `);
   await db.insert(schema.leads).values({
     id: leadId,
     name,
@@ -206,6 +212,14 @@ websiteRouter.post("/enquiries", async (c) => {
     stage: "new",
     sourceId,
     notes: enquiryNote || null,
+    ownerUserId: ownerRows[0]?.id ?? "unassigned",
+    followupStatus: "new",
+    followupState: "active",
+    followupStage: "FU1",
+    followupStageAt: new Date().toISOString(),
+    // FU1 from config, snapped to KL business hours — a website enquiry at
+    // 23:30 must not come due at 23:30.
+    nextFollowupAt: (await firstFollowupAt(db)).toISOString(),
   }).run();
 
   await db.run(sql`
@@ -242,10 +256,14 @@ websiteRouter.get("/pages", async (c) => {
 
 /**
  * GET /website/pages/:slug — a single published page (404 on draft/missing).
+ * The slug may contain slashes (e.g. "promo/langkawi-4d3n"); Hono's `:slug`
+ * param only captures one segment, so we read the rest of the path directly.
  */
-websiteRouter.get("/pages/:slug", async (c) => {
+websiteRouter.get("/pages/*", async (c) => {
   const db = c.get("db");
-  const slug = c.req.param("slug");
+  // `c.req.path` is "/website/pages/promo/langkawi-4d3n".
+  const raw = c.req.path.replace(/^\/website\/pages\/?/, "");
+  const slug = decodeURIComponent(raw).replace(/^\/+|\/+$/g, "");
 
   const rows = await db.all<{
     slug: string;
@@ -256,6 +274,34 @@ websiteRouter.get("/pages/:slug", async (c) => {
     SELECT slug, title, content, updated_at AS updatedAt
     FROM site_pages
     WHERE status = 'published' AND slug = ${slug}
+    LIMIT 1
+  `);
+
+  if (rows.length === 0) {
+    return c.json({ error: "page not found" }, 404);
+  }
+  return c.json({ page: rows[0] });
+});
+
+/**
+ * GET /website/preview/* — draft page for staff preview.
+ * Requires an authenticated staff session; drafts never leak publicly.
+ */
+websiteRouter.get("/preview/*", requireRole("super_admin", "management"), async (c) => {
+  const db = c.get("db");
+  const raw = c.req.path.replace(/^\/website\/preview\/?/, "");
+  const slug = decodeURIComponent(raw).replace(/^\/+|\/+$/g, "");
+
+  const rows = await db.all<{
+    slug: string;
+    title: string;
+    content: string;
+    status: string;
+    updatedAt: string;
+  }>(sql`
+    SELECT slug, title, content, status, updated_at AS updatedAt
+    FROM site_pages
+    WHERE slug = ${slug}
     LIMIT 1
   `);
 

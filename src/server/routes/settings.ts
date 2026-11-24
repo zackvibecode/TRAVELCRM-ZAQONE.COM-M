@@ -48,6 +48,15 @@ settingsRouter.get(
     for (const row of rows) {
       result[row.key] = row.value;
     }
+    // Never send the AI provider key back to the browser — only whether it exists.
+    const ai = result.ai as Record<string, unknown> | undefined;
+    if (ai && typeof ai === "object") {
+      result.ai = {
+        ...ai,
+        apiKey: ai.apiKey ? "••••••••" : "",
+        hasApiKey: Boolean(ai.apiKey),
+      };
+    }
     return c.json({ success: true, settings: result });
   },
 );
@@ -76,7 +85,7 @@ settingsRouter.put(
   async (c) => {
     const db = c.get("db");
     const key = c.req.param("key");
-    const value = (await c.req.json()) as Record<string, unknown>;
+    let value = (await c.req.json()) as Record<string, unknown>;
 
     const validation = validateSettingPayload(key, value);
     if (!validation.valid) {
@@ -89,6 +98,20 @@ settingsRouter.put(
       .from(schema.appSettings)
       .where(eq(schema.appSettings.key, key))
       .limit(1);
+
+    // An empty API key means "keep the stored one" (the browser never receives
+    // the real key back, so it cannot re-send it).
+    if (key === "ai" && !(value.apiKey as string)?.trim()) {
+      const current = await db
+        .select({ value: schema.appSettings.value })
+        .from(schema.appSettings)
+        .where(eq(schema.appSettings.key, key))
+        .limit(1);
+      const prev = current[0]?.value as Record<string, unknown> | undefined;
+      if (prev?.apiKey) {
+        value = { ...value, apiKey: prev.apiKey };
+      }
+    }
 
     if (existing.length > 0) {
       await db

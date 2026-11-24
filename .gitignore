@@ -16,3 +16,4 @@ wrangler.toml
 .ngodingpakeai/pending.json
 .ngodingpakeai/summaries.json
 .tmp-*
+.tmp_tail.log

@@ -23,7 +23,7 @@ export interface StaffSession {
  */
 export const API_BASE_URL =
   ((import.meta as { env?: Record<string, string> }).env?.VITE_API_URL) ??
-  "https://travelos-suite-api.zarulzaqwan1234.workers.dev";
+  "";
 
 /**
  * Mobile browsers (iOS Safari / ITP) block the cross-origin third-party

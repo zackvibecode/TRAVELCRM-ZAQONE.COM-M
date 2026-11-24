@@ -12,6 +12,7 @@ import {
 import type { Departure, TravelPackage } from "@/lib/types";
 import { formatRinggit } from "@/lib/utils";
 import { useLang } from "@/lib/i18n";
+import { useBranding, whatsappUrl } from "@/lib/useBranding";
 
 const IMG = {
   cover:
@@ -81,6 +82,8 @@ function fmtDate(value: string, locale: string): string {
 
 export default function PublicHome() {
   const { t, lang } = useLang();
+  const branding = useBranding();
+  const waUrl = whatsappUrl(branding);
   const locale = lang === "ms" ? "ms-MY" : "en-GB";
   const [query, setQuery] = useState("");
   const [draft, setDraft] = useState("");
@@ -158,7 +161,7 @@ export default function PublicHome() {
     <div>
       {/* Hero */}
       <section className="bg-[var(--color-surface-raised)] border-b border-[var(--color-border)]">
-        <div className="mx-auto max-w-site px-4">
+        <div className="mx-auto max-w-site px-4 md:px-6">
           <div className="grid items-center gap-8 py-10 lg:grid-cols-[minmax(0,1.05fr)_minmax(0,0.95fr)]">
             <div className="flex min-w-0 flex-col gap-5">
               <span className="inline-flex items-center gap-2 text-caption font-semibold uppercase tracking-[var(--tracking-wide)] text-[var(--color-primary)]">
@@ -270,7 +273,7 @@ export default function PublicHome() {
         </div>
       </section>
 
-      <div className="mx-auto max-w-site px-4">
+      <div className="mx-auto max-w-site px-4 md:px-6">
         <div className="flex flex-col gap-[var(--space-9)] py-[var(--space-9)]">
           {/* Stats */}
           <section aria-label={t("Ringkasan agensi", "Agency summary")}>
@@ -517,7 +520,7 @@ export default function PublicHome() {
                 {t("Lihat pakej Jepun", "See Japan packages")}
               </Link>
               <a
-                href="https://wa.me/60123880030"
+                href={waUrl}
                 target="_blank"
                 rel="noreferrer"
                 className="inline-flex items-center justify-center gap-2 rounded-[var(--radius-control)] border border-[var(--color-border-strong)] bg-[var(--color-surface)] px-5 py-[11px] text-sm font-semibold text-[var(--color-text)] no-underline transition-colors hover:border-[var(--color-text)] focus-ring"
@@ -602,7 +605,7 @@ export default function PublicHome() {
             </div>
             <div className="flex flex-wrap gap-3 max-sm:w-full max-sm:flex-col">
               <a
-                href="https://wa.me/60123880030"
+                href={waUrl}
                 target="_blank"
                 rel="noreferrer"
                 className="inline-flex items-center justify-center gap-2 rounded-[var(--radius-control)] border border-[var(--color-surface)] bg-[var(--color-surface)] px-5 py-[11px] text-sm font-semibold text-[var(--color-text)] no-underline focus-ring max-sm:w-full"

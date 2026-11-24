@@ -130,7 +130,7 @@ export default function PublicPromos() {
     <div className="bg-[var(--color-surface)]">
       {/* Hero kecil — gaya prototaip public site */}
       <section className="border-b border-[var(--color-border)] bg-[var(--color-surface-raised)]">
-        <div className="mx-auto max-w-site px-4 py-[var(--space-8)]">
+        <div className="mx-auto max-w-site px-4 md:px-6 py-[var(--space-8)]">
           <nav aria-label="Breadcrumb" className="text-caption mb-2 text-[var(--color-text-muted)]">
             <Link
               to={localePath("/site")}
@@ -157,7 +157,7 @@ export default function PublicPromos() {
         </div>
       </section>
 
-      <div className="mx-auto max-w-site px-4">
+      <div className="mx-auto max-w-site px-4 md:px-6">
         <div className="flex flex-col gap-[var(--space-9)] py-[var(--space-9)]">
           {/* Grid kad promo */}
           <section aria-labelledby="promos-list-title">

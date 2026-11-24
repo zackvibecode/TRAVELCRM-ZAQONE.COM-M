@@ -1,0 +1,10 @@
+const fs = require("fs");
+const p = "src/pages/LeadsPipeline.tsx";
+let s = fs.readFileSync(p, "utf8");
+const a = s.indexOf("const INITIAL_LEADS: Lead[] = [");
+if (a < 0) throw new Error("INITIAL_LEADS not found");
+const b = s.indexOf("\n];", a) + 3;
+s = s.slice(0, a) + "const INITIAL_LEADS: Lead[] = [];\n" + s.slice(b);
+s = s.replace('useState<string>("c1")', 'useState<string>("")');
+fs.writeFileSync(p, s);
+console.log("done");

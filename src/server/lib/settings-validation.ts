@@ -62,8 +62,36 @@ export function validateCompany(value: Record<string, unknown>): ValidationResul
   if (value.website !== undefined && value.website !== "" && !isUrl(value.website)) {
     errors.website = "invalid website URL";
   }
-  if (value.licenseExpiry !== undefined && !isDateString(value.licenseExpiry)) {
+  if (value.licenseExpiry !== undefined && value.licenseExpiry !== "" && !isDateString(value.licenseExpiry)) {
     errors.licenseExpiry = "licenseExpiry must be YYYY-MM-DD";
+  }
+  return { valid: Object.keys(errors).length === 0, errors };
+}
+
+/**
+ * Validate a `site` settings payload — the public website chrome (brand name,
+ * tagline, WhatsApp number, default locale, currency). Kept separate from
+ * `company` because the website reads it from a different key.
+ */
+export function validateSite(value: Record<string, unknown>): ValidationResult {
+  const errors: Record<string, string> = {};
+  if (value.brandName !== undefined && typeof value.brandName !== "string") {
+    errors.brandName = "brandName must be a string";
+  }
+  if (value.tagline !== undefined && typeof value.tagline !== "string") {
+    errors.tagline = "tagline must be a string";
+  }
+  if (value.whatsapp !== undefined) {
+    const wa = String(value.whatsapp).replace(/\D/g, "");
+    if (!/^\d{8,15}$/.test(wa)) {
+      errors.whatsapp = "whatsapp must be a phone number (digits only, 8-15)";
+    }
+  }
+  if (value.currency !== undefined && !CURRENCIES.includes(value.currency as string)) {
+    errors.currency = "currency must be one of MYR, USD, SGD";
+  }
+  if (value.defaultLang !== undefined && !LANGS.includes(value.defaultLang as string)) {
+    errors.defaultLang = "defaultLang must be 'ms' or 'en'";
   }
   return { valid: Object.keys(errors).length === 0, errors };
 }
@@ -98,15 +126,43 @@ export function validateSecurity(value: Record<string, unknown>): ValidationResu
   return { valid: Object.keys(errors).length === 0, errors };
 }
 
+/** Validate an `ai` settings payload (OpenAI-compatible provider config). */
+export function validateAi(value: Record<string, unknown>): ValidationResult {
+  const errors: Record<string, string> = {};
+  if (typeof value.enabled !== "boolean") {
+    errors.enabled = "enabled must be a boolean";
+  }
+  if (typeof value.baseUrl !== "string" || !/^https?:\/\/.+\..+/.test(value.baseUrl)) {
+    errors.baseUrl = "baseUrl must be a valid http(s) URL";
+  }
+  if (typeof value.apiKey !== "string") {
+    errors.apiKey = "apiKey must be a string";
+  }
+  if (typeof value.model !== "string" || !value.model.trim()) {
+    errors.model = "model is required";
+  }
+  const temperature = Number(value.temperature ?? 0.3);
+  if (!Number.isFinite(temperature) || temperature < 0 || temperature > 2) {
+    errors.temperature = "temperature must be 0-2";
+  }
+  const maxTokens = Number(value.maxTokens ?? 4000);
+  if (!Number.isInteger(maxTokens) || maxTokens < 256 || maxTokens > 32000) {
+    errors.maxTokens = "maxTokens must be 256-32000";
+  }
+  return { valid: Object.keys(errors).length === 0, errors };
+}
+
 const VALIDATORS: Record<
   string,
   (v: Record<string, unknown>) => ValidationResult
 > = {
   general: validateGeneral,
   company: validateCompany,
+  site: validateSite,
   notifications: validateNotifications,
   security: validateSecurity,
   terms: validateTerms,
+  ai: validateAi,
 };
 
 export function validateSettingPayload(

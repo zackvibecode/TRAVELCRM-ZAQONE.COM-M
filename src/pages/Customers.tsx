@@ -36,11 +36,7 @@ interface CustomerRow {
   history: { icon: "star" | "badge" | "briefcase" | "message"; text: string; time: string }[];
 }
 
-const STATIC_CUSTOMERS: CustomerRow[] = [
-  { id: "c6", name: "Yulia Anggraini", initials: "YA", email: "yulia.a@mail.my", phone: "016 550 9911", city: "Melaka", source: "Website", value: 8750, trip: "Penang 3D2N", owner: "Ayu Rahma", created: "Customer since 3 Feb", trips: 2, lastTrip: "Penang 3D2N · Nov 2024", note: "Repeat customer, prefers a twin room.", history: [{ icon: "star", text: "Left a 5-star review for the Penang trip", time: "2 Dec 2024" }, { icon: "badge", text: "Booking TRV-2291 fully paid", time: "3 Feb 2025" }] },
-  { id: "c7", name: "Bagas Wirawan", initials: "BW", email: "bagas.w@mail.my", phone: "019 778 2211", city: "Kuching", source: "Referral", value: 15600, trip: "Perhentian 6D5N", owner: "Rizky Putra", created: "Customer since 18 Jan", trips: 3, lastTrip: "Perhentian 6D5N · Jan 2025", note: "Often books for an office team of eight.", history: [{ icon: "briefcase", text: "Corporate booking created for 8 passengers", time: "18 Jan 2025" }] },
-  { id: "c8", name: "Eka Rahmawati", initials: "ER", email: "eka.rahma@mail.my", phone: "012 909 1234", city: "Kota Kinabalu", source: "Instagram", value: 5200, trip: "Borneo 5D4N", owner: "Nadia Sari", created: "Customer since 9 Jan", trips: 1, lastTrip: "Borneo 5D4N · Dec 2024", note: "Asked for trip ideas suitable for a 7-year-old.", history: [{ icon: "message", text: "Instagram chat — asked about family trips", time: "9 Jan 2025" }] },
-];
+const STATIC_CUSTOMERS: CustomerRow[] = [];
 
 const ringgit = (v: number) => `RM ${v.toLocaleString("en-MY")}`;
 
@@ -65,7 +61,7 @@ export default function Customers() {
   const [customers, setCustomers] = useState<CustomerRow[]>(STATIC_CUSTOMERS);
   const [query, setQuery] = useState("");
   const [source, setSource] = useState("All sources");
-  const [selectedId, setSelectedId] = useState<string>("c6");
+  const [selectedId, setSelectedId] = useState<string>("");
   const [notice, setNotice] = useState("");
   const toastTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
@@ -96,7 +92,7 @@ export default function Customers() {
         );
         setSelectedId(res.customers[0]?.id ?? "");
       } catch {
-        /* live data unavailable — static prototype data remains */
+        /* live data unavailable — empty state shown */
       }
     })();
     return () => {

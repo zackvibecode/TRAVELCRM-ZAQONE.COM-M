@@ -54,13 +54,8 @@ const HISTORY_ICONS: Record<HistoryIcon, typeof Sparkles> = {
   "badge-check": BadgeCheck,
 };
 
-const INITIAL_LEADS: Lead[] = [
-  { id: "c1", name: "Rani Kusuma", initials: "RK", email: "rani.kusuma@mail.my", phone: "012 334 5511", city: "Penang", stage: "New", source: "Instagram", value: 4850, trip: "Langkawi 4D3N", owner: "Rizky Putra", created: "Today, 08:42", note: "Requested a Langkawi itinerary for a family of four.", history: [{ icon: "sparkles", text: "Lead captured from the Instagram campaign", time: "Today, 08:42" }] },
-  { id: "c2", name: "Dimas Prakoso", initials: "DP", email: "dimas.prakoso@mail.my", phone: "013 221 7788", city: "Kuala Lumpur", stage: "Contacted", source: "Website", value: 6200, trip: "Perhentian 6D5N", owner: "Nadia Sari", created: "Yesterday, 15:10", note: "Called once, waiting to confirm the departure date.", history: [{ icon: "phone", text: "6-minute call — asked about seat availability", time: "Yesterday, 16:20" }, { icon: "sparkles", text: "Lead captured from the Perhentian destination form", time: "Yesterday, 15:10" }] },
-  { id: "c3", name: "Siti Nurhaliza", initials: "SN", email: "siti.nur@mail.my", phone: "017 889 0022", city: "Johor Bahru", stage: "Quotation", source: "Referral", value: 12400, trip: "Umrah 9D", owner: "Ayu Rahma", created: "12 Feb, 10:05", note: "Quotation sent, comparing two departure dates.", history: [{ icon: "file-text", text: "9D quotation emailed to the customer", time: "12 Feb, 14:00" }, { icon: "sparkles", text: "Referral from existing customer Siti Rahmawati", time: "12 Feb, 10:05" }] },
-  { id: "c4", name: "Adi Nugroho", initials: "AN", email: "adi.nugroho@mail.my", phone: "011 445 6677", city: "Ipoh", stage: "Booking", source: "WhatsApp", value: 3750, trip: "Mount Bromo Sunrise", owner: "Rizky Putra", created: "11 Feb, 09:30", note: "Deposit received, balance due before 20 Feb.", history: [{ icon: "wallet", text: "RM 1,000 deposit received", time: "11 Feb, 13:15" }, { icon: "calendar-check", text: "Seats held for 2 passengers", time: "11 Feb, 10:02" }] },
-  { id: "c5", name: "Nadia Sari (internal)", initials: "NS", email: "nadia.workspace@zaqone.my", phone: "011 221 3344", city: "Kuala Lumpur", stage: "New", source: "Travel fair", value: 2900, trip: "Borneo 5D4N", owner: "Nadia Sari", created: "10 Feb, 17:44", note: "Travel fair contact; needs re-check because the record looks duplicated.", history: [{ icon: "alert-circle", text: "Flagged as similar to an internal staff contact", time: "10 Feb, 17:45" }] },
-];
+const INITIAL_LEADS: Lead[] = [];
+
 
 const ringgit = (v: number) => `RM ${v.toLocaleString("en-MY")}`;
 
@@ -95,7 +90,7 @@ export default function LeadsPipeline() {
   const [leads, setLeads] = useState<Lead[]>(INITIAL_LEADS);
   const [query, setQuery] = useState("");
   const [source, setSource] = useState("All sources");
-  const [selectedId, setSelectedId] = useState<string>("c1");
+  const [selectedId, setSelectedId] = useState<string>("");
   const [notice, setNotice] = useState("");
   const [formOpen, setFormOpen] = useState(false);
   const [form, setForm] = useState({ name: "", contact: "", source: "Instagram", trip: "", note: "" });

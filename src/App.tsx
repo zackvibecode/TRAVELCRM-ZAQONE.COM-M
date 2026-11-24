@@ -9,6 +9,13 @@ import BookingWorkspace from "@/pages/BookingWorkspace";
 import TripsDashboard from "@/pages/TripsDashboard";
 import PackageCatalog from "@/pages/PackageCatalog";
 import LeadsPipeline from "@/pages/LeadsPipeline";
+import FollowUpCenter from "@/pages/FollowUpCenter";
+import SalesLeaderboard from "@/pages/SalesLeaderboard";
+import LeadImport from "@/pages/LeadImport";
+import LeadManagement from "@/pages/LeadManagement";
+import WhatsAppTemplates from "@/pages/WhatsAppTemplates";
+import AdminConsole from "@/pages/AdminConsole";
+import LeadDetail from "@/pages/LeadDetail";
 import Customers from "@/pages/Customers";
 import BillingWorkspace from "@/pages/BillingWorkspace";
 import DashboardOverview from "@/pages/DashboardOverview";
@@ -19,8 +26,10 @@ import PublicPromos from "@/pages/PublicPromos";
 import PublicPackages from "@/pages/PublicPackages";
 import PublicPackageDetail from "@/pages/PublicPackageDetail";
 import PublicContact from "@/pages/PublicContact";
+import PublicCmsPage from "@/pages/PublicCmsPage";
 import WebsiteManager from "@/pages/WebsiteManager";
 import WebsiteContentEditor from "@/pages/WebsiteContentEditor";
+import AiAssistant from "@/pages/AiAssistant";
 import AiTokens from "@/pages/AiTokens";
 import McpAuditLog from "@/pages/McpAuditLog";
 import StaffRoles from "@/pages/StaffRoles";
@@ -51,11 +60,19 @@ export default function App() {
           <Route path="/trips" element={<RoleRoute path="/trips"><TripsDashboard /></RoleRoute>} />
           <Route path="/packages" element={<RoleRoute path="/packages"><PackageCatalog /></RoleRoute>} />
           <Route path="/leads" element={<RoleRoute path="/leads"><LeadsPipeline /></RoleRoute>} />
+          <Route path="/followups" element={<RoleRoute path="/followups"><FollowUpCenter /></RoleRoute>} />
+          <Route path="/lead-import" element={<RoleRoute path="/lead-import"><LeadImport /></RoleRoute>} />
+          <Route path="/lead-management" element={<RoleRoute path="/lead-management"><LeadManagement /></RoleRoute>} />
+          <Route path="/lead-management/:id" element={<RoleRoute path="/lead-management"><LeadDetail /></RoleRoute>} />
+          <Route path="/leaderboard" element={<RoleRoute path="/leaderboard"><SalesLeaderboard /></RoleRoute>} />
+          <Route path="/whatsapp-templates" element={<RoleRoute path="/whatsapp-templates"><WhatsAppTemplates /></RoleRoute>} />
+          <Route path="/admin-console" element={<RoleRoute path="/admin-console"><AdminConsole /></RoleRoute>} />
           <Route path="/customers" element={<RoleRoute path="/customers"><Customers /></RoleRoute>} />
           <Route path="/billing" element={<RoleRoute path="/billing"><BillingWorkspace /></RoleRoute>} />
           <Route path="/reports" element={<RoleRoute path="/reports"><ReportsPage /></RoleRoute>} />
           <Route path="/website" element={<RoleRoute path="/website"><WebsiteManager /></RoleRoute>} />
           <Route path="/website/editor" element={<RoleRoute path="/website"><WebsiteContentEditor /></RoleRoute>} />
+          <Route path="/ai-assistant" element={<RoleRoute path="/ai-assistant"><AiAssistant /></RoleRoute>} />
           <Route path="/ai-tokens" element={<RoleRoute path="/ai-tokens"><AiTokens /></RoleRoute>} />
           <Route path="/mcp-audit" element={<RoleRoute path="/mcp-audit"><McpAuditLog /></RoleRoute>} />
           <Route path="/staff" element={<RoleRoute path="/staff"><StaffRoles /></RoleRoute>} />
@@ -80,6 +97,8 @@ export default function App() {
         <Route path="packages/:id" element={<PublicPackageDetail />} />
         <Route path="contact" element={<PublicContact />} />
         <Route path="about" element={<PublicHome />} />
+        <Route path="p/*" element={<PublicCmsPage />} />
+        <Route path="preview/*" element={<PublicCmsPage />} />
       </Route>
       {(["ms", "en"] as const).map((locale) => (
         <Route
@@ -93,6 +112,8 @@ export default function App() {
           <Route path="packages/:id" element={<PublicPackageDetail />} />
           <Route path="contact" element={<PublicContact />} />
           <Route path="about" element={<PublicHome />} />
+          <Route path="p/*" element={<PublicCmsPage />} />
+          <Route path="preview/*" element={<PublicCmsPage />} />
         </Route>
       ))}
     </Routes>

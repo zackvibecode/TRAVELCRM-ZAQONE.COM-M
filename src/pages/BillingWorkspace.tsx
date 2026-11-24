@@ -54,17 +54,8 @@ function statusFromInvoice(inv: Invoice): RowStatus {
   }
 }
 
-// Static prototype rows — used as fallback when live data is unavailable
-// (the fetchInvoices loader itself falls back to mock data internally).
-const STATIC_ROWS: Row[] = [
-  { id: "TRV-2481", name: "Rani Kusuma", pkg: "Bali Escape 4D3N", method: "Maybank transfer", amount: 8750, paid: 8750, due: "12 Jun 2025", status: "paid", history: [{ label: "Final payment", date: "10 Jun 2025", amount: 4375, method: "Maybank transfer" }, { label: "Deposit 50%", date: "28 May 2025", amount: 4375, method: "Maybank transfer" }] },
-  { id: "TRV-2480", name: "Dimas Prakoso", pkg: "Raja Ampat 6D5N", method: "Virtual account", amount: 14500, paid: 4350, due: "18 Jun 2025", status: "deposit", history: [{ label: "Deposit 30%", date: "11 Jun 2025", amount: 4350, method: "Virtual account · CIMB" }] },
-  { id: "TRV-2479", name: "Siti Hajar", pkg: "Langkawi Escape 3D2N", method: "Credit card", amount: 4850, paid: 4850, due: "20 Jun 2025", status: "review", history: [{ label: "Final payment", date: "17 Jun 2025", amount: 4850, method: "Visa credit card ****4412" }] },
-  { id: "TRV-2478", name: "Bagas Nugroho", pkg: "Mount Bromo Sunrise 3D2N", method: "DuitNow QR", amount: 2450, paid: 0, due: "21 Jun 2025", status: "awaiting", history: [] },
-  { id: "TRV-2477", name: "Melati Puspita", pkg: "Komodo Sailing 5D4N", method: "Public Bank transfer", amount: 11700, paid: 3510, due: "14 Jun 2025", status: "overdue", history: [{ label: "Deposit 30%", date: "02 Jun 2025", amount: 3510, method: "Public Bank transfer" }] },
-  { id: "TRV-2476", name: "Arief Santoso", pkg: "Penang Heritage 3D2N", method: "Virtual account", amount: 6300, paid: 6300, due: "09 Jun 2025", status: "paid", history: [{ label: "Final payment", date: "06 Jun 2025", amount: 3150, method: "Virtual account · RHB" }, { label: "Deposit 50%", date: "22 May 2025", amount: 3150, method: "Virtual account · RHB" }] },
-  { id: "TRV-2475", name: "Nadia Rahmawati", pkg: "Perhentian Islands 3D2N", method: "Maybank transfer", amount: 3950, paid: 0, due: "23 Jun 2025", status: "awaiting", history: [] },
-];
+// Empty until live invoices load from the API.
+const STATIC_ROWS: Row[] = [];
 
 const STATUS: Record<RowStatus, { labelMs: string; labelEn: string; bg: string; fg: string }> = {
   awaiting: { labelMs: "Menunggu bayaran", labelEn: "Awaiting payment", bg: "var(--color-surface-muted)", fg: "var(--color-text-secondary)" },
@@ -283,7 +274,7 @@ export default function BillingWorkspace() {
                     <th scope="col" className="px-3 py-2 pl-4 text-left text-[11.5px] font-medium [font-variant-numeric:tabular-nums]">{t("Kod", "Code")}</th>
                     <th scope="col" className="px-3 py-2 text-left text-[11.5px] font-medium">{t("Pelanggan", "Customer")}</th>
                     <th scope="col" className="px-3 py-2 text-right text-[11.5px] font-medium">{t("Jumlah", "Amount")}</th>
-                    <th scope="col" className="px-3 py-2 text-left text-[11.5px] font-medium">{t("Tarikh jatuh tempo", "Due date")}</th>
+                    <th scope="col" className="px-3 py-2 text-left text-[11.5px] font-medium">{t("Tarikh matang", "Due date")}</th>
                     <th scope="col" className="px-3 py-2 pr-4 text-left text-[11.5px] font-medium">{t("Status", "Status")}</th>
                   </tr>
                 </thead>

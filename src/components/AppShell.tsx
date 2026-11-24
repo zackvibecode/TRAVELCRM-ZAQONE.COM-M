@@ -1,5 +1,5 @@
-import { useState } from "react";
-import { NavLink, Outlet, useNavigate, Link } from "react-router-dom";
+import { useEffect, useState } from "react";
+import { NavLink, Outlet, useNavigate, Link, useLocation } from "react-router-dom";
 import {
   LayoutDashboard,
   Users,
@@ -22,17 +22,28 @@ import {
   Languages,
   Bot,
   ScrollText,
+  Sparkles,
+  ShieldCheck,
   ChevronDown,
   ChevronRight,
   Bell,
   LogOut,
   Search,
   ArrowRight,
+  SlidersHorizontal,
+  ListChecks,
+  UserCircle2,
+  FileSpreadsheet,
+  Trophy,
+  MessageCircle,
+  Settings2,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useLang, type Lang } from "@/lib/i18n";
+import { AiAssistantFab } from "@/pages/AiAssistant";
 import { getSession, logout, type StaffRole } from "@/lib/auth";
 import { canAccess } from "@/lib/roles";
+import { useBranding } from "@/lib/useBranding";
 
 const ROLE_BADGE: Record<StaffRole, { ms: string; en: string }> = {
   super_admin: { ms: "Super Admin", en: "Super Admin" },
@@ -41,6 +52,74 @@ const ROLE_BADGE: Record<StaffRole, { ms: string; en: string }> = {
   finance: { ms: "Kewangan", en: "Finance" },
   operations: { ms: "Operasi", en: "Operations" },
 };
+
+type NavItem = {
+  to: string;
+  label: string;
+  icon: typeof Globe;
+  end?: boolean;
+  /** Items grouped under a collapsible parent, not shown at the top level. */
+  children?: NavItem[];
+};
+
+/**
+ * The collapsible sidebar groups. Declared at module level so the auto-expand
+ * effect and the renderer always agree on which routes belong to which group.
+ * Labels are translated in `navSections`; these are the raw route groups.
+ */
+const COLLAPSIBLE_GROUPS: NavItem[] = [
+  {
+    to: "/ai-tokens",
+    label: "AI & Integrasi",
+    icon: Bot,
+    children: [
+      { to: "/ai-tokens", label: "Token Akses AI", icon: KeyRound },
+      { to: "/mcp-audit", label: "Log Audit MCP", icon: ScrollText },
+    ],
+  },
+  {
+    to: "/settings",
+    label: "Tetapan",
+    icon: Settings,
+    children: [
+      { to: "/settings", label: "Tetapan Umum", icon: SlidersHorizontal },
+      { to: "/company-profile", label: "Profil Syarikat", icon: Building2 },
+      { to: "/bank-accounts", label: "Akaun Bank", icon: Banknote },
+      { to: "/document-numbering", label: "Penomboran Dokumen", icon: FileBarChart },
+      { to: "/booking-defaults", label: "Lalai Tempahan", icon: CalendarDays },
+      { to: "/notification-templates", label: "Templat Pemberitahuan", icon: Mail },
+      { to: "/api-tokens", label: "Token API", icon: KeyRound },
+      { to: "/staff", label: "Akses Staf", icon: ShieldCheck },
+      { to: "/staff-audit", label: "Log Audit Staf", icon: ScrollText },
+      { to: "/data-maintenance", label: "Penyelenggaraan Data", icon: Database },
+      { to: "/settings-audit", label: "Log Audit Tetapan", icon: ScrollText },
+    ],
+  },
+];
+
+/** Translates a collapsible child's label using the active language. */
+function translateChildLabel(
+  to: string,
+  t: (ms: string, en: string) => string,
+): string {
+  const map: Record<string, [string, string]> = {
+    "/settings": ["Tetapan Umum", "General Settings"],
+    "/company-profile": ["Profil Syarikat", "Company Profile"],
+    "/bank-accounts": ["Akaun Bank", "Bank Accounts"],
+    "/document-numbering": ["Penomboran Dokumen", "Document Numbering"],
+    "/booking-defaults": ["Lalai Tempahan", "Booking Defaults"],
+    "/notification-templates": ["Templat Pemberitahuan", "Notification Templates"],
+    "/api-tokens": ["Token API", "API Tokens"],
+    "/staff": ["Akses Staf", "Staff Access"],
+    "/staff-audit": ["Log Audit Staf", "Staff Audit Log"],
+    "/data-maintenance": ["Penyelenggaraan Data", "Data Maintenance"],
+    "/settings-audit": ["Log Audit Tetapan", "Settings Audit Log"],
+    "/ai-tokens": ["Token Akses AI", "AI Access Tokens"],
+    "/mcp-audit": ["Log Audit MCP", "MCP Audit Log"],
+  };
+  const entry = map[to];
+  return entry ? t(entry[0], entry[1]) : to;
+}
 
 function initials(name: string): string {
   return name
@@ -51,11 +130,125 @@ function initials(name: string): string {
     .join("");
 }
 
+/**
+ * A nav entry that groups several sub-pages behind a collapsible parent, so
+ * the sidebar stays short instead of listing every admin screen flat.
+ */
+function CollapsibleNavItem({
+  item,
+  collapsed,
+  open,
+  onToggle,
+  onNavigate,
+}: {
+  item: NavItem;
+  collapsed: boolean;
+  open: boolean;
+  onToggle: () => void;
+  onNavigate: () => void;
+}) {
+  const { pathname } = useLocation();
+  const children = item.children ?? [];
+  const isChildActive = children.some((c) =>
+    pathname === c.to || pathname.startsWith(`${c.to}/`),
+  );
+
+  if (collapsed) {
+    // Collapsed sidebar: the parent icon links straight to its first child.
+    const first = children[0];
+    if (!first) return null;
+    return (
+      <NavLink
+        to={first.to}
+        title={item.label}
+        className={({ isActive }) =>
+          cn(
+            "flex items-center justify-center rounded-[var(--radius-control)] px-0 py-2 text-[var(--color-text-secondary)] transition-colors hover:bg-[var(--color-surface-muted)] hover:text-foreground focus-ring",
+            (isActive || isChildActive) &&
+              "bg-[var(--color-primary-soft)] font-semibold text-[var(--color-primary)]",
+          )
+        }
+      >
+        <item.icon className="h-[17px] w-[17px] shrink-0 opacity-80" />
+      </NavLink>
+    );
+  }
+
+  return (
+    <div className="flex flex-col gap-0.5">
+      <button
+        type="button"
+        onClick={onToggle}
+        aria-expanded={open}
+        className={cn(
+          "flex w-full items-center gap-2.5 rounded-[var(--radius-control)] px-3 py-2 text-[13.5px] font-medium leading-snug text-[var(--color-text-secondary)] transition-colors hover:bg-[var(--color-surface-muted)] hover:text-foreground focus-ring",
+          isChildActive && "font-semibold text-[var(--color-primary)]",
+        )}
+      >
+        <item.icon className="h-[17px] w-[17px] shrink-0 opacity-80" />
+        <span className="min-w-0 flex-1 truncate text-left">{item.label}</span>
+        {open ? (
+          <ChevronDown className="h-3.5 w-3.5 flex-none opacity-60" />
+        ) : (
+          <ChevronRight className="h-3.5 w-3.5 flex-none opacity-60" />
+        )}
+      </button>
+      {open && (
+        <ul className="ml-[21px] flex flex-col gap-0.5 border-l border-[var(--color-border)] pl-2.5">
+          {children.map((child) => (
+            <li key={child.to}>
+              <NavLink
+                to={child.to}
+                end
+                onClick={onNavigate}
+                className={({ isActive }) =>
+                  cn(
+                    "block truncate rounded-[var(--radius-control)] px-2.5 py-1.5 text-[12.5px] font-medium leading-snug text-[var(--color-text-secondary)] transition-colors hover:bg-[var(--color-surface-muted)] hover:text-foreground focus-ring",
+                    isActive &&
+                      "bg-[var(--color-primary-soft)] font-semibold text-[var(--color-primary)]",
+                  )
+                }
+              >
+                {child.label}
+              </NavLink>
+            </li>
+          ))}
+        </ul>
+      )}
+    </div>
+  );
+}
+
 export default function AppShell() {
   const [collapsed, setCollapsed] = useState(false);
   const [mobileOpen, setMobileOpen] = useState(false);
   const [userMenuOpen, setUserMenuOpen] = useState(false);
+  const [openGroups, setOpenGroups] = useState<Record<string, boolean>>({});
+  const { pathname: navPathname } = useLocation();
+
+  // Auto-expand the collapsible groups when the user is already inside one
+  // of their pages, so the current location is never hidden.
+  useEffect(() => {
+    setOpenGroups((prev) => {
+      const next = { ...prev };
+      let changed = false;
+      for (const group of COLLAPSIBLE_GROUPS) {
+        if (
+          group.children?.some(
+            (c) => navPathname === c.to || navPathname.startsWith(`${c.to}/`),
+          )
+        ) {
+          if (!next[group.to]) {
+            next[group.to] = true;
+            changed = true;
+          }
+        }
+      }
+      return changed ? next : prev;
+    });
+  }, [navPathname]);
   const { lang, setLang, t } = useLang();
+  const branding = useBranding();
   const navigate = useNavigate();
   const session = getSession();
 
@@ -65,58 +258,88 @@ export default function AppShell() {
     navigate("/login", { replace: true });
   };
 
-  const navSections = [
+  // Susunan navigasi ikut shell prototaip DesainPakeAI: Overview / Operations
+  // / Platform. Semua rute sedia ada dikekalkan supaya tak ada functionality
+  // hilang — hanya pengelompokan labelnya yang selaras dengan prototaip.
+  const navSections: { title: string; items: NavItem[] }[] = [
     {
-      title: t("Ruang Kerja", "Workspace"),
+      title: t("Gambaran Keseluruhan", "Overview"),
       items: [
         { to: "/", label: t("Papan Pemuka", "Dashboard"), icon: LayoutDashboard, end: true },
-        { to: "/bookings", label: t("Tempahan", "Bookings"), icon: BookOpenCheck },
-        { to: "/trips", label: t("Trip & Kerusi", "Trips & Seats"), icon: CalendarDays },
-        { to: "/packages", label: t("Pakej", "Packages"), icon: Luggage },
-      ],
-    },
-    {
-      title: t("Jualan & Kewangan", "Sales & Finance"),
-      items: [
-        { to: "/customers", label: t("Pelanggan", "Customers"), icon: Users },
+        { to: "/customers", label: t("Pelanggan & Leads", "Customers & Leads"), icon: Users },
         { to: "/leads", label: t("Saluran Leads", "Leads Pipeline"), icon: TrendingUp },
-        { to: "/billing", label: t("Billing & Pembayaran", "Billing & Payments"), icon: Banknote },
+        { to: "/followups", label: t("Pusat Susulan", "Follow-Up Center"), icon: ListChecks },
+        { to: "/lead-import", label: t("Import Lead", "Import Leads"), icon: FileSpreadsheet },
+        { to: "/lead-management", label: t("Pengurusan Lead", "Lead Management"), icon: UserCircle2 },
+        { to: "/leaderboard", label: t("Dashboard & Peringkat", "Leaderboard"), icon: Trophy },
+        { to: "/whatsapp-templates", label: t("Templat WhatsApp", "WhatsApp Templates"), icon: MessageCircle },
+        { to: "/admin-console", label: t("Konsol Admin", "Admin Console"), icon: Settings2 },
+        { to: "/bookings", label: t("Tempahan", "Bookings"), icon: BookOpenCheck },
+        { to: "/billing", label: t("Bil & Pembayaran", "Billing & Payments"), icon: Banknote },
         { to: "/reports", label: t("Laporan", "Reports"), icon: FileBarChart },
       ],
     },
     {
-      title: t("Sistem", "Platform"),
+      title: t("Operasi", "Operations"),
+      items: [
+        { to: "/packages", label: t("Pakej", "Packages"), icon: Luggage },
+        { to: "/trips", label: t("Trip & Kerusi", "Trips & Seats"), icon: CalendarDays },
+      ],
+    },
+    {
+      title: t("Platform", "Platform"),
       items: [
         { to: "/website", label: t("Pengurus Laman", "Website Manager"), icon: Globe },
-        { to: "/ai-tokens", label: t("Token Akses AI", "AI Access Tokens"), icon: Bot },
-        { to: "/mcp-audit", label: t("Log Audit MCP", "MCP Audit Log"), icon: ScrollText },
-        { to: "/staff", label: t("Peranan Staf", "Staff Roles"), icon: Users },
-        { to: "/staff-audit", label: t("Log Audit Staf", "Staff Audit Log"), icon: ScrollText },
-        { to: "/company-profile", label: t("Profil Syarikat", "Company Profile"), icon: Building2 },
-        { to: "/bank-accounts", label: t("Akaun Bank", "Bank Accounts"), icon: Banknote },
-        { to: "/document-numbering", label: t("Penomboran Dokumen", "Document Numbering"), icon: FileBarChart },
-        { to: "/booking-defaults", label: t("Lalai Tempahan", "Booking Defaults"), icon: CalendarDays },
-        { to: "/notification-templates", label: t("Templat Pemberitahuan", "Notification Templates"), icon: Mail },
-        { to: "/api-tokens", label: t("Token API", "API Tokens"), icon: KeyRound },
-        { to: "/data-maintenance", label: t("Penyelenggaraan Data", "Data Maintenance"), icon: Database },
-        { to: "/settings-audit", label: t("Log Audit Tetapan", "Settings Audit Log"), icon: ScrollText },
-        { to: "/settings", label: t("Tetapan", "Settings"), icon: Settings },
+        { to: "/ai-assistant", label: t("Tony — Pembantu AI", "Tony — AI Assistant"), icon: Sparkles },
+        {
+          to: "/ai-tokens",
+          label: t("AI & Integrasi", "AI & Integrations"),
+          icon: Bot,
+          children: COLLAPSIBLE_GROUPS[0].children?.map((c) => ({
+            ...c,
+            label: translateChildLabel(c.to, t),
+          })),
+        },
+        {
+          to: "/settings",
+          label: t("Tetapan", "Settings"),
+          icon: Settings,
+          children: COLLAPSIBLE_GROUPS[1].children?.map((c) => ({
+            ...c,
+            label: translateChildLabel(c.to, t),
+          })),
+        },
       ],
     },
   ];
 
   const pageTitle = (() => {
+    // Collect every navigable route (including collapsible children) and pick
+    // the longest matching prefix so "/settings-audit" does not get labelled
+    // as "/settings".
+    const flat: Array<{ to: string; label: string; end?: boolean; exact?: boolean }> = [];
     for (const section of navSections) {
-      const match = section.items.find((i) =>
-        i.end ? window.location.pathname === i.to : window.location.pathname.startsWith(i.to),
-      );
-      if (match) return match.label;
+      for (const item of section.items) {
+        flat.push({ to: item.to, label: item.label, end: item.end });
+        for (const child of item.children ?? []) {
+          flat.push({ to: child.to, label: child.label, exact: true });
+        }
+      }
     }
+    const match = flat
+      .filter((i) => {
+        const path = window.location.pathname;
+        if (i.exact) return path === i.to || path.startsWith(`${i.to}/`);
+        if (i.end) return path === i.to;
+        return path === i.to || path.startsWith(`${i.to}/`);
+      })
+      .sort((a, b) => b.to.length - a.to.length)[0];
+    if (match) return match.label;
     return t("Papan Pemuka", "Dashboard");
   })();
 
   return (
-    <div className="flex min-h-screen bg-background">
+    <div className="flex min-h-screen bg-background" data-layout-system="travelos-shell">
       {/* Scrim for mobile nav */}
       {mobileOpen && (
         <div
@@ -143,20 +366,43 @@ export default function AppShell() {
           <X className="h-4 w-4" />
         </button>
 
-        <div className="flex items-center gap-3 px-4 pb-5 pt-5">
-          <span className="grid h-10 w-10 flex-none place-items-center rounded-xl bg-[var(--color-primary)] font-display text-[15px] font-bold tracking-[-0.02em] text-white">
-            ZA
-          </span>
-          {!collapsed && (
+        <div className="flex items-center gap-2 px-4 pb-5 pt-5">
+          {branding.logoUrl ? (
+            <img
+              src={branding.logoUrl}
+              alt={branding.brandName}
+              className={cn(
+                "min-w-0 flex-1 object-contain",
+                collapsed ? "h-9 w-full" : "mx-auto h-[64px] w-[200px]",
+              )}
+              decoding="async"
+              fetchPriority="high"
+            />
+          ) : (
+            <span className="grid h-10 w-10 flex-none place-items-center rounded-xl bg-[var(--color-primary)] font-display text-[15px] font-bold tracking-[-0.02em] text-white">
+              {branding.brandName.slice(0, 2).toUpperCase()}
+            </span>
+          )}
+          {!collapsed && !branding.logoUrl && (
             <span className="flex min-w-0 flex-col">
               <span className="truncate font-display text-[16px] font-bold leading-tight tracking-[-0.01em]">
-                ZAQONE
+                {branding.brandName}
               </span>
               <span className="text-[11px] font-semibold uppercase tracking-[0.06em] text-muted-foreground">
-                Travel
+                {branding.tagline}
               </span>
             </span>
           )}
+          {/* Collapse control — top right of sidebar, next to the logo */}
+          <button
+            onClick={() => setCollapsed((c) => !c)}
+            className="hidden h-8 w-8 flex-none place-items-center rounded-[var(--radius-control)] text-muted-foreground hover:bg-[var(--color-surface-muted)] hover:text-foreground focus-ring lg:grid"
+            title={collapsed ? t("Kembangkan", "Expand") : t("Kuncupkan", "Collapse")}
+            aria-pressed={collapsed}
+            aria-label={collapsed ? t("Kembangkan sidebar", "Expand sidebar") : t("Kuncupkan sidebar", "Collapse sidebar")}
+          >
+            {collapsed ? <PanelLeftOpen className="h-4 w-4 mx-auto" /> : <PanelLeftClose className="h-4 w-4 mx-auto" />}
+          </button>
         </div>
 
         <nav
@@ -166,7 +412,24 @@ export default function AppShell() {
           {navSections
             .map((section) => ({
               ...section,
-              items: section.items.filter((item) => canAccess(item.to, session?.role)),
+              items: section.items
+                // A collapsible parent stays visible when at least one of its
+                // children is accessible to the current role.
+                .map((item) =>
+                  item.children?.length
+                    ? {
+                        ...item,
+                        children: item.children.filter((c) =>
+                          canAccess(c.to, session?.role),
+                        ),
+                      }
+                    : item,
+                )
+                .filter((item) =>
+                  item.children?.length
+                    ? item.children.length > 0
+                    : canAccess(item.to, session?.role),
+                ),
             }))
             .filter((section) => section.items.length > 0)
             .map((section) => (
@@ -178,25 +441,41 @@ export default function AppShell() {
                 )}
                 {collapsed && <div className="pb-2 pt-4" />}
                 <div className="flex flex-col gap-0.5">
-                  {section.items.map((item) => (
-                    <NavLink
-                      key={item.to}
-                      to={item.to}
-                      end={item.end}
-                      title={collapsed ? item.label : undefined}
-                      className={({ isActive }) =>
-                        cn(
-                          "flex items-center gap-2.5 rounded-lg px-3 py-2 text-[13.5px] font-medium leading-snug text-[var(--color-text-secondary)] transition-colors hover:bg-[var(--color-surface-muted)] hover:text-foreground focus-ring",
-                          isActive &&
-                            "bg-[var(--color-primary-soft)] font-semibold text-[var(--color-primary)]",
-                          collapsed && "justify-center px-0",
-                        )
-                      }
-                    >
-                      <item.icon className="h-[17px] w-[17px] shrink-0 opacity-80" />
-                      {!collapsed && <span className="truncate">{item.label}</span>}
-                    </NavLink>
-                  ))}
+                  {section.items.map((item) =>
+                    item.children && item.children.length > 0 ? (
+                      <CollapsibleNavItem
+                        key={item.to}
+                        item={item}
+                        collapsed={collapsed}
+                        open={Boolean(openGroups[item.to])}
+                        onToggle={() =>
+                          setOpenGroups((prev) => ({
+                            ...prev,
+                            [item.to]: !prev[item.to],
+                          }))
+                        }
+                        onNavigate={() => setMobileOpen(false)}
+                      />
+                    ) : (
+                      <NavLink
+                        key={item.to}
+                        to={item.to}
+                        end={item.end}
+                        title={collapsed ? item.label : undefined}
+                        className={({ isActive }) =>
+                          cn(
+                            "flex items-center gap-2.5 rounded-[var(--radius-control)] px-3 py-2 text-[13.5px] font-medium leading-snug text-[var(--color-text-secondary)] transition-colors hover:bg-[var(--color-surface-muted)] hover:text-foreground focus-ring",
+                            isActive &&
+                              "bg-[var(--color-primary-soft)] font-semibold text-[var(--color-primary)]",
+                            collapsed && "justify-center px-0",
+                          )
+                        }
+                      >
+                        <item.icon className="h-[17px] w-[17px] shrink-0 opacity-80" />
+                        {!collapsed && <span className="truncate">{item.label}</span>}
+                      </NavLink>
+                    ),
+                  )}
                 </div>
               </div>
             ))}
@@ -204,7 +483,7 @@ export default function AppShell() {
 
         {/* Help card — bottom of sidebar, per prototype */}
         {!collapsed && (
-          <div className="mx-3 mb-6 rounded-xl bg-[var(--color-surface-muted)] p-4">
+          <div className="mx-3 mb-6 rounded-[var(--radius-card)] bg-[var(--color-surface-muted)] p-4">
             <p className="m-0 text-[12.5px] font-semibold text-foreground">
               {t("Perlukan bantuan?", "Need a hand?")}
             </p>
@@ -224,18 +503,6 @@ export default function AppShell() {
           </div>
         )}
 
-        {/* Collapse control */}
-        <div className="border-t border-[var(--color-border)] p-3">
-          <button
-            onClick={() => setCollapsed((c) => !c)}
-            className="hidden w-full items-center justify-center rounded-lg border border-[var(--color-border)] p-2 text-muted-foreground hover:bg-[var(--color-surface-muted)] hover:text-foreground focus-ring lg:flex"
-            title={collapsed ? t("Kembangkan", "Expand") : t("Kuncupkan", "Collapse")}
-            aria-pressed={collapsed}
-            aria-label={collapsed ? t("Kembangkan sidebar", "Expand sidebar") : t("Kuncupkan sidebar", "Collapse sidebar")}
-          >
-            {collapsed ? <PanelLeftOpen className="h-4 w-4" /> : <PanelLeftClose className="h-4 w-4" />}
-          </button>
-        </div>
       </aside>
 
       {/* Main column */}
@@ -253,13 +520,13 @@ export default function AppShell() {
 
           {/* Breadcrumbs */}
           <div className="flex min-w-0 items-center gap-2 text-[12.5px] text-muted-foreground">
-            <span className="hidden sm:inline">ZAQONE</span>
+            <span className="hidden sm:inline">{branding.brandName}</span>
             <ChevronRight className="hidden h-3 w-3 sm:inline" />
             <strong className="truncate font-semibold text-foreground">{pageTitle}</strong>
           </div>
 
           {/* Global search */}
-          <div className="hidden h-9 flex-1 items-center gap-2 rounded-lg border border-[var(--color-border)] bg-[var(--color-surface-raised)] px-3 text-muted-foreground transition-colors focus-within:border-[var(--color-border-strong)] focus-within:bg-[var(--color-surface)] md:flex md:max-w-[340px] md:ml-auto">
+          <div className="hidden h-9 flex-1 items-center gap-2 rounded-[var(--radius-control)] border border-[var(--color-border)] bg-[var(--color-surface-raised)] px-3 text-muted-foreground transition-colors focus-within:border-[var(--color-border-strong)] focus-within:bg-[var(--color-surface)] md:flex md:max-w-[340px] md:ml-auto">
             <Search className="h-4 w-4" />
             <input
               type="search"
@@ -294,7 +561,7 @@ export default function AppShell() {
 
             {/* Notifications */}
             <button
-              className="relative grid h-9 w-9 place-items-center rounded-lg border border-[var(--color-border)] text-[var(--color-text-secondary)] hover:bg-[var(--color-surface-muted)] hover:text-foreground focus-ring"
+              className="relative grid h-9 w-9 place-items-center rounded-[var(--radius-control)] border border-[var(--color-border)] text-[var(--color-text-secondary)] hover:bg-[var(--color-surface-muted)] hover:text-foreground focus-ring"
               aria-label={t("Pemberitahuan", "Notifications")}
               onClick={() => navigate("/reports")}
             >
@@ -351,9 +618,13 @@ export default function AppShell() {
           </div>
         </header>
 
+        {/* Page content — prototaip: badan penuh lebar, halaman susun grid sendiri */}
         <main className="min-w-0 flex-1 overflow-x-clip p-4 md:p-6">
           <Outlet />
         </main>
+
+        {/* Floating AI assistant — available on every CRM page. */}
+        <AiAssistantFab />
       </div>
     </div>
   );

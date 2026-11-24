@@ -1,8 +1,9 @@
-import { Link, Outlet } from "react-router-dom";
+﻿import { Link, Outlet } from "react-router-dom";
 import { Menu, X, MessageCircle, MapPin, Phone, Mail } from "lucide-react";
 import { useEffect, useState } from "react";
 import { cn } from "@/lib/utils";
 import { useLang, type Lang } from "@/lib/i18n";
+import { useBranding, whatsappUrl } from "@/lib/useBranding";
 
 const SITE_META: Record<
   "home" | "packages" | "promos" | "contact" | "default",
@@ -59,11 +60,11 @@ function metaKeyForPath(path: string): keyof typeof SITE_META {
   return "default";
 }
 
-const WHATSAPP_URL = "https://wa.me/60123880030";
-
 export default function PublicSiteShell() {
   const [mobileOpen, setMobileOpen] = useState(false);
   const { lang, setLang, t, localePath } = useLang();
+  const branding = useBranding();
+  const waUrl = whatsappUrl(branding);
 
   const NAV_ITEMS = [
     { to: localePath("/site"), label: t("Utama", "Home"), end: true },
@@ -86,34 +87,45 @@ export default function PublicSiteShell() {
   }, [lang]);
 
   return (
-    <div className="psite flex min-h-screen flex-col bg-[var(--color-surface)] text-[var(--color-text)]">
+    <div className="psite flex min-h-screen flex-col bg-[var(--color-surface)] text-[var(--color-text)]" data-layout-system="public-site-shell">
       <a href="#main-content" className="absolute -left-[9999px] top-0 focus-ring text-body-sm">
         {t("Langkau ke kandungan", "Skip to content")}
       </a>
 
       {/* Header — sticky, surface, bottom border (prototype: psite-header) */}
       <header className="sticky top-0 z-30 border-b border-[var(--color-border)] bg-[var(--color-surface)]">
-        <div className="mx-auto max-w-site px-4">
+        <div className="mx-auto max-w-site px-4 md:px-6">
           <div className="flex min-h-[68px] flex-wrap items-center gap-5 min-w-0">
             {/* Brand */}
             <Link
               to={localePath("/site")}
               className="flex flex-none items-center gap-2.5 no-underline text-[var(--color-text)] focus-ring rounded-lg"
             >
-              <span
-                aria-hidden="true"
-                className="grid h-9 w-9 place-items-center rounded-[10px] bg-[var(--color-primary)] font-display text-[14px] font-extrabold tracking-[-0.02em] text-[var(--color-on-primary)]"
-              >
-                ZA
-              </span>
-              <span className="flex flex-col leading-[1.1]">
-                <span className="font-display text-[15px] font-bold tracking-[-0.01em]">
-                  ZAQONE Travel
-                </span>
-                <span className="mt-[3px] text-[10px] font-semibold uppercase tracking-[0.08em] text-[var(--color-text-muted)]">
-                  {t("Agensi pelancongan", "Travel agency")}
-                </span>
-              </span>
+              {branding.logoUrl ? (
+                <img
+                  src={branding.logoUrl}
+                  alt={branding.brandName}
+                  className="h-12 w-auto max-w-[190px] object-contain"
+                  decoding="async"
+                />
+              ) : (
+                <>
+                  <span
+                    aria-hidden="true"
+                    className="grid h-9 w-9 place-items-center rounded-[10px] bg-[var(--color-primary)] font-display text-[14px] font-extrabold tracking-[-0.02em] text-[var(--color-on-primary)]"
+                  >
+                    {branding.brandName.slice(0, 2).toUpperCase()}
+                  </span>
+                  <span className="flex flex-col leading-[1.1]">
+                    <span className="font-display text-[15px] font-bold tracking-[-0.01em]">
+                      {branding.brandName}
+                    </span>
+                    <span className="mt-[3px] text-[10px] font-semibold uppercase tracking-[0.08em] text-[var(--color-text-muted)]">
+                      {branding.tagline}
+                    </span>
+                  </span>
+                </>
+              )}
             </Link>
 
             {/* Desktop nav */}
@@ -126,7 +138,7 @@ export default function PublicSiteShell() {
                   key={item.to}
                   to={item.to}
                   className={cn(
-                    "inline-flex items-center whitespace-nowrap rounded-lg px-3 py-2 text-sm font-medium leading-[1.3] text-[var(--color-text-secondary)] no-underline transition-colors hover:bg-[var(--color-surface-muted)] hover:text-[var(--color-text)] focus-ring",
+                    "inline-flex items-center whitespace-nowrap rounded-[var(--radius-control)] px-3 py-2 text-sm font-medium leading-[1.3] text-[var(--color-text-secondary)] no-underline transition-colors hover:bg-[var(--color-surface-muted)] hover:text-[var(--color-text)] focus-ring",
                     (item.end
                       ? window.location.pathname === item.to
                       : window.location.pathname.startsWith(item.to)) &&
@@ -160,17 +172,17 @@ export default function PublicSiteShell() {
               </div>
 
               <a
-                href={WHATSAPP_URL}
+                href={waUrl}
                 target="_blank"
                 rel="noreferrer"
-                className="hidden items-center gap-2 rounded-lg border border-[var(--color-border-strong)] px-4 py-[9px] text-label-md font-medium text-[var(--color-text)] no-underline transition-colors hover:border-[var(--color-text)] focus-ring lg:inline-flex"
+                className="hidden items-center gap-2 rounded-[var(--radius-control)] border border-[var(--color-border-strong)] px-4 py-[9px] text-label-md font-medium text-[var(--color-text)] no-underline transition-colors hover:border-[var(--color-text)] focus-ring lg:inline-flex"
               >
                 <MessageCircle className="h-4 w-4" aria-hidden="true" />
                 WhatsApp
               </a>
               <Link
                 to="/login"
-                className="hidden items-center gap-2 rounded-lg border border-[var(--color-primary)] bg-[var(--color-primary)] px-4 py-[9px] text-label-md font-semibold text-[var(--color-on-primary)] no-underline transition-colors hover:bg-[var(--color-primary-hover)] hover:border-[var(--color-primary-hover)] focus-ring lg:inline-flex"
+                className="hidden items-center gap-2 rounded-[var(--radius-control)] border border-[var(--color-primary)] bg-[var(--color-primary)] px-4 py-[9px] text-label-md font-semibold text-[var(--color-on-primary)] no-underline transition-colors hover:bg-[var(--color-primary-hover)] hover:border-[var(--color-primary-hover)] focus-ring lg:inline-flex"
               >
                 {t("Log Masuk Staf", "Staff login")}
               </Link>
@@ -178,7 +190,7 @@ export default function PublicSiteShell() {
               {/* Mobile toggle */}
               <button
                 type="button"
-                className="hidden h-10 w-10 place-items-center rounded-lg border border-[var(--color-border-strong)] bg-[var(--color-surface)] text-[var(--color-text)] md:inline-grid focus-ring"
+                className="hidden h-10 w-10 place-items-center rounded-[var(--radius-control)] border border-[var(--color-border-strong)] bg-[var(--color-surface)] text-[var(--color-text)] md:inline-grid focus-ring"
                 onClick={() => setMobileOpen((v) => !v)}
                 aria-expanded={mobileOpen}
                 aria-controls="psite-mobile-menu"
@@ -216,7 +228,7 @@ export default function PublicSiteShell() {
             {mobileOpen && (
               <>
                 <a
-                  href={WHATSAPP_URL}
+                  href={waUrl}
                   target="_blank"
                   rel="noreferrer"
                   onClick={() => setMobileOpen(false)}
@@ -264,27 +276,39 @@ export default function PublicSiteShell() {
 
       {/* Footer — raised surface, 1.6fr + 3 columns grid (prototype: psite-foot) */}
       <footer className="border-t border-[var(--color-border)] bg-[var(--color-surface-raised)]">
-        <div className="mx-auto max-w-site px-4">
+        <div className="mx-auto max-w-site px-4 md:px-6">
           <div className="grid grid-cols-1 gap-6 py-10 sm:grid-cols-2 lg:grid-cols-[minmax(0,1.6fr)_repeat(3,minmax(0,1fr))] lg:gap-8">
             <div className="min-w-0">
               <Link
                 to={localePath("/site")}
                 className="mb-3 flex items-center gap-2.5 no-underline text-[var(--color-text)] focus-ring rounded-lg"
               >
-                <span
-                  aria-hidden="true"
-                  className="grid h-9 w-9 place-items-center rounded-[10px] bg-[var(--color-primary)] font-display text-[14px] font-extrabold text-[var(--color-on-primary)]"
-                >
-                  ZA
-                </span>
-                <span className="flex flex-col leading-[1.1]">
-                  <span className="font-display text-[15px] font-bold tracking-[-0.01em]">
-                    ZAQONE Travel
-                  </span>
-                  <span className="mt-[3px] text-[10px] font-semibold uppercase tracking-[0.08em] text-[var(--color-text-muted)]">
-                    {t("Agensi pelancongan", "Travel agency")}
-                  </span>
-                </span>
+                {branding.logoUrl ? (
+                  <img
+                    src={branding.logoUrl}
+                    alt={branding.brandName}
+                    className="h-12 w-auto max-w-[190px] object-contain"
+                    decoding="async"
+                    loading="lazy"
+                  />
+                ) : (
+                  <>
+                    <span
+                      aria-hidden="true"
+                      className="grid h-9 w-9 place-items-center rounded-[10px] bg-[var(--color-primary)] font-display text-[14px] font-extrabold text-[var(--color-on-primary)]"
+                    >
+                      {branding.brandName.slice(0, 2).toUpperCase()}
+                    </span>
+                    <span className="flex flex-col leading-[1.1]">
+                      <span className="font-display text-[15px] font-bold tracking-[-0.01em]">
+                        {branding.brandName}
+                      </span>
+                      <span className="mt-[3px] text-[10px] font-semibold uppercase tracking-[0.08em] text-[var(--color-text-muted)]">
+                        {branding.tagline}
+                      </span>
+                    </span>
+                  </>
+                )}
               </Link>
               <p className="m-0 max-w-[34ch] text-body-sm leading-[var(--leading-relaxed)] text-[var(--color-text-secondary)]">
                 {t(
@@ -294,7 +318,7 @@ export default function PublicSiteShell() {
               </p>
               <p className="mt-3 flex items-center gap-1.5 text-body-sm text-[var(--color-text-muted)]">
                 <MapPin className="h-4 w-4" aria-hidden="true" />
-                {t("Jalan Ampang 88, 50450 Kuala Lumpur", "Jalan Ampang 88, 50450 Kuala Lumpur")}
+                {branding.address}
               </p>
             </div>
 
@@ -337,7 +361,7 @@ export default function PublicSiteShell() {
               <ul className="m-0 flex list-none flex-col gap-2.5 p-0">
                 <li>
                   <a
-                    href={WHATSAPP_URL}
+                    href={waUrl}
                     target="_blank"
                     rel="noreferrer"
                     className="text-sm text-[var(--color-text-secondary)] no-underline transition-colors hover:text-[var(--color-primary)] focus-ring rounded"
@@ -371,33 +395,33 @@ export default function PublicSiteShell() {
               <ul className="m-0 flex list-none flex-col gap-2.5 p-0">
                 <li>
                   <a
-                    href="tel:+60327118899"
+                    href={`tel:${branding.phone.replace(/\s/g, "")}`}
                     className="text-sm text-[var(--color-text-secondary)] no-underline transition-colors hover:text-[var(--color-primary)] focus-ring rounded"
                   >
                     <span className="inline-flex items-center gap-1.5">
-                      <Phone className="h-3.5 w-3.5" aria-hidden="true" /> +60 3 2711 8899
+                      <Phone className="h-3.5 w-3.5" aria-hidden="true" /> {branding.phone}
                     </span>
                   </a>
                 </li>
                 <li>
                   <a
-                    href="mailto:hello@zaqone.travel"
+                    href={`mailto:${branding.email}`}
                     className="text-sm text-[var(--color-text-secondary)] no-underline transition-colors hover:text-[var(--color-primary)] focus-ring rounded"
                   >
                     <span className="inline-flex items-center gap-1.5">
-                      <Mail className="h-3.5 w-3.5" aria-hidden="true" /> hello@zaqone.travel
+                      <Mail className="h-3.5 w-3.5" aria-hidden="true" /> {branding.email}
                     </span>
                   </a>
                 </li>
                 <li>
                   <a
-                    href={WHATSAPP_URL}
+                    href={waUrl}
                     target="_blank"
                     rel="noreferrer"
                     className="text-sm text-[var(--color-text-secondary)] no-underline transition-colors hover:text-[var(--color-primary)] focus-ring rounded"
                   >
                     <span className="inline-flex items-center gap-1.5">
-                      <MessageCircle className="h-3.5 w-3.5" aria-hidden="true" /> +60 12 388 0030
+                      <MessageCircle className="h-3.5 w-3.5" aria-hidden="true" /> +{branding.whatsapp}
                     </span>
                   </a>
                 </li>
@@ -407,7 +431,7 @@ export default function PublicSiteShell() {
 
           <div className="flex flex-wrap items-center justify-between gap-3 border-t border-[var(--color-border)] py-4">
             <p className="m-0 text-caption text-[var(--color-text-muted)]">
-              © {new Date().getFullYear()} ZAQONE Travel.{" "}
+              © {new Date().getFullYear()} {branding.brandName}.{" "}
               {t(
                 "Semua harga dalam Ringgit Malaysia (MYR) dan boleh berubah mengikut ketersediaan kerusi.",
                 "All prices are in Malaysian Ringgit (MYR) and may change with seat availability.",

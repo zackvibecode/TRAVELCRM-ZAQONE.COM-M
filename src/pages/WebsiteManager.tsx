@@ -17,6 +17,7 @@ import {
   Megaphone,
 } from "lucide-react";
 import { fetchPackages } from "@/lib/live-data";
+import { apiFetch } from "@/lib/api";
 import { cn, waLink } from "@/lib/utils";
 import { useLang } from "@/lib/i18n";
 import { Button } from "@/components/ui/button";
@@ -43,44 +44,8 @@ interface SitePage {
   scheduledAt?: string;
 }
 
-const INITIAL_PAGES: SitePage[] = [
-  {
-    id: "page-home",
-    slug: "home",
-    title: "Homepage",
-    content:
-      "Hero: Jelajahi Dunia, Tanpa Ribet.\n\nHighlight: paket domestik & internasional, itinerary terkurasi, pendampingan penuh.",
-    status: "published",
-    updatedAt: "2026-11-10 09:30",
-  },
-  {
-    id: "page-promos",
-    slug: "promos",
-    title: "Promo & Penawaran",
-    content:
-      "Kartu promo aktif: Flash Sale (-20%), Early Bird (-15%), Group Deal (-10%).",
-    status: "published",
-    updatedAt: "2026-11-12 14:15",
-  },
-  {
-    id: "page-about",
-    slug: "about",
-    title: "Tentang Kami",
-    content:
-      "ZAQONE TRAVEL ialah agensi pelancongan dengan 8 tahun pengalaman melayani 12,000+ pelancong.",
-    status: "draft",
-    updatedAt: "2026-11-08 16:45",
-  },
-  {
-    id: "page-contact",
-    slug: "contact",
-    title: "Kontak",
-    content:
-      "Pejabat: Jalan Sultan Ismail, Kuala Lumpur. Telefon: +60 3 5555 0123. Emel: hello@zaqonetravel.com.",
-    status: "published",
-    updatedAt: "2026-11-05 11:20",
-  },
-];
+const INITIAL_PAGES: SitePage[] = [];
+
 
 function slugify(value: string): string {
   return value
@@ -101,38 +66,8 @@ interface WebsiteEnquiry {
   status: "new" | "contacted";
 }
 
-const INITIAL_ENQUIRIES: WebsiteEnquiry[] = [
-  {
-    id: "enq-1",
-    name: "Siti Rahma",
-    phone: "081298765432",
-    packageName: "Bali Family Retreat",
-    pax: 2,
-    message: "Mau tanya harga untuk family trip bulan Juni.",
-    receivedAt: "2026-11-16 14:22",
-    status: "new",
-  },
-  {
-    id: "enq-2",
-    name: "Andi Kurniawan",
-    phone: "081377788899",
-    packageName: "Japan Sakura Tour",
-    pax: 4,
-    message: "Apakah masih ada slot untuk keberangkatan April?",
-    receivedAt: "2026-11-16 10:05",
-    status: "new",
-  },
-  {
-    id: "enq-3",
-    name: "Maya Sari",
-    phone: "085612349876",
-    packageName: "Belum tahu — minta rekomendasi",
-    pax: 2,
-    message: "Honeymoon budget 20 juta, destinasi mana yang cocok?",
-    receivedAt: "2026-11-15 19:40",
-    status: "contacted",
-  },
-];
+const INITIAL_ENQUIRIES: WebsiteEnquiry[] = [];
+
 
 interface SeoSettings {
   metaTitle: string;
@@ -152,49 +87,11 @@ interface Banner {
   active: boolean;
 }
 
-const INITIAL_BANNERS: Banner[] = [
-  {
-    id: "ban-1",
-    title: "Sakura Season 2027 — Early Bird 15%",
-    subtitle: "Booking sebelum Desember untuk keberangkatan Maret–April.",
-    ctaLabel: "Lihat Paket Jepang",
-    ctaHref: "/site/packages",
-    startAt: "2026-11-01",
-    endAt: "2026-12-31",
-    active: true,
-  },
-  {
-    id: "ban-2",
-    title: "Weekend Getaway Bali & Lombok",
-    subtitle: "Open trip tiap Jumat malam — cocok untuk pekerja kantoran.",
-    ctaLabel: "Cek Jadwal",
-    ctaHref: "/site/packages",
-    startAt: "2026-11-10",
-    endAt: "2027-01-15",
-    active: true,
-  },
-];
+const INITIAL_BANNERS: Banner[] = [];
 
-const INITIAL_SEO: Record<string, SeoSettings> = {
-  home: {
-    metaTitle: "ZAQONE TRAVEL — Paket Wisata Domestik & Internasional",
-    metaDescription:
-      "Travel agency all-in-one: open trip, private tour, dan corporate travel dengan itinerary terkurasi dan harga transparan. Booking mudah, pendampingan penuh.",
-    keywords: "paket wisata, open trip, tour travel jakarta, travel murah",
-  },
-  promos: {
-    metaTitle: "Promo & Penawaran Spesial — ZAQONE TRAVEL",
-    metaDescription:
-      "Diskon flash sale, harga early bird, dan penawaran grup untuk paket wisata pilihan. Kuota terbatas!",
-    keywords: "promo wisata, diskon tiket tour, flash sale travel",
-  },
-  packages: {
-    metaTitle: "Paket Wisata Lengkap — ZAQONE TRAVEL",
-    metaDescription:
-      "Jelajahi semua paket wisata ZAQONE TRAVEL: Jepang, Korea, Bali, Lombok, Singapore, hingga Eropa. Harga per pax jelas, keberangkatan terjadwal.",
-    keywords: "paket tour jepang, wisata bali, tour korea, paket eropa",
-  },
-};
+
+const INITIAL_SEO: Record<string, SeoSettings> = {};
+
 
 export default function WebsiteManager() {
   const { t } = useLang();
@@ -209,6 +106,75 @@ export default function WebsiteManager() {
   const [banners, setBanners] = useState<Banner[]>(INITIAL_BANNERS);
   const [bannerEditing, setBannerEditing] = useState<Banner | null>(null);
   const [bannerIsNew, setBannerIsNew] = useState(false);
+  const [notice, setNotice] = useState("");
+
+  function flash(msg: string) {
+    setNotice(msg);
+    window.setTimeout(() => setNotice(""), 3500);
+  }
+
+  // Load pages, banners, enquiries and SEO from the live D1 backend.
+  const loadAll = async () => {
+    try {
+      const [pg, bn, enq] = await Promise.all([
+        apiFetch<{ pages?: Record<string, unknown>[] }>("/website/admin/pages"),
+        apiFetch<{ banners?: Record<string, unknown>[] }>("/website/admin/banners"),
+        apiFetch<{ leads?: Record<string, unknown>[]; data?: Record<string, unknown>[] }>(
+          "/leads?limit=100",
+        ),
+      ]);
+      if (Array.isArray(pg.pages)) {
+        setPages(
+          pg.pages.map((r) => ({
+            id: String(r.id),
+            slug: String(r.slug ?? ""),
+            title: String(r.title ?? ""),
+            content: String(r.content ?? ""),
+            status: (r.status === "published" ? "published" : "draft") as PageStatus,
+            updatedAt: String(r.updatedAt ?? ""),
+            scheduledAt: r.scheduledAt ? String(r.scheduledAt) : undefined,
+          })),
+        );
+      }
+      if (Array.isArray(bn.banners)) {
+        setBanners(
+          bn.banners.map((r) => ({
+            id: String(r.id),
+            title: String(r.title ?? ""),
+            subtitle: String(r.subtitle ?? ""),
+            ctaLabel: String(r.ctaLabel ?? r.cta_label ?? ""),
+            ctaHref: String(r.ctaHref ?? r.cta_href ?? "/site/packages"),
+            startAt: String(r.startAt ?? r.start_at ?? ""),
+            endAt: String(r.endAt ?? r.end_at ?? ""),
+            active: Boolean(r.active),
+          })),
+        );
+      }
+      const leadRows = (enq.leads ?? enq.data ?? []) as Record<string, unknown>[];
+      const websiteLeads = leadRows.filter((r) => {
+        const src = String(r.source ?? r.sourceName ?? r.source_name ?? "").toLowerCase();
+        return src === "website" || src === "laman web";
+      });
+      setEnquiries(
+        websiteLeads.map((r) => ({
+          id: String(r.id),
+          name: String(r.name ?? ""),
+          phone: String(r.phone ?? ""),
+          packageName: String(r.packageName ?? r.destination ?? "—"),
+          pax: Number(r.pax ?? 0),
+          message: String(r.notes ?? ""),
+          receivedAt: String(r.createdAt ?? r.created_at ?? ""),
+          status: "new" as const,
+        })),
+      );
+    } catch {
+      /* leave empty state on failure */
+    }
+  };
+
+  useEffect(() => {
+    void loadAll();
+  }, []);
 
   const seoFor = seo[seoPage] ?? {
     metaTitle: "",
@@ -244,51 +210,77 @@ export default function WebsiteManager() {
     [allPackages],
   );
 
-  const handleSave = () => {
+  const handleSave = async () => {
     if (!editing) return;
     if (!editing.title.trim() || !editing.slug.trim()) return;
 
-    const now = new Date();
-    const stamp = `${now.toISOString().slice(0, 10)} ${now.toTimeString().slice(0, 5)}`;
-    const updated = { ...editing, updatedAt: stamp };
+    const payload = {
+      slug: editing.slug,
+      title: editing.title,
+      content: editing.content,
+      status: editing.status,
+      scheduledAt: editing.scheduledAt ?? null,
+    };
 
-    setPages((prev) =>
-      isNew
-        ? [...prev, updated]
-        : prev.map((p) => (p.id === updated.id ? updated : p)),
-    );
+    try {
+      if (isNew) {
+        await apiFetch("/website/admin/pages", {
+          method: "POST",
+          body: JSON.stringify({ id: editing.id, ...payload }),
+        });
+      } else {
+        await apiFetch(`/website/admin/pages/${encodeURIComponent(editing.id)}`, {
+          method: "PUT",
+          body: JSON.stringify(payload),
+        });
+      }
+      flash(t("Halaman disimpan ke database.", "Page saved to the database."));
+      await loadAll();
+    } catch {
+      flash(t("Gagal menyimpan halaman.", "Failed to save the page."));
+      return;
+    }
     setEditing(null);
     setIsNew(false);
   };
 
-  const togglePublish = (id: string) => {
-    setPages((prev) =>
-      prev.map((p) =>
-        p.id === id
-          ? {
-              ...p,
-              status: p.status === "published" ? "draft" : "published",
-              updatedAt: new Date().toISOString().slice(0, 16).replace("T", " "),
-            }
-          : p,
-      ),
-    );
+  const togglePublish = async (id: string) => {
+    const page = pages.find((p) => p.id === id);
+    if (!page) return;
+    const nextStatus = page.status === "published" ? "draft" : "published";
+    try {
+      await apiFetch(`/website/admin/pages/${encodeURIComponent(id)}/publish`, {
+        method: "PATCH",
+        body: JSON.stringify({ status: nextStatus }),
+      });
+      setPages((prev) =>
+        prev.map((p) => (p.id === id ? { ...p, status: nextStatus } : p)),
+      );
+      flash(
+        nextStatus === "published"
+          ? t("Halaman diterbitkan.", "Page published.")
+          : t("Halaman ditarik balik.", "Page unpublished."),
+      );
+    } catch {
+      flash(t("Gagal menukar status terbitan.", "Failed to change publish status."));
+    }
   };
 
-  const handleDelete = (id: string) => {
-    setPages((prev) => prev.filter((p) => p.id !== id));
+  const handleDelete = async (id: string) => {
+    try {
+      await apiFetch(`/website/admin/pages/${encodeURIComponent(id)}`, {
+        method: "DELETE",
+      });
+      setPages((prev) => prev.filter((p) => p.id !== id));
+      flash(t("Halaman dipadam.", "Page deleted."));
+    } catch {
+      flash(t("Gagal memadam halaman.", "Failed to delete the page."));
+    }
   };
 
-  const startNew = () => {
-    setEditing({
-      id: `page-${crypto.randomUUID().slice(0, 8)}`,
-      slug: "",
-      title: "",
-      content: "",
-      status: "draft",
-      updatedAt: "",
-    });
-    setIsNew(true);
+  /** Open the full content editor (with travel agency templates) for a new page. */
+  const startNewInEditor = () => {
+    window.location.href = "/website/editor?new=1";
   };
 
   return (
@@ -315,7 +307,7 @@ export default function WebsiteManager() {
               {t("Lihat Laman", "View Site")}
             </a>
           </Button>
-          <Button size="sm" onClick={startNew}>
+          <Button size="sm" onClick={startNewInEditor}>
             <Plus className="mr-1.5 h-3.5 w-3.5" />
             {t("Halaman Baharu", "New Page")}
           </Button>
@@ -428,15 +420,26 @@ export default function WebsiteManager() {
                   <Button
                     variant="ghost"
                     size="sm"
-                    onClick={() =>
-                      setBanners((prev) =>
-                        prev.map((b) =>
-                          b.id === banner.id
-                            ? { ...b, active: !b.active }
-                            : b,
-                        ),
-                      )
-                    }
+                    onClick={async () => {
+                      try {
+                        await apiFetch(
+                          `/website/admin/banners/${encodeURIComponent(banner.id)}/active`,
+                          {
+                            method: "PATCH",
+                            body: JSON.stringify({ active: !banner.active }),
+                          },
+                        );
+                        setBanners((prev) =>
+                          prev.map((b) =>
+                            b.id === banner.id
+                              ? { ...b, active: !b.active }
+                              : b,
+                          ),
+                        );
+                      } catch {
+                        flash(t("Gagal menukar status bendera.", "Failed to toggle the banner."));
+                      }
+                    }}
                     title={banner.active ? t("Nyahaktifkan", "Deactivate") : t("Aktifkan", "Activate")}
                   >
                     {banner.active ? (
@@ -449,11 +452,18 @@ export default function WebsiteManager() {
                     variant="ghost"
                     size="sm"
                     className="text-red-600 hover:text-red-700"
-                    onClick={() =>
-                      setBanners((prev) =>
-                        prev.filter((b) => b.id !== banner.id),
-                      )
-                    }
+                    onClick={async () => {
+                      try {
+                        await apiFetch(
+                          `/website/admin/banners/${encodeURIComponent(banner.id)}`,
+                          { method: "DELETE" },
+                        );
+                        setBanners((prev) => prev.filter((b) => b.id !== banner.id));
+                        flash(t("Bendera dipadam.", "Banner deleted."));
+                      } catch {
+                        flash(t("Gagal memadam bendera.", "Failed to delete the banner."));
+                      }
+                    }}
                     title={t("Padam", "Delete")}
                   >
                     <Trash2 className="h-3.5 w-3.5" />
@@ -592,15 +602,36 @@ export default function WebsiteManager() {
                     {t("Batal", "Cancel")}
                   </Button>
                   <Button
-                    onClick={() => {
+                    onClick={async () => {
                       if (!bannerEditing.title.trim()) return;
-                      setBanners((prev) =>
-                        bannerIsNew
-                          ? [...prev, bannerEditing]
-                          : prev.map((b) =>
-                              b.id === bannerEditing.id ? bannerEditing : b,
-                            ),
-                      );
+                      try {
+                        const payload = {
+                          id: bannerEditing.id,
+                          title: bannerEditing.title,
+                          subtitle: bannerEditing.subtitle,
+                          ctaLabel: bannerEditing.ctaLabel,
+                          ctaHref: bannerEditing.ctaHref,
+                          startAt: bannerEditing.startAt,
+                          endAt: bannerEditing.endAt,
+                          active: bannerEditing.active,
+                        };
+                        if (bannerIsNew) {
+                          await apiFetch("/website/admin/banners", {
+                            method: "POST",
+                            body: JSON.stringify(payload),
+                          });
+                        } else {
+                          await apiFetch(
+                            `/website/admin/banners/${encodeURIComponent(bannerEditing.id)}`,
+                            { method: "PUT", body: JSON.stringify(payload) },
+                          );
+                        }
+                        flash(t("Bendera disimpan ke database.", "Banner saved to the database."));
+                        await loadAll();
+                      } catch {
+                        flash(t("Gagal menyimpan bendera.", "Failed to save the banner."));
+                        return;
+                      }
                       setBannerEditing(null);
                       setBannerIsNew(false);
                     }}
@@ -639,9 +670,22 @@ export default function WebsiteManager() {
             </select>
             <Button
               size="sm"
-              onClick={() => {
-                setSeoSaved(true);
-                setTimeout(() => setSeoSaved(false), 2000);
+              onClick={async () => {
+                try {
+                  await apiFetch(`/website/admin/seo/${encodeURIComponent(seoPage)}`, {
+                    method: "PUT",
+                    body: JSON.stringify({
+                      metaTitle: seoFor.metaTitle,
+                      metaDescription: seoFor.metaDescription,
+                      keywords: seoFor.keywords,
+                    }),
+                  });
+                  setSeoSaved(true);
+                  flash(t("SEO disimpan ke database.", "SEO saved to the database."));
+                  window.setTimeout(() => setSeoSaved(false), 2000);
+                } catch {
+                  flash(t("Gagal menyimpan SEO.", "Failed to save SEO."));
+                }
               }}
             >
               <Save className="mr-1.5 h-3.5 w-3.5" />
@@ -724,7 +768,7 @@ export default function WebsiteManager() {
                     ZAQONE TRAVEL
                   </p>
                   <p className="text-[11px] leading-tight text-stone-500">
-                    zaqonetravel.com{seoPage === "home" ? "" : `/${seoPage}`}
+                    travelcrm.zaqone.com{seoPage === "home" ? "" : `/${seoPage}`}
                   </p>
                 </div>
               </div>
@@ -894,7 +938,7 @@ export default function WebsiteManager() {
                   className="mr-1"
                   title={t("Buka editor penuh", "Open full editor")}
                 >
-                  <a href="/website/editor">
+                  <a href={`/website/editor?slug=${encodeURIComponent(page.slug)}`}>
                     {t("Buka Editor", "Open Editor")}
                   </a>
                 </Button>
@@ -913,9 +957,12 @@ export default function WebsiteManager() {
                     setEditing(page);
                     setIsNew(false);
                   }}
+                  asChild
                   title={t("Sunting", "Edit")}
                 >
-                  <Pencil className="h-3.5 w-3.5" />
+                  <a href={`/website/editor?slug=${encodeURIComponent(page.slug)}`}>
+                    <Pencil className="h-3.5 w-3.5" />
+                  </a>
                 </Button>
                 <Button
                   variant="ghost"
@@ -1087,38 +1134,56 @@ export default function WebsiteManager() {
           onClick={() => setPreviewSlug(null)}
         >
           <Card
-            className="w-full max-w-lg"
+            className="flex max-h-[90vh] w-full max-w-3xl flex-col"
             onClick={(e) => e.stopPropagation()}
           >
             <CardHeader className="flex-row items-center justify-between space-y-0 pb-3">
               <CardTitle className="text-base">
-                {t("Pratonton", "Preview")}: /site/{previewSlug}
+                {t("Pratonton", "Preview")}: /site/p/{previewSlug}
               </CardTitle>
-              <Button
-                variant="ghost"
-                size="sm"
-                onClick={() => setPreviewSlug(null)}
-              >
-                <X className="h-4 w-4" />
-              </Button>
-            </CardHeader>
-            <CardContent>
-              <div className="rounded-lg border bg-muted/30 p-4 text-sm leading-relaxed">
-                <p className="font-semibold">
-                  {pages.find((p) => p.slug === previewSlug)?.title}
-                </p>
-                <p className="mt-2 whitespace-pre-line text-muted-foreground">
-                  {pages.find((p) => p.slug === previewSlug)?.content}
-                </p>
+              <div className="flex items-center gap-2">
+                <Button variant="outline" size="sm" asChild>
+                  <a
+                    href={`/site/p/${previewSlug.split("/").map(encodeURIComponent).join("/")}`}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                  >
+                    {t("Buka LIVE", "Open LIVE")}
+                  </a>
+                </Button>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={() => setPreviewSlug(null)}
+                >
+                  <X className="h-4 w-4" />
+                </Button>
               </div>
+            </CardHeader>
+            <CardContent className="min-h-0 flex-1">
+              <iframe
+                title={`preview-${previewSlug}`}
+                src={`/site/preview/${previewSlug.split("/").map(encodeURIComponent).join("/")}`}
+                className="h-[60vh] w-full rounded-lg border bg-white"
+              />
               <p className="mt-3 text-center text-xs text-muted-foreground">
                 {t(
-                  "Pratonton statik — klik di mana-mana untuk menutup.",
-                  "Static preview — click anywhere to close.",
+                  "Pratonton live dalam mod draf — halaman ini belum tayang kepada awam.",
+                  "Live preview in draft mode — this page is not public yet.",
                 )}
               </p>
             </CardContent>
           </Card>
+        </div>
+      )}
+
+      {/* Toast */}
+      {notice && (
+        <div role="status" aria-live="polite" className="fixed bottom-6 right-6 z-[80] flex max-w-[340px] items-center gap-3 rounded-[var(--radius-card)] bg-[var(--color-text)] px-4 py-3 text-[13px] text-[var(--color-surface)] shadow-2xl">
+          <span className="min-w-0 flex-1">{notice}</span>
+          <button aria-label={t("Tutup notifikasi", "Dismiss notification")} onClick={() => setNotice("")} className="grid h-6 w-6 flex-none place-items-center">
+            <X className="h-4 w-4" />
+          </button>
         </div>
       )}
     </div>

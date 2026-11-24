@@ -61,7 +61,7 @@ export default function ReminderDashboard({
   }, [invoices]);
 
   const defaultTemplate = (inv: Invoice) =>
-    `Halo ${inv.customerName}, ini pengingat pembayaran untuk invoice ${inv.number} (${inv.packageName}). Sisa tagihan: ${formatRupiah(inv.balanceDue)}, jatuh tempo ${inv.dueDate}. Terima kasih!`;
+    `Hello ${inv.customerName}, this is a payment reminder for invoice ${inv.number} (${inv.packageName}). Outstanding balance: ${formatRupiah(inv.balanceDue)}, due on ${inv.dueDate}. Thank you!`;
 
   function handleSelect(inv: Invoice) {
     setSelected(inv);

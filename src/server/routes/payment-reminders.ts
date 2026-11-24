@@ -23,15 +23,15 @@ const REMINDER_CHANNELS = ["whatsapp", "email"] as const;
 type ReminderChannel = (typeof REMINDER_CHANNELS)[number];
 
 const DEFAULT_TEMPLATE =
-  "Halo {customer}, ini pengingat pembayaran untuk invoice {invoice} " +
-  "sebesar {balance}, jatuh tempo {due}. Terima kasih!";
+  "Hello {customer}, this is a payment reminder for invoice {invoice} " +
+  "amounting to {balance}, due on {due}. Thank you!";
 
 /** Render a message from a DB notification template or the built-in default. */
 function renderReminder(
   template: string | undefined,
   invoice: typeof schema.invoices.$inferSelect,
 ): string {
-  const balance = `RM ${new Intl.NumberFormat("ms-MY").format(Math.round(invoice.balanceDue / 3000))}`;
+  const balance = `RM ${new Intl.NumberFormat("ms-MY").format(Math.round(invoice.balanceDue))}`;
   if (template && template.includes("{{")) {
     const values: Record<string, string> = {
       customer_name: invoice.customerName,

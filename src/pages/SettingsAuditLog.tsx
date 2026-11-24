@@ -1,6 +1,7 @@
-import { useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { FileDiff, ListFilter, Pencil, Plus, ScrollText, Trash2 } from "lucide-react";
 import { useLang } from "@/lib/i18n";
+import { apiFetch } from "@/lib/api";
 
 type ChangeType = "updated" | "created" | "deleted";
 
@@ -21,16 +22,8 @@ const CHANGE_META: Record<ChangeType, { ms: string; en: string; icon: typeof Pen
   deleted: { ms: "Dipadam", en: "Deleted", icon: Trash2, pill: "bg-[var(--color-danger-soft)] text-[var(--color-danger)]" },
 };
 
-// Mock data — backend settings audit API menyusul pada fasa backend.
-const STUB: SettingsAuditEntry[] = [
-  { id: "saudit_01", timestamp: "2026-11-17 15:12", actor: "Zack (Owner)", module: "General", field: "currency", before: "IDR", after: "MYR", changeType: "updated" },
-  { id: "saudit_02", timestamp: "2026-11-17 14:58", actor: "Zack (Owner)", module: "Company", field: "companyName", before: "ZAQONE TRAVEL", after: "ZAQONE TRAVEL & TOURS", changeType: "updated" },
-  { id: "saudit_03", timestamp: "2026-11-17 10:30", actor: "Melati (Finance)", module: "Bank Accounts", field: "account.ba_03", before: "—", after: "Hong Leong Islamic Bank ••••2345", changeType: "created" },
-  { id: "saudit_04", timestamp: "2026-11-16 17:44", actor: "Farah (Management)", module: "Document Numbering", field: "invoice.nextNo", before: "340", after: "342", changeType: "updated" },
-  { id: "saudit_05", timestamp: "2026-11-16 09:15", actor: "Zack (Owner)", module: "Notifications", field: "notifyNewLead", before: "true", after: "false", changeType: "updated" },
-  { id: "saudit_06", timestamp: "2026-11-15 08:22", actor: "Farah (Management)", module: "API Tokens", field: "token.Legacy Mobile App", before: "active", after: "revoked", changeType: "updated" },
-  { id: "saudit_07", timestamp: "2026-11-14 16:05", actor: "Zack (Owner)", module: "Bank Accounts", field: "account.ba_09", before: "CIMB ••••0001", after: "—", changeType: "deleted" },
-];
+// Loaded from the real /settings/audit API on mount.
+const STUB: SettingsAuditEntry[] = [];
 
 const PANEL = "rounded-[var(--radius-panel)] border border-[var(--color-border)] bg-[var(--color-surface)]";
 const FIELD =
@@ -38,11 +31,41 @@ const FIELD =
 
 export default function SettingsAuditLog() {
   const { t } = useLang();
+  const [rows, setRows] = useState<SettingsAuditEntry[]>(STUB);
   const [moduleFilter, setModuleFilter] = useState("all");
   const [changeFilter, setChangeFilter] = useState<"all" | ChangeType>("all");
   const [search, setSearch] = useState("");
   const [selected, setSelected] = useState<SettingsAuditEntry | null>(null);
   const dialogRef = useRef<HTMLDialogElement>(null);
+
+  // Load the real settings audit trail from the API.
+  useEffect(() => {
+    (async () => {
+      try {
+        const res = await apiFetch<{ entries?: Record<string, unknown>[] }>(
+          "/settings/audit?limit=200",
+        );
+        if (Array.isArray(res.entries)) {
+          setRows(
+            res.entries.map((r) => ({
+              id: String(r.id),
+              timestamp: String(r.at ?? r.createdAt ?? ""),
+              actor: String(r.updatedBy ?? r.actor ?? "system"),
+              module: String(r.key ?? r.module ?? "Settings"),
+              field: String(r.key ?? ""),
+              before: String(r.previousValue ?? r.before ?? "—"),
+              after: String(r.newValue ?? r.after ?? "—"),
+              changeType: (r.changeType === "created" || r.changeType === "deleted"
+                ? r.changeType
+                : "updated") as ChangeType,
+            })),
+          );
+        }
+      } catch {
+        /* empty state on failure */
+      }
+    })();
+  }, []);
 
   const openDetail = (e: SettingsAuditEntry) => {
     setSelected(e);
@@ -55,12 +78,12 @@ export default function SettingsAuditLog() {
   };
 
   const modules = useMemo(
-    () => Array.from(new Set(STUB.map((e) => e.module))),
-    [],
+    () => Array.from(new Set(rows.map((e) => e.module))),
+    [rows],
   );
 
   const entries = useMemo(() => {
-    return STUB.filter((e) => {
+    return rows.filter((e) => {
       if (moduleFilter !== "all" && e.module !== moduleFilter) return false;
       if (changeFilter !== "all" && e.changeType !== changeFilter) return false;
       if (!search.trim()) return true;

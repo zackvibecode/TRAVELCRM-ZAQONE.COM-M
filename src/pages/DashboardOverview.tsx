@@ -1,13 +1,10 @@
 ﻿import { useEffect, useMemo, useState } from "react";
 import {
-  Armchair,
-  BadgeCheck,
   CalendarCheck,
   CalendarDays,
   Download,
   Hourglass,
   MapPin,
-  PlaneTakeoff,
   Plus,
   TrendingDown,
   TrendingUp,
@@ -47,51 +44,17 @@ const KPIS: {
   { id: "outstanding", label: { ms: "Tertunggak", en: "Outstanding" }, delta: "-3.8%", up: false, icon: Hourglass, chip: "bg-[var(--color-danger-soft)] text-[var(--color-danger)]", key: "outstanding", compact: true },
 ];
 
-const REVENUE = [
-  { month: "Apr", revenue: 89, bookings: 32 },
-  { month: "May", revenue: 107, bookings: 38 },
-  { month: "Jun", revenue: 99, bookings: 35 },
-  { month: "Jul", revenue: 129, bookings: 44 },
-  { month: "Aug", revenue: 137, bookings: 47 },
-  { month: "Sep", revenue: 123, bookings: 41 },
-  { month: "Oct", revenue: 149, bookings: 52 },
-  { month: "Nov", revenue: 166, bookings: 58 },
-];
+const REVENUE: { month: string; revenue: number; bookings: number }[] = [];
 
-const BOOKING_MIX = [
-  { label: "Confirmed", value: 186, color: "var(--color-primary)" },
-  { label: "Pending deposit", value: 64, color: "var(--color-warning)" },
-  { label: "Hold", value: 27, color: "var(--color-info)" },
-  { label: "Completed", value: 35, color: "var(--color-success)" },
-];
+const BOOKING_MIX: { label: string; value: number; color: string }[] = [];
 
-const TOP_PACKAGES = [
-  { id: "japan", name: "Japan Sakura 8D7N", destination: "Tokyo · Osaka · Kyoto", sold: 148, target: 160, revenue: "RM 931k" },
-  { id: "turkey", name: "Turkey Istanbul 9D8N", destination: "Istanbul · Cappadocia", sold: 121, target: 150, revenue: "RM 988k" },
-  { id: "bali", name: "Bali Premium 4D3N", destination: "Ubud · Nusa Penida", sold: 96, target: 120, revenue: "RM 120k" },
-  { id: "korea", name: "Korea Autumn 6D5N", destination: "Seoul · Nami Island", sold: 84, target: 100, revenue: "RM 441k" },
-];
+const TOP_PACKAGES: { id: string; name: string; destination: string; sold: number; target: number; revenue: string }[] = [];
 
-const DEPARTURES = [
-  { id: "DP-4471", package: "Japan Sakura 8D7N", date: "12 Dec 2025", leader: "Rina Pratama", capacity: 40, booked: 34, held: 4 },
-  { id: "DP-4482", package: "Turkey Istanbul 9D8N", date: "18 Dec 2025", leader: "Badrul Hakim", capacity: 32, booked: 24, held: 3 },
-  { id: "DP-4490", package: "Korea Autumn 6D5N", date: "23 Dec 2025", leader: "Nur Aisyah", capacity: 28, booked: 27, held: 1 },
-  { id: "DP-4501", package: "Bali Premium 4D3N", date: "28 Dec 2025", leader: "Yoga Aditya", capacity: 24, booked: 11, held: 2 },
-];
+const DEPARTURES: { id: string; package: string; date: string; leader: string; capacity: number; booked: number; held: number }[] = [];
 
-const STATIC_BOOKINGS = [
-  { id: "TRV-2025-0481", customer: "Hendra Wijaya", pax: 4, amount: "RM 13,850", status: "Confirmed", tone: "success" as Tone },
-  { id: "TRV-2025-0480", customer: "Siti Nurhaliza", pax: 2, amount: "RM 6,120", status: "Pending deposit", tone: "warning" as Tone },
-  { id: "TRV-2025-0479", customer: "Gunawan Family", pax: 6, amount: "RM 24,720", status: "Hold", tone: "info" as Tone },
-  { id: "TRV-2025-0478", customer: "Andi Pratama", pax: 1, amount: "RM 3,080", status: "Confirmed", tone: "success" as Tone },
-];
+const STATIC_BOOKINGS: { id: string; customer: string; pax: number; amount: string; status: string; tone: Tone }[] = [];
 
-const FEED = [
-  { id: "f1", icon: UserPlus, chip: "bg-[var(--color-info-soft)] text-[var(--color-info)]", title: "New lead from website", detail: "Meta Ads · Japan Sakura", time: "4 min ago" },
-  { id: "f2", icon: BadgeCheck, chip: "bg-[var(--color-success-soft)] text-[var(--color-success)]", title: "Payment verified", detail: "INV-2025-0231 · RM 4,150", time: "22 min ago" },
-  { id: "f3", icon: Armchair, chip: "bg-[var(--color-warning-soft)] text-[var(--color-warning)]", title: "Seats running low", detail: "Korea Autumn · 1 seat", time: "1 hr ago" },
-  { id: "f4", icon: PlaneTakeoff, chip: "bg-[var(--color-primary-soft)] text-[var(--color-primary)]", title: "Departure coming up", detail: "DP-4471 in 12 days", time: "3 hrs ago" },
-];
+const FEED: { id: string; icon: typeof UserPlus; chip: string; title: string; detail: string; time: string }[] = [];
 
 function compact(value: number): string {
   return `RM ${new Intl.NumberFormat("ms-MY", { notation: "compact", maximumFractionDigits: 1 }).format(value)}`;
@@ -141,7 +104,19 @@ function RevenueChart({ rows, range }: { rows: typeof REVENUE; range: string }) 
   const areaPoints = `${left + slot / 2},${top + plotH} ${linePoints} ${left + slot * (rows.length - 1) + slot / 2},${top + plotH}`;
   const ticks = [0, 16, 32, 48, 64];
   const totalBook = rows.reduce((sum, r) => sum + r.bookings, 0);
-  const peak = rows.reduce((best, r) => (r.bookings > best.bookings ? r : best), rows[0]);
+  const peak = rows.length > 0
+    ? rows.reduce((best, r) => (r.bookings > best.bookings ? r : best), rows[0])
+    : null;
+
+  if (rows.length === 0) {
+    return (
+      <figure className="m-0 min-w-0 px-5 pb-5 pt-4">
+        <div className="flex h-[250px] items-center justify-center rounded-[var(--radius-card)] border border-dashed border-[var(--color-border)] text-[13px] text-muted-foreground">
+          No revenue data yet — bookings will appear here.
+        </div>
+      </figure>
+    );
+  }
 
   return (
     <figure className="m-0 min-w-0 overflow-x-auto px-5 pb-5 pt-4">
@@ -185,7 +160,7 @@ function RevenueChart({ rows, range }: { rows: typeof REVENUE; range: string }) 
           <span className="h-0.5 w-3 rounded bg-[var(--color-primary)]" />
           Line: number of bookings
         </span>
-        <span className="ml-auto text-[var(--color-text-secondary)]">{totalBook} bookings in total · peak {peak.month}</span>
+        <span className="ml-auto text-[var(--color-text-secondary)]">{totalBook} bookings in total{peak ? ` · peak ${peak.month}` : ""}</span>
       </figcaption>
     </figure>
   );
@@ -259,9 +234,9 @@ export default function DashboardOverview() {
     const live = kpi as unknown as Record<string, number> | null;
     const value =
       key === "collected"
-        ? live?.collected ?? 1600000
+        ? live?.collected ?? 0
         : key === "outstanding"
-          ? live?.outstanding ?? 204100
+          ? live?.outstanding ?? 0
           : (live?.[key] ?? 0);
     if (isCompact) return compact(value);
     if (value > 100) return value.toLocaleString("en-MY");
@@ -271,7 +246,7 @@ export default function DashboardOverview() {
   const rows = REVENUE.slice(range === "3m" ? -3 : -6);
 
   const recentBookings = useMemo(() => {
-    if (liveBookings.length === 0) return STATIC_BOOKINGS;
+    return STATIC_BOOKINGS;
     return [...liveBookings]
       .sort((a, b) => (b.createdAt ?? "").localeCompare(a.createdAt ?? ""))
       .slice(0, 4)

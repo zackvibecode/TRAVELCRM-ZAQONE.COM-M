@@ -166,6 +166,23 @@ packagesRouter.post(
     };
 
     await db.insert(schema.packages).values(row).run();
+    const days = Array.isArray(body.itinerary)
+      ? (body.itinerary as Array<Record<string, unknown>>)
+      : [];
+    for (const [index, day] of days.entries()) {
+      await db.insert(schema.packageItineraryItems).values({
+        id: crypto.randomUUID(),
+        packageId: row.id,
+        dayNumber: index + 1,
+        title: typeof day.title === "string" ? day.title.trim() : null,
+        description: typeof day.description === "string" ? day.description.trim() : null,
+        mealIncluded: Array.isArray(day.meals)
+          ? (day.meals as string[]).map((m) => String(m))
+          : [],
+        sortOrder: index + 1,
+        createdAt: new Date().toISOString(),
+      }).run();
+    }
     await logAudit(db, {
       actor: c.req.header("x-user-id") ?? null,
       role: c.req.header("x-user-role") ?? null,
@@ -246,6 +263,28 @@ packagesRouter.patch(
       .set(patch)
       .where(eq(schema.packages.id, id))
       .run();
+
+    if (Array.isArray(body.itinerary)) {
+      const days = body.itinerary as Array<Record<string, unknown>>;
+      await db
+        .delete(schema.packageItineraryItems)
+        .where(eq(schema.packageItineraryItems.packageId, id))
+        .run();
+      for (const [index, day] of days.entries()) {
+        await db.insert(schema.packageItineraryItems).values({
+          id: crypto.randomUUID(),
+          packageId: id,
+          dayNumber: index + 1,
+          title: typeof day.title === "string" ? day.title.trim() : null,
+          description: typeof day.description === "string" ? day.description.trim() : null,
+          mealIncluded: Array.isArray(day.meals)
+            ? (day.meals as string[]).map((m) => String(m))
+            : [],
+          sortOrder: index + 1,
+          createdAt: new Date().toISOString(),
+        }).run();
+      }
+    }
 
     const updated = await db
       .select()

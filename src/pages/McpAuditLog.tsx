@@ -23,6 +23,7 @@ import {
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useLang } from "@/lib/i18n";
+import { apiFetch } from "@/lib/api";
 import {
   Dialog,
   DialogContent,
@@ -34,7 +35,7 @@ import {
 
 type AuditOutcome = "success" | "denied" | "error";
 type McpTab = "tools" | "tokens" | "resources" | "safety" | "logs";
-type TokenRole = "Sales" | "Operations" | "Finance" | "Management";
+type TokenRole = "Sales" | "Operations" | "Finance" | "Management" | "Super Admin";
 
 interface AuditEntry {
   id: string;
@@ -68,14 +69,7 @@ interface McpToken {
   state: "active" | "revoked";
 }
 
-const STUB_AUDIT: AuditEntry[] = [
-  { id: "mcp_01", timestamp: "2026-11-17 09:41", tokenName: "Claude Desktop — Owner", role: "super_admin", tool: "search_customers", argsSummary: 'query="Ahmad Zulkifli"', outcome: "success", durationMs: 120 },
-  { id: "mcp_02", timestamp: "2026-11-17 09:38", tokenName: "Sales Bot — WhatsApp Assistant", role: "sales", tool: "get_booking", argsSummary: "ref=ZQK-2026-0114", outcome: "success", durationMs: 96 },
-  { id: "mcp_03", timestamp: "2026-11-17 09:35", tokenName: "Sales Bot — WhatsApp Assistant", role: "sales", tool: "create_booking_draft", argsSummary: "departure=DEP-3312, pax=4", outcome: "denied", deniedReason: "Tool disabled by admin", durationMs: 38 },
-  { id: "mcp_04", timestamp: "2026-11-17 09:28", tokenName: "Finance Report Sync", role: "finance", tool: "get_invoice_balance", argsSummary: "invoice=INV-2026-0184", outcome: "success", durationMs: 88 },
-  { id: "mcp_05", timestamp: "2026-11-17 09:21", tokenName: "Ops automation runner", role: "operations", tool: "list_departures", argsSummary: 'month="2026-12"', outcome: "error", durationMs: 118 },
-  { id: "mcp_06", timestamp: "2026-11-17 09:14", tokenName: "Old IDE Agent", role: "sales", tool: "check_seat_availability", argsSummary: "departure=DEP-3308", outcome: "denied", deniedReason: "Token revoked", durationMs: 24 },
-];
+const STUB_AUDIT: AuditEntry[] = [];
 
 const READ_TOOLS: McpTool[] = [
   { id: "r1", name: "list_leads", desc: { ms: "Leads dengan tapisan tahap, pemilik, sumber & tarikh.", en: "Sales leads with stage, owner, source and date filters." }, calls: 1284, on: true },
@@ -87,6 +81,7 @@ const READ_TOOLS: McpTool[] = [
   { id: "r7", name: "list_departures", desc: { ms: "Kalendar keberangkatan dengan penghunian & status.", en: "Departure calendar with occupancy and status." }, calls: 524, on: true },
   { id: "r8", name: "get_invoice_balance", desc: { ms: "Jumlah invois, bayaran disahkan & baki tertunggak.", en: "Invoice totals, verified payments and outstanding balance." }, calls: 398, on: true },
   { id: "r9", name: "search_customers", desc: { ms: "Carian pelanggan mengikut nama, telefon atau emel.", en: "Customer search by name, phone or email." }, calls: 640, on: true },
+  { id: "r10", name: "list_audit_logs", desc: { ms: "SUPER ADMIN: log audit staf & MCP terkini.", en: "SUPER ADMIN: recent staff & MCP audit logs." }, calls: 0, on: true },
 ];
 
 const WRITE_TOOLS: McpTool[] = [
@@ -94,6 +89,9 @@ const WRITE_TOOLS: McpTool[] = [
   { id: "w2", name: "log_lead_activity", desc: { ms: "Rekod nota, panggilan atau susulan pada lead sedia ada.", en: "Logs a note, call or follow-up against an existing lead." }, calls: 214, on: true },
   { id: "w3", name: "create_booking_draft", desc: { ms: "Cipta draf tempahan dan pegang kerusi secara atomik.", en: "Creates a draft booking and holds seats atomically." }, calls: 64, on: false },
   { id: "w4", name: "record_payment_note", desc: { ms: "Rekod nota bayaran dalaman menunggu pengesahan kewangan.", en: "Records an internal payment note awaiting finance verification." }, calls: 12, on: false },
+  { id: "w5", name: "update_booking_status", desc: { ms: "SUPER ADMIN: ubah status tempahan (confirmed, completed, cancelled).", en: "SUPER ADMIN: change booking status (confirmed, completed, cancelled)." }, calls: 0, on: true },
+  { id: "w6", name: "verify_payment", desc: { ms: "SUPER ADMIN: sahkan atau tolak bayaran tertunggak.", en: "SUPER ADMIN: verify or reject a pending payment." }, calls: 0, on: true },
+  { id: "w7", name: "manage_website_page", desc: { ms: "SUPER ADMIN: cipta/kemaskini halaman CMS laman web.", en: "SUPER ADMIN: create/update CMS website pages." }, calls: 0, on: true },
 ];
 
 const RESOURCES = [
@@ -109,7 +107,7 @@ const PROMPTS = [
 ];
 
 const ROLE_MATRIX = [
-  { role: { ms: "Super Admin", en: "Super Admin" }, read: { ms: "Semua alat baca", en: "All read tools" }, write: { ms: "Semua alat tulis", en: "All write tools" }, sensitive: { ms: "Akses pasport & bukti", en: "Passport & proof access" }, deny: false },
+  { role: { ms: "Super Admin", en: "Super Admin" }, read: { ms: "Semua alat baca + audit log", en: "All read tools + audit log" }, write: { ms: "Semua alat tulis + status tempahan, sah bayaran, urus halaman web", en: "All write tools + booking status, payment verify, website pages" }, sensitive: { ms: "Akses pasport & bukti", en: "Passport & proof access" }, deny: false },
   { role: { ms: "Pengurusan", en: "Management" }, read: { ms: "Semua alat baca", en: "All read tools" }, write: { ms: "lead + aktiviti", en: "lead + activity" }, sensitive: { ms: "Baca pasport (URL ditandatangani)", en: "Passport read (signed URL)" }, deny: false },
   { role: { ms: "Jualan", en: "Sales" }, read: { ms: "leads, tempahan, kerusi, pakej, pelanggan", en: "leads, bookings, seats, packages, customers" }, write: { ms: "create_lead, log_lead_activity", en: "create_lead, log_lead_activity" }, sensitive: { ms: "Tiada akses", en: "No access" }, deny: true },
   { role: { ms: "Kewangan", en: "Finance" }, read: { ms: "billing, tempahan, pelanggan", en: "billing, bookings, customers" }, write: { ms: "record_payment_note", en: "record_payment_note" }, sensitive: { ms: "Akses bukti (URL ditandatangani)", en: "Proof access (signed URL)" }, deny: false },
@@ -117,30 +115,32 @@ const ROLE_MATRIX = [
 ];
 
 const ROLE_SCOPES: Record<TokenRole, string[]> = {
+  "Super Admin": ["*"],
   Sales: ["leads:read", "bookings:read", "seats:read", "packages:read", "customers:read", "leads:write"],
   Operations: ["departures:read", "seats:read", "passengers:read", "packages:read"],
   Finance: ["billing:read", "bookings:read", "customers:read", "billing:write"],
   Management: ["leads:read", "bookings:read", "seats:read", "billing:read", "passengers:read", "leads:write"],
 };
 
-const INITIAL_TOKENS: McpToken[] = [
-  { id: "k1", label: "Claude Desktop — Sales", prefix: "mcp_live_7fA2", role: "Sales", scopes: ROLE_SCOPES.Sales.slice(0, 3), created: "12 Jan 2026", last: "Hari ini, 09:21", expires: "12 Jul 2026", state: "active" },
-  { id: "k2", label: "Ops automation runner", prefix: "mcp_live_3cD9", role: "Operations", scopes: ROLE_SCOPES.Operations.slice(0, 3), created: "4 Dis 2025", last: "Semalam, 18:04", expires: "4 Dis 2026", state: "active" },
-  { id: "k3", label: "WhatsApp bot (read-only)", prefix: "mcp_live_b81E", role: "Sales", scopes: ["packages:read", "seats:read"], created: "22 Nov 2025", last: "8 Nov, 11:30", expires: "22 Nov 2026", state: "active" },
-  { id: "k4", label: "Finance assistant trial", prefix: "mcp_test_04Ka", role: "Finance", scopes: ["billing:read"], created: "2 Okt 2025", last: "14 Dis 2025", expires: "—", state: "revoked" },
-];
+const ROLE_TO_API: Record<TokenRole, string> = {
+  "Super Admin": "super_admin",
+  Sales: "sales",
+  Operations: "operations",
+  Finance: "finance",
+  Management: "management",
+};
 
-const SECRET_ALPHABET = "abcdefghijkmnpqrstuvwxyzABCDEFGHJKLMNPQRSTUVWXYZ23456789";
+const ROLE_FROM_API: Record<string, TokenRole> = {
+  super_admin: "Super Admin",
+  sales: "Sales",
+  operations: "Operations",
+  finance: "Finance",
+  management: "Management",
+};
 
-function buildSecret(seed: number): string {
-  let out = "";
-  for (let i = 0; i < 28; i += 1) {
-    out += SECRET_ALPHABET[(seed * 7 + i * 13 + 11) % SECRET_ALPHABET.length];
-  }
-  return `mcp_live_${out}`;
-}
+const INITIAL_TOKENS: McpToken[] = [];
 
-const ENDPOINT = "https://mcp.zaqone.my/v1";
+const ENDPOINT = "https://travelcrm.zaqone.com/mcp";
 
 export default function McpAuditLog() {
   const { t } = useLang();
@@ -158,9 +158,56 @@ export default function McpAuditLog() {
   const [form, setForm] = useState<{ label: string; role: TokenRole }>({ label: "", role: "Sales" });
   const [formError, setFormError] = useState("");
   const [createdSecret, setCreatedSecret] = useState<{ label: string; secret: string } | null>(null);
+  const [auditEntries, setAuditEntries] = useState<AuditEntry[]>(STUB_AUDIT);
   const seedRef = useRef(0);
   const noticeTimer = useRef<number | undefined>(undefined);
   const restartTimer = useRef<number | undefined>(undefined);
+
+  // Load live tokens + audit entries from the MCP admin API.
+  const loadMcp = async () => {
+    try {
+      const [tk, au] = await Promise.all([
+        apiFetch<{ tokens?: Record<string, unknown>[] }>("/mcp-admin/tokens"),
+        apiFetch<{ entries?: Record<string, unknown>[] }>("/mcp-admin/audit?limit=200"),
+      ]);
+      if (Array.isArray(tk.tokens)) {
+        setTokens(
+          tk.tokens.map((r) => ({
+            id: String(r.id),
+            label: String(r.name ?? ""),
+            prefix: String(r.tokenPreview ?? ""),
+            role: (ROLE_FROM_API[String(r.role ?? "sales").toLowerCase()] ?? "Sales"),
+            scopes: Array.isArray(r.scopes) ? (r.scopes as string[]) : [],
+            created: String(r.createdAt ?? ""),
+            last: r.lastUsedAt ? String(r.lastUsedAt) : t("Belum digunakan", "Never used"),
+            expires: String(r.expiresAt ?? "—"),
+            state: (r.status === "revoked" ? "revoked" : "active") as McpToken["state"],
+          })),
+        );
+      }
+      if (Array.isArray(au.entries)) {
+        setAuditEntries(
+          au.entries.map((r) => ({
+            id: String(r.id),
+            timestamp: String(r.createdAt ?? ""),
+            tokenName: String(r.tokenId ?? ""),
+            role: String(r.tokenId ?? ""),
+            tool: String(r.tool ?? ""),
+            argsSummary: r.arguments ? JSON.stringify(r.arguments) : "",
+            outcome: (String(r.outcome ?? "success") as AuditOutcome),
+            deniedReason: r.deniedReason ? String(r.deniedReason) : undefined,
+            durationMs: Number(r.durationMs ?? 0),
+          })),
+        );
+      }
+    } catch {
+      /* keep empty state on failure */
+    }
+  };
+
+  useEffect(() => {
+    void loadMcp();
+  }, []);
 
   useEffect(
     () => () => {
@@ -211,33 +258,58 @@ export default function McpAuditLog() {
     showNotice(on ? t("Semua alat diiklankan kepada klien", "All tools advertised to clients") : t("Semua alat disembunyikan daripada klien", "All tools hidden from clients"));
   }
 
-  function submitToken() {
+  async function submitToken() {
     if (!form.label.trim()) {
       setFormError(t("Nama token wajib diisi", "Token name is required"));
       return;
     }
-    seedRef.current += 1;
-    const secret = buildSecret(seedRef.current + 3);
-    const token: McpToken = {
-      id: `k-new-${seedRef.current}`,
-      label: form.label.trim(),
-      prefix: secret.slice(0, 14),
-      role: form.role,
-      scopes: ROLE_SCOPES[form.role],
-      created: t("Baru saja", "Just now"),
-      last: t("Belum digunakan", "Never used"),
-      expires: t("Dalam 180 hari", "In 180 days"),
-      state: "active",
-    };
-    setTokens((current) => [token, ...current]);
-    setCreatedSecret({ label: token.label, secret });
-    showNotice(t(`Token untuk ${token.label} dicipta`, `Token for ${token.label} created`));
+    try {
+      const res = await apiFetch<{
+        token?: { id: string; name: string; secret: string; preview: string; role: string; scopes: string[]; expiresAt: string };
+      }>("/mcp-admin/tokens", {
+        method: "POST",
+        body: JSON.stringify({
+          name: form.label.trim(),
+          role: ROLE_TO_API[form.role],
+          scopes: ROLE_SCOPES[form.role],
+        }),
+      });
+      if (res.token) {
+        const token: McpToken = {
+          id: res.token.id,
+          label: res.token.name,
+          prefix: res.token.preview,
+          role: form.role,
+          scopes: res.token.scopes,
+          created: t("Baru saja", "Just now"),
+          last: t("Belum digunakan", "Never used"),
+          expires: res.token.expiresAt,
+          state: "active",
+        };
+        setTokens((current) => [token, ...current]);
+        setCreatedSecret({ label: token.label, secret: res.token.secret });
+        showNotice(t(`Token untuk ${token.label} dicipta`, `Token for ${token.label} created`));
+      }
+    } catch (e) {
+      showNotice(
+        e instanceof Error
+          ? `${t("Gagal mencipta token", "Failed to create token")}: ${e.message}`
+          : t("Gagal mencipta token.", "Failed to create token."),
+      );
+    }
   }
 
-  function confirmRevoke() {
+  async function confirmRevoke() {
     if (!revokeTarget) return;
-    setTokens((current) => current.map((item) => (item.id === revokeTarget.id ? { ...item, state: "revoked" } : item)));
-    showNotice(t(`${revokeTarget.label} dibatalkan — permintaan kini ditolak`, `${revokeTarget.label} revoked — requests now rejected`));
+    try {
+      await apiFetch(`/mcp-admin/tokens/${encodeURIComponent(revokeTarget.id)}/revoke`, {
+        method: "POST",
+      });
+      setTokens((current) => current.map((item) => (item.id === revokeTarget.id ? { ...item, state: "revoked" } : item)));
+      showNotice(t(`${revokeTarget.label} dibatalkan — permintaan kini ditolak`, `${revokeTarget.label} revoked — requests now rejected`));
+    } catch {
+      showNotice(t("Gagal membatalkan token.", "Failed to revoke the token."));
+    }
     setRevokeTarget(null);
   }
 
@@ -251,11 +323,11 @@ export default function McpAuditLog() {
   const activeTools = allTools.filter((tool) => tool.on).length;
   const activeTokens = tokens.filter((tk) => tk.state === "active").length;
   const totalCalls = allTools.reduce((sum, tool) => sum + tool.calls, 0);
-  const deniedCalls = STUB_AUDIT.filter((e) => e.outcome === "denied").length;
+  const deniedCalls = auditEntries.filter((e) => e.outcome === "denied").length;
 
   const entries = useMemo(
     () =>
-      STUB_AUDIT.filter((e) => {
+      auditEntries.filter((e) => {
         if (filter !== "all" && e.outcome !== filter) return false;
         const q = search.trim().toLowerCase();
         if (!q) return true;
@@ -273,7 +345,7 @@ export default function McpAuditLog() {
     { id: "tokens", label: { ms: "Token", en: "Tokens" }, count: tokens.length },
     { id: "resources", label: { ms: "Sumber & Prom", en: "Resources & Prompts" }, count: RESOURCES.length + PROMPTS.length },
     { id: "safety", label: { ms: "Keselamatan", en: "Safety" }, count: ROLE_MATRIX.length + 1 },
-    { id: "logs", label: { ms: "Log Audit", en: "Audit Log" }, count: STUB_AUDIT.length },
+    { id: "logs", label: { ms: "Log Audit", en: "Audit Log" }, count: auditEntries.length },
   ];
 
   function outcomeBadge(outcome: AuditOutcome) {

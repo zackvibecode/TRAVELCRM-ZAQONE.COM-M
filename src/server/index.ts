@@ -9,6 +9,9 @@ import documentsRouter from "./routes/documents";
 import suppliersRouter from "./routes/suppliers";
 import packagesRouter from "./routes/packages";
 import leadsRouter from "./routes/leads";
+import followupRouter from "./routes/followup";
+import whatsappTemplatesRouter from "./routes/whatsapp-templates";
+import followupAdminRouter from "./routes/followup-admin";
 import customersRouter from "./routes/customers";
 import leadSourcesRouter from "./routes/lead-sources";
 import quotationsRouter from "./routes/quotations";
@@ -31,13 +34,16 @@ import apiTokensRouter from "./routes/api-tokens";
 import maintenanceRouter from "./routes/data-maintenance";
 import bootstrapRouter from "./routes/bootstrap";
 import publicEnquiryRouter from "./routes/public-enquiry";
+import aiRouter from "./routes/ai";
 import { releaseExpiredHolds } from "./lib/seat-availability";
 import { runScheduledContent } from "./lib/scheduled-content";
+import { runAutoPause } from "./lib/followup-auto-pause";
 import { cors } from "hono/cors";
 
 export type Env = {
   DB: D1Database;
   DOCUMENTS: R2Bucket;
+  ASSETS?: Fetcher;
   BETTER_AUTH_SECRET?: string;
 };
 
@@ -57,6 +63,7 @@ const app = new Hono<AppEnv>();
 // `set-auth-token` is exposed so mobile clients (cookie-blocked) can read
 // the bearer session token from sign-in responses (bearer plugin).
 const ALLOWED_ORIGINS = new Set([
+  "https://travelcrm.zaqone.com",
   "https://travelos-suite-web.pages.dev",
 ]);
 function isAllowedOrigin(origin: string): boolean {
@@ -134,6 +141,9 @@ app.route("/", documentsRouter);
 app.route("/", suppliersRouter);
 app.route("/", packagesRouter);
 app.route("/leads", leadsRouter);
+app.route("/api/followup", followupRouter);
+app.route("/api/followup/templates", whatsappTemplatesRouter);
+app.route("/api/followup/admin", followupAdminRouter);
 app.route("/customers", customersRouter);
 app.route("/lead-sources", leadSourcesRouter);
 app.route("/quotations", quotationsRouter);
@@ -147,6 +157,17 @@ app.route("/alerts", alertsRouter);
 app.route("/website", websiteRouter);
 app.route("/mcp-admin", mcpAdminRouter);
 app.route("/mcp", mcpRouter);
+app.route("/ai", aiRouter);
+
+// SPA fallback: serve the React frontend for any path not matched by an
+// API route or a static asset. Assets binding handles hashed files; this
+// catch-all returns index.html so client-side routes (e.g. /login) work.
+app.get("*", async (c) => {
+  if (c.env.ASSETS) {
+    return c.env.ASSETS.fetch(c.req.raw);
+  }
+  return c.json({ error: "not found" }, 404);
+});
 
 export default app;
 
@@ -164,5 +185,11 @@ export async function scheduled(
   console.log(
     `[scheduled-content] ${content.bannersActivated} banner(s) activated, ` +
       `${content.bannersDeactivated} deactivated, ${content.pagesPublished} page(s) published`,
+  );
+
+  // Follow-up engine: auto-pause leads that have been abandoned.
+  const autoPause = await runAutoPause(db);
+  console.log(
+    `[followup-auto-pause] scanned ${autoPause.scanned}, paused ${autoPause.paused}`,
   );
 }

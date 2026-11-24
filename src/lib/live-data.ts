@@ -1,20 +1,10 @@
 /**
  * Live data layer — fetches business entities from the Cloudflare Worker (D1)
  * and maps the normalized DB rows onto the frontend types in @/lib/types.
- * Every loader falls back to mock data when the API is unreachable so pages
- * always render something.
+ * When the API is unreachable or returns no rows, loaders return an empty
+ * list — pages must render their own empty state (no mock/demo data).
  */
 import { apiFetch } from "@/lib/api";
-import {
-  mockBookings,
-  mockCustomers,
-  mockDepartures,
-  mockInvoices,
-  mockPackages,
-  mockPayments,
-  mockQuotations,
-  mockRefunds,
-} from "@/lib/mock-data";
 import type {
   Booking,
   Customer,
@@ -83,23 +73,30 @@ interface PackageRow {
 
 function mapPackage(row: Record<string, unknown>): TravelPackage {
   const r = row as unknown as PackageRow;
-  const itineraryStrings = parseJsonArray<string>(r.itinerary);
+  const itineraryDays = parseJsonArray<Record<string, unknown> | string>(r.itinerary);
   return {
     id: r.id,
     name: r.name,
     destination: r.destination,
     durationDays: num(r.durationDays),
+    description: str(row.description),
     adultPrice: num(r.adultPrice),
     childPrice: num(r.childPrice),
     infantPrice: num(r.infantPrice),
     inclusions: parseJsonArray<string>(r.inclusions),
     exclusions: parseJsonArray<string>(r.exclusions),
     highlights: parseJsonArray<string>(r.highlights),
-    itinerary: itineraryStrings.map((s, i) => ({
-      day: i + 1,
-      title: s.split(" — ")[0] ?? s,
-      description: s.split(" — ").slice(1).join(" — ") || s,
-    })),
+    itinerary: itineraryDays.map((item, i) => {
+      if (typeof item === "string") {
+        return { day: i + 1, title: item, description: item };
+      }
+      return {
+        day: num(item.dayNumber ?? item.day, i + 1),
+        title: str(item.title, `Day ${i + 1}`),
+        description: str(item.description),
+        meals: parseJsonArray<string>(item.mealIncluded ?? item.meals),
+      };
+    }),
     images: parseJsonArray<string>(r.images),
     published: r.publishStatus === "published",
   };
@@ -113,16 +110,27 @@ export async function fetchPackages(): Promise<{
     const res = await apiFetch<{ success: boolean; packages: Record<string, unknown>[] }>(
       "/packages?limit=200",
     );
-    if (res.success && Array.isArray(res.packages) && res.packages.length > 0) {
+    if (res.success && Array.isArray(res.packages)) {
       return { packages: res.packages.map(mapPackage), live: true };
     }
-    if (res.success && Array.isArray(res.packages)) {
-      return { packages: [], live: true };
-    }
   } catch {
-    // fall through to mock
+    // API unreachable — return empty; page renders its empty state
   }
-  return { packages: mockPackages, live: false };
+  return { packages: [], live: false };
+}
+
+export async function fetchPackage(id: string): Promise<TravelPackage | null> {
+  try {
+    const res = await apiFetch<{
+      success: boolean;
+      package: Record<string, unknown>;
+      itinerary?: Record<string, unknown>[];
+    }>(`/packages/${encodeURIComponent(id)}`);
+    if (!res.success || !res.package) return null;
+    return mapPackage({ ...res.package, itinerary: res.itinerary ?? res.package.itinerary });
+  } catch {
+    return null;
+  }
 }
 
 // ---------------------------------------------------------------- departures
@@ -166,9 +174,9 @@ export async function fetchDepartures(): Promise<{
       return { departures: rows.map(mapDeparture), live: true };
     }
   } catch {
-    // fall through
+    // API unreachable — return empty; page renders its empty state
   }
-  return { departures: mockDepartures, live: false };
+  return { departures: [], live: false };
 }
 
 // ---------------------------------------------------------------- customers
@@ -201,9 +209,9 @@ export async function fetchCustomers(): Promise<{
       if (Array.isArray(rows)) return { customers: rows.map(mapCustomer), live: true };
     }
   } catch {
-    // fall through
+    // API unreachable — return empty; page renders its empty state
   }
-  return { customers: mockCustomers, live: false };
+  return { customers: [], live: false };
 }
 
 // ---------------------------------------------------------------- bookings
@@ -264,9 +272,9 @@ export async function fetchBookings(): Promise<{
       }
     }
   } catch {
-    // fall through
+    // API unreachable — return empty; page renders its empty state
   }
-  return { bookings: mockBookings, live: false };
+  return { bookings: [], live: false };
 }
 
 // ---------------------------------------------------------------- invoices
@@ -308,9 +316,9 @@ export async function fetchInvoices(): Promise<{
       if (Array.isArray(rows)) return { invoices: rows.map(mapInvoice), live: true };
     }
   } catch {
-    // fall through
+    // API unreachable — return empty; page renders its empty state
   }
-  return { invoices: mockInvoices, live: false };
+  return { invoices: [], live: false };
 }
 
 // ---------------------------------------------------------------- payments
@@ -347,9 +355,9 @@ export async function fetchPayments(): Promise<{
       if (Array.isArray(rows)) return { payments: rows.map(mapPayment), live: true };
     }
   } catch {
-    // fall through
+    // API unreachable — return empty; page renders its empty state
   }
-  return { payments: mockPayments, live: false };
+  return { payments: [], live: false };
 }
 
 // ---------------------------------------------------------------- refunds
@@ -384,9 +392,9 @@ export async function fetchRefunds(): Promise<{
       if (Array.isArray(rows)) return { refunds: rows.map(mapRefund), live: true };
     }
   } catch {
-    // fall through
+    // API unreachable — return empty; page renders its empty state
   }
-  return { refunds: mockRefunds, live: false };
+  return { refunds: [], live: false };
 }
 
 // ---------------------------------------------------------------- quotations
@@ -429,7 +437,7 @@ export async function fetchQuotations(): Promise<{
       if (Array.isArray(rows)) return { quotations: rows.map(mapQuotation), live: true };
     }
   } catch {
-    // fall through
+    // API unreachable — return empty; page renders its empty state
   }
-  return { quotations: mockQuotations, live: false };
+  return { quotations: [], live: false };
 }

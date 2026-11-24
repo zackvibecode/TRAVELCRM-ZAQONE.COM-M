@@ -18,6 +18,17 @@
       "bucket_name": "travelos-suite-documents"
     }
   ],
+  "routes": [
+    {
+      "pattern": "travelcrm.zaqone.com",
+      "custom_domain": true
+    }
+  ],
+  "assets": {
+    "directory": "./dist",
+    "binding": "ASSETS",
+    "not_found_handling": "single-page-application"
+  },
   "triggers": {
     "crons": ["*/5 * * * *"]
   }

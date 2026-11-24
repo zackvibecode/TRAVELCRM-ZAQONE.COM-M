@@ -190,6 +190,209 @@
 }
 
 /* --------------------------------------------------------------------------
+   Layout grid system — disalin 1:1 daripada prototype-system.css
+   (DesainPakeAI). Dua shell: `travelos-shell` (CRM) dan `public-site-shell`
+   (website awam). Grid responsif 4 -> 8 -> 12 kolum.
+   -------------------------------------------------------------------------- */
+[data-layout-system] {
+  min-width: 0;
+}
+
+[data-layout-system] [data-layout-container] {
+  box-sizing: border-box;
+  width: 100%;
+  max-width: var(--dpai-layout-max, 1200px);
+  margin-inline: auto;
+  padding: var(--dpai-layout-padding, var(--space-6, 24px));
+  min-width: 0;
+  container: dpai-layout / inline-size;
+}
+
+[data-layout-system] [data-layout-stack] {
+  display: flex;
+  flex-direction: column;
+  gap: var(--dpai-layout-section-gap, var(--space-8, 32px));
+  min-width: 0;
+}
+
+[data-layout-system] [data-layout-cluster] {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--dpai-layout-item-gap, var(--space-3, 12px));
+  min-width: 0;
+}
+
+[data-layout-system] [data-layout-grid] {
+  display: grid;
+  grid-template-columns: repeat(var(--dpai-layout-columns), minmax(0, 1fr));
+  gap: var(--dpai-layout-gutter, var(--space-6, 24px));
+  min-width: 0;
+}
+[data-layout-system] [data-layout-grid] > * {
+  min-width: 0;
+  grid-column: span var(--dpai-layout-span);
+}
+[data-layout-system] [data-layout-stack] > *,
+[data-layout-system] [data-layout-cluster] > * {
+  min-width: 0;
+}
+
+/* Mobile — 4 kolum */
+[data-layout-system] [data-layout-grid] {
+  --dpai-layout-columns: 4;
+}
+[data-layout-system] [data-layout-grid] > * {
+  --dpai-layout-span: 4;
+}
+[data-layout-system] [data-layout-grid] > :where([data-layout-span-mobile="1"]) {
+  --dpai-layout-span: 1;
+}
+[data-layout-system] [data-layout-grid] > :where([data-layout-span-mobile="2"]) {
+  --dpai-layout-span: 2;
+}
+[data-layout-system] [data-layout-grid] > :where([data-layout-span-mobile="3"]) {
+  --dpai-layout-span: 3;
+}
+[data-layout-system] [data-layout-grid] > :where([data-layout-span-mobile="4"]) {
+  --dpai-layout-span: 4;
+}
+
+/* Tablet — 8 kolum */
+@container dpai-layout (min-width: 640px) {
+  [data-layout-system] [data-layout-grid] {
+    --dpai-layout-columns: 8;
+  }
+  [data-layout-system] [data-layout-grid] > * {
+    --dpai-layout-span: 8;
+  }
+  [data-layout-system] [data-layout-grid] > :where([data-layout-span="1"]) {
+    --dpai-layout-span: 1;
+  }
+  [data-layout-system] [data-layout-grid] > :where([data-layout-span="2"]) {
+    --dpai-layout-span: 2;
+  }
+  [data-layout-system] [data-layout-grid] > :where([data-layout-span="3"]) {
+    --dpai-layout-span: 3;
+  }
+  [data-layout-system] [data-layout-grid] > :where([data-layout-span="4"]) {
+    --dpai-layout-span: 4;
+  }
+  [data-layout-system] [data-layout-grid] > :where([data-layout-span="5"]) {
+    --dpai-layout-span: 5;
+  }
+  [data-layout-system] [data-layout-grid] > :where([data-layout-span="6"]) {
+    --dpai-layout-span: 6;
+  }
+  [data-layout-system] [data-layout-grid] > :where([data-layout-span="7"]) {
+    --dpai-layout-span: 7;
+  }
+  [data-layout-system] [data-layout-grid] > :where([data-layout-span="8"]) {
+    --dpai-layout-span: 8;
+  }
+  [data-layout-system] [data-layout-grid] > :where([data-layout-span-tablet="1"]) {
+    --dpai-layout-span: 1;
+  }
+  [data-layout-system] [data-layout-grid] > :where([data-layout-span-tablet="2"]) {
+    --dpai-layout-span: 2;
+  }
+  [data-layout-system] [data-layout-grid] > :where([data-layout-span-tablet="3"]) {
+    --dpai-layout-span: 3;
+  }
+  [data-layout-system] [data-layout-grid] > :where([data-layout-span-tablet="4"]) {
+    --dpai-layout-span: 4;
+  }
+  [data-layout-system] [data-layout-grid] > :where([data-layout-span-tablet="5"]) {
+    --dpai-layout-span: 5;
+  }
+  [data-layout-system] [data-layout-grid] > :where([data-layout-span-tablet="6"]) {
+    --dpai-layout-span: 6;
+  }
+  [data-layout-system] [data-layout-grid] > :where([data-layout-span-tablet="7"]) {
+    --dpai-layout-span: 7;
+  }
+  [data-layout-system] [data-layout-grid] > :where([data-layout-span-tablet="8"]) {
+    --dpai-layout-span: 8;
+  }
+}
+
+/* Desktop — 12 kolum */
+@container dpai-layout (min-width: 1024px) {
+  [data-layout-system] [data-layout-grid] {
+    --dpai-layout-columns: 12;
+  }
+  [data-layout-system] [data-layout-grid] > * {
+    --dpai-layout-span: 12;
+  }
+  [data-layout-system] [data-layout-grid] > :where([data-layout-span="1"]) {
+    --dpai-layout-span: 1;
+  }
+  [data-layout-system] [data-layout-grid] > :where([data-layout-span="2"]) {
+    --dpai-layout-span: 2;
+  }
+  [data-layout-system] [data-layout-grid] > :where([data-layout-span="3"]) {
+    --dpai-layout-span: 3;
+  }
+  [data-layout-system] [data-layout-grid] > :where([data-layout-span="4"]) {
+    --dpai-layout-span: 4;
+  }
+  [data-layout-system] [data-layout-grid] > :where([data-layout-span="5"]) {
+    --dpai-layout-span: 5;
+  }
+  [data-layout-system] [data-layout-grid] > :where([data-layout-span="6"]) {
+    --dpai-layout-span: 6;
+  }
+  [data-layout-system] [data-layout-grid] > :where([data-layout-span="7"]) {
+    --dpai-layout-span: 7;
+  }
+  [data-layout-system] [data-layout-grid] > :where([data-layout-span="8"]) {
+    --dpai-layout-span: 8;
+  }
+  [data-layout-system] [data-layout-grid] > :where([data-layout-span="9"]) {
+    --dpai-layout-span: 9;
+  }
+  [data-layout-system] [data-layout-grid] > :where([data-layout-span="10"]) {
+    --dpai-layout-span: 10;
+  }
+  [data-layout-system] [data-layout-grid] > :where([data-layout-span="11"]) {
+    --dpai-layout-span: 11;
+  }
+  [data-layout-system] [data-layout-grid] > :where([data-layout-span="12"]) {
+    --dpai-layout-span: 12;
+  }
+}
+
+[data-layout-system] [data-layout-grid][hidden],
+[data-layout-system] [data-layout-stack][hidden],
+[data-layout-system] [data-layout-cluster][hidden] {
+  display: none !important;
+}
+
+/* Shell geometry per prototype */
+[data-layout-system="travelos-shell"] {
+  --dpai-layout-max: 1200px;
+  --dpai-layout-padding: var(--space-6, 24px);
+  --dpai-layout-gutter: var(--space-6, 24px);
+  --dpai-layout-section-gap: var(--space-8, 32px);
+  --dpai-layout-item-gap: var(--space-3, 12px);
+}
+
+[data-layout-system="public-site-shell"] {
+  --dpai-layout-max: 1200px;
+  --dpai-layout-padding: var(--space-6, 24px);
+  --dpai-layout-gutter: var(--space-6, 24px);
+  --dpai-layout-section-gap: var(--space-9, 56px);
+  --dpai-layout-item-gap: var(--space-3, 12px);
+}
+
+@media (max-width: 639px) {
+  [data-layout-system="travelos-shell"],
+  [data-layout-system="public-site-shell"] {
+    --dpai-layout-padding: var(--space-4, 16px);
+  }
+}
+
+/* --------------------------------------------------------------------------
    Shell utilities — sepadan dengan travelos-shell.layout.jsx
    -------------------------------------------------------------------------- */
 .tvl-pagehead {

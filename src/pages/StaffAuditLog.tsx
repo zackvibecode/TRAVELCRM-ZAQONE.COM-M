@@ -44,17 +44,8 @@ const ACTION_META: Record<
   settings_update: { label: { ms: "Kemas Tetapan", en: "Settings Update" }, icon: Pencil },
 };
 
-// Stub data — backend staff audit API menyusul pada fasa backend.
-const STUB_ENTRIES: StaffAuditEntry[] = [
-  { id: "sa_01", timestamp: "2026-11-17 15:40", actor: "Zack (Owner)", actorEmail: "owner@zaqone.travel", action: "login", detail: "Successful sign-in from Chrome / Windows", ip: "103.28.54.12", outcome: "success" },
-  { id: "sa_02", timestamp: "2026-11-17 15:02", actor: "Farah (Management)", actorEmail: "manager@zaqone.travel", action: "role_change", detail: "Changed Adib's role from operations → sales", ip: "103.28.54.19", outcome: "success" },
-  { id: "sa_03", timestamp: "2026-11-17 11:02", actor: "Farah (Management)", actorEmail: "manager@zaqone.travel", action: "login", detail: "Successful sign-in from Safari / macOS", ip: "103.28.54.19", outcome: "success" },
-  { id: "sa_04", timestamp: "2026-11-17 09:55", actor: "Unknown", actorEmail: "owner@zaqone.travel", action: "login", detail: "Failed sign-in — wrong password (attempt 3)", ip: "45.132.90.77", outcome: "failed" },
-  { id: "sa_05", timestamp: "2026-11-16 18:25", actor: "Adib (Sales)", actorEmail: "sales@zaqone.travel", action: "logout", detail: "Session ended", ip: "103.28.54.44", outcome: "success" },
-  { id: "sa_06", timestamp: "2026-11-16 17:48", actor: "Zack (Owner)", actorEmail: "owner@zaqone.travel", action: "staff_invite", detail: "Invited ops@zaqone.travel as operations", ip: "103.28.54.12", outcome: "success" },
-  { id: "sa_07", timestamp: "2026-11-15 09:14", actor: "Melati (Finance)", actorEmail: "finance@zaqone.travel", action: "settings_update", detail: "Updated report currency default to RM", ip: "103.28.54.61", outcome: "success" },
-  { id: "sa_08", timestamp: "2026-11-14 08:30", actor: "Unknown", actorEmail: "sales@zaqone.travel", action: "login", detail: "Failed sign-in — account temporarily locked", ip: "45.132.90.77", outcome: "failed" },
-];
+// Empty until the backend staff audit API is wired up.
+const STUB_ENTRIES: StaffAuditEntry[] = [];
 
 const PANEL = "rounded-[var(--radius-panel)] border border-[var(--color-border)] bg-[var(--color-surface)]";
 const FIELD =

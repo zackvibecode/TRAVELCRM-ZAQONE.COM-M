@@ -27,6 +27,8 @@ export interface ItineraryDay {
   day: number;
   title: string;
   description: string;
+  /** Meal codes for the day, e.g. ["Breakfast", "Lunch", "Dinner"]. */
+  meals?: string[];
 }
 
 export interface TravelPackage {
@@ -34,6 +36,7 @@ export interface TravelPackage {
   name: string;
   destination: string;
   durationDays: number;
+  description?: string;
   adultPrice: number;
   childPrice: number;
   infantPrice: number;

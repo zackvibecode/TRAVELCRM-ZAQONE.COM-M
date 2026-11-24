@@ -278,7 +278,7 @@ export default function AiTokens() {
                 {t("Endpoint (URL)", "Endpoint (URL)")}
               </div>
               <code className="mt-1.5 block break-all rounded-[var(--radius-control)] border border-[var(--color-border)] bg-[var(--color-surface-muted)] px-3 py-2 font-mono text-xs text-[var(--color-text-secondary)]">
-                https://zaqone-travel.example.workers.dev/mcp
+                https://travelcrm.zaqone.com/mcp
               </code>
             </div>
             <div>
