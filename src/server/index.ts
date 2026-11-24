@@ -167,6 +167,26 @@ app.route("/api/mcp-admin", mcpAdminRouter);
 app.route("/mcp", mcpRouter);
 app.route("/api/ai", aiRouter);
 
+// Global error handler: log the real error + stack so a 500 is never a
+// silent mystery. Returns a JSON body the client can surface.
+app.onError((err, c) => {
+  // Drizzle wraps D1/SQLite errors in a "Failed query" Error whose `.cause`
+  // (sometimes nested) carries the real SQLITE_* code + message. Unwrap it.
+  let cause: unknown = err;
+  const chain: unknown[] = [];
+  for (let i = 0; i < 6 && cause; i++) {
+    chain.push(
+      (cause as { message?: string }).message ?? String(cause),
+    );
+    cause = (cause as { cause?: unknown }).cause;
+  }
+  console.error("[api] unhandled error", JSON.stringify(chain));
+  return c.json(
+    { error: "internal_error", message: err?.message ?? "Internal server error" },
+    500,
+  );
+});
+
 // SPA fallback: serve the React frontend for any path not matched by an
 // API route or a static asset. Assets binding handles hashed files; this
 // catch-all returns index.html so client-side routes (e.g. /login) work.

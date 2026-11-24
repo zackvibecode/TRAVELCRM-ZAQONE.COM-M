@@ -233,15 +233,18 @@ export default function LeadManagement() {
   }
 
   /** Bulk action goes through a confirm dialog, then reports a summary. */
-  const [pendingBulk, setPendingBulk] = useState<{ action: "status" | "archive"; status?: FollowupStatusLabel } | null>(null);
+  const [pendingBulk, setPendingBulk] = useState<{ action: "status" | "archive" | "delete"; status?: FollowupStatusLabel } | null>(null);
   const [bulkResult, setBulkResult] = useState<{ updated: number; skipped: number; label: string } | null>(null);
+  /** Hard-delete confirm dialog (single lead). */
+  const [pendingDelete, setPendingDelete] = useState<FollowupLead | null>(null);
 
   /** Export dialog: CSV or XLSX of the rows matching the current filters. */
   const [exportOpen, setExportOpen] = useState(false);
   const [exportFormat, setExportFormat] = useState<"csv" | "xlsx">("csv");
 
-  function bulkLabel(target: { action: "status" | "archive"; status?: FollowupStatusLabel }): string {
+  function bulkLabel(target: { action: "status" | "archive" | "delete"; status?: FollowupStatusLabel }): string {
     if (target.action === "archive") return t("Diarkibkan", "Archived");
+    if (target.action === "delete") return t("Dipadam", "Deleted");
     return t(...FOLLOWUP_STATUS_LABELS[target.status ?? "new"]);
   }
 
@@ -267,13 +270,27 @@ export default function LeadManagement() {
     if (!pendingBulk || selected.size === 0) return;
     setBusy(true);
     try {
-      const res = await followupApi.bulk({
-        ids: [...selected],
-        action: pendingBulk.action,
-        ...(pendingBulk.action === "status" ? { status: pendingBulk.status } : {}),
-      });
-      const label = bulkLabel(pendingBulk);
-      setBulkResult({ updated: res.updated, skipped: res.skipped, label });
+      if (pendingBulk.action === "delete") {
+        // Hard delete one by one — the API has no bulk delete endpoint.
+        let done = 0;
+        for (const id of selected) {
+          try {
+            await followupApi.deleteLead(id);
+            done++;
+          } catch {
+            // Skip leads this admin may not delete (e.g. role changed mid-run).
+          }
+        }
+        setBulkResult({ updated: done, skipped: selected.size - done, label: bulkLabel(pendingBulk) });
+      } else {
+        const res = await followupApi.bulk({
+          ids: [...selected],
+          action: pendingBulk.action,
+          ...(pendingBulk.action === "status" ? { status: pendingBulk.status } : {}),
+        });
+        const label = bulkLabel(pendingBulk);
+        setBulkResult({ updated: res.updated, skipped: res.skipped, label });
+      }
       setSelected(new Set());
       setOffset(0);
       setExtraRows([]);
@@ -282,6 +299,25 @@ export default function LeadManagement() {
       showNotice(err instanceof Error ? err.message : String(err));
     } finally {
       setPendingBulk(null);
+      setBusy(false);
+    }
+  }
+
+  /** Confirm + hard delete a single lead from its row. */
+  async function confirmDeleteOne() {
+    if (!pendingDelete) return;
+    setBusy(true);
+    try {
+      await followupApi.deleteLead(pendingDelete.id);
+      showNotice(t(`Lead "${pendingDelete.name}" dipadam.`, `Lead "${pendingDelete.name}" deleted.`));
+      setPendingDelete(null);
+      setOffset(0);
+      setExtraRows([]);
+      await Promise.all([leadsQuery.refetch(), facetsQuery.refetch()]);
+    } catch (err) {
+      showNotice(err instanceof Error ? err.message : String(err));
+      setPendingDelete(null);
+    } finally {
       setBusy(false);
     }
   }
@@ -384,6 +420,15 @@ export default function LeadManagement() {
           >
             {t("Arkibkan", "Archive")}
           </button>
+          {isAdmin && (
+            <button
+              type="button"
+              onClick={() => setPendingBulk({ action: "delete" })}
+              className="rounded-lg border border-[var(--color-danger)]/40 bg-[var(--color-surface)] px-2.5 py-1.5 text-[12px] font-semibold text-[var(--color-danger)] hover:bg-[var(--color-danger)]/10"
+            >
+              {t("Padam", "Delete")}
+            </button>
+          )}
           <button
             type="button"
             onClick={() => setSelected(new Set())}
@@ -405,13 +450,20 @@ export default function LeadManagement() {
         >
           <div className="w-full max-w-[420px] rounded-[var(--radius-card)] border border-[var(--color-border)] bg-[var(--color-surface)] p-5 shadow-2xl">
             <h2 id="bulk-confirm-title" className="m-0 font-display text-[17px] font-bold">
-              {t("Sahkan tindakan massal", "Confirm bulk action")}
+              {pendingBulk.action === "delete"
+                ? t("Padam lead secara kekal?", "Permanently delete leads?")
+                : t("Sahkan tindakan massal", "Confirm bulk action")}
             </h2>
             <p className="mt-2 text-[13px] leading-relaxed text-muted-foreground">
-              {t(
-                `${selected.size} lead akan ditandakan "${bulkLabel(pendingBulk)}".`,
-                `${selected.size} leads will be marked as "${bulkLabel(pendingBulk)}".`,
-              )}
+              {pendingBulk.action === "delete"
+                ? t(
+                    `${selected.size} lead akan dipadam KEKAL bersama semua aktiviti dan susulannya. Tindakan ini tidak boleh diundur.`,
+                    `${selected.size} leads will be PERMANENTLY deleted along with all activities and follow-ups. This cannot be undone.`,
+                  )
+                : t(
+                    `${selected.size} lead akan ditandakan "${bulkLabel(pendingBulk)}".`,
+                    `${selected.size} leads will be marked as "${bulkLabel(pendingBulk)}".`,
+                  )}
             </p>
             <div className="mt-4 flex justify-end gap-2">
               <button
@@ -427,9 +479,54 @@ export default function LeadManagement() {
                 onClick={() => void confirmBulk()}
                 disabled={busy}
                 autoFocus
-                className="rounded-lg bg-[var(--color-primary)] px-3.5 py-2 text-[13px] font-bold text-[var(--color-primary-foreground)] hover:opacity-90 disabled:opacity-60"
+                className={cn(
+                  "rounded-lg px-3.5 py-2 text-[13px] font-bold text-[var(--color-primary-foreground)] hover:opacity-90 disabled:opacity-60",
+                  pendingBulk.action === "delete" ? "bg-[var(--color-danger)]" : "bg-[var(--color-primary)]",
+                )}
               >
-                {busy ? t("Memproses…", "Processing…") : t("Sahkan", "Confirm")}
+                {busy ? t("Memproses…", "Processing…") : pendingBulk.action === "delete" ? t("Padam kekal", "Delete forever") : t("Sahkan", "Confirm")}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Confirm dialog before hard-deleting a single lead. */}
+      {pendingDelete && (
+        <div
+          className="fixed inset-0 z-[70] grid place-items-center bg-black/45 p-4"
+          role="dialog"
+          aria-modal="true"
+          aria-labelledby="delete-confirm-title"
+          onClick={(e) => { if (e.target === e.currentTarget && !busy) setPendingDelete(null); }}
+        >
+          <div className="w-full max-w-[420px] rounded-[var(--radius-card)] border border-[var(--color-border)] bg-[var(--color-surface)] p-5 shadow-2xl">
+            <h2 id="delete-confirm-title" className="m-0 font-display text-[17px] font-bold">
+              {t("Padam lead ini?", "Delete this lead?")}
+            </h2>
+            <p className="mt-2 text-[13px] leading-relaxed text-muted-foreground">
+              {t(
+                `"${pendingDelete.name}" (${pendingDelete.phone}) akan dipadam KEKAL bersama semua aktiviti dan susulan WhatsApp. Tindakan ini tidak boleh diundur.`,
+                `"${pendingDelete.name}" (${pendingDelete.phone}) will be PERMANENTLY deleted along with all activities and WhatsApp follow-ups. This cannot be undone.`,
+              )}
+            </p>
+            <div className="mt-4 flex justify-end gap-2">
+              <button
+                type="button"
+                onClick={() => setPendingDelete(null)}
+                disabled={busy}
+                className="rounded-lg border border-[var(--color-border)] px-3.5 py-2 text-[13px] font-semibold hover:bg-[var(--color-surface-raised)] disabled:opacity-50"
+              >
+                {t("Batal", "Cancel")}
+              </button>
+              <button
+                type="button"
+                onClick={() => void confirmDeleteOne()}
+                disabled={busy}
+                autoFocus
+                className="rounded-lg bg-[var(--color-danger)] px-3.5 py-2 text-[13px] font-bold text-[var(--color-primary-foreground)] hover:opacity-90 disabled:opacity-60"
+              >
+                {busy ? t("Memproses…", "Processing…") : t("Padam kekal", "Delete forever")}
               </button>
             </div>
           </div>
@@ -769,6 +866,16 @@ export default function LeadManagement() {
                             >
                               {t("Lihat", "View")}
                             </Link>
+                            {isAdmin && (
+                              <button
+                                type="button"
+                                onClick={() => setPendingDelete(lead)}
+                                aria-label={t(`Padam ${lead.name}`, `Delete ${lead.name}`)}
+                                className="rounded-lg border border-[var(--color-danger)]/40 bg-[var(--color-surface)] px-2 py-1.5 text-[12px] font-semibold text-[var(--color-danger)] hover:bg-[var(--color-danger)]/10"
+                              >
+                                {t("Padam", "Delete")}
+                              </button>
+                            )}
                           </div>
                         ) : (
                           <span className="block text-right text-[11.5px] text-muted-foreground">

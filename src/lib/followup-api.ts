@@ -317,6 +317,10 @@ export const followupApi = {
 
   leadHistory: (id: string) => apiFetch<Ok<LeadHistory>>(`${BASE}/leads/${id}/history`).then((r) => r.data),
 
+  /** DELETE /leads/:id — hard delete. Management/Admin only (403 for sales). */
+  deleteLead: (id: string) =>
+    apiFetch<Ok<{ id: string }>>(`${BASE}/leads/${id}`, { method: "DELETE" }).then((r) => r.data),
+
   complete: (id: string, body: { stage: FollowupStage; note?: string } = { stage: "FU1" }) =>
     apiFetch<Ok<{ leadId: string; stage: string; nextStage: string | null; nextFollowupAt: string | null }>>(
       `${BASE}/leads/${id}/complete`,
