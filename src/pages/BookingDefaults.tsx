@@ -1,23 +1,70 @@
-import { useState } from "react";
+import { useState, type ReactNode } from "react";
 import { BadgeCheck, CalendarClock, Check, Percent, Save, Timer, Wallet } from "lucide-react";
 import { useLang } from "@/lib/i18n";
 
-const panelStyle: React.CSSProperties = {
-  background: "var(--color-surface)",
-  border: "1px solid var(--color-border)",
-  borderRadius: "var(--radius-panel)",
+/** Tone warna untuk tile ikon / tile statistik — dipetakan ke token design system. */
+type Tone = "primary" | "info" | "success" | "warning" | "neutral";
+
+const TONE_BG: Record<Tone, string> = {
+  primary: "bg-[var(--color-primary-soft)]",
+  info: "bg-[var(--color-info-soft)]",
+  success: "bg-[var(--color-success-soft)]",
+  warning: "bg-[var(--color-warning-soft)]",
+  neutral: "bg-[var(--color-neutral-soft)]",
 };
 
-const btnBase =
-  "inline-flex items-center justify-center gap-1.5 rounded-[var(--radius-control)] px-3.5 py-2 text-[13px] font-semibold transition-colors disabled:cursor-not-allowed disabled:opacity-55";
-
-const btnPrimary: React.CSSProperties = {
-  border: "1px solid var(--color-primary)",
-  background: "var(--color-primary)",
-  color: "var(--color-on-primary)",
+const TONE_FG: Record<Tone, string> = {
+  primary: "text-[var(--color-primary)]",
+  info: "text-[var(--color-info)]",
+  success: "text-[var(--color-success)]",
+  warning: "text-[var(--color-warning)]",
+  neutral: "text-[var(--color-text-secondary)]",
 };
 
-// Mock state — backend settings API menyusul pada fasa backend.
+function IconTile({ tone, children }: { tone: Tone; children: ReactNode }) {
+  return (
+    <span aria-hidden="true" className={`tv-icon-tile ${TONE_BG[tone]} ${TONE_FG[tone]}`}>
+      {children}
+    </span>
+  );
+}
+
+function SettingsSection({
+  title,
+  subtitle,
+  icon,
+  children,
+}: {
+  title: string;
+  subtitle?: string;
+  icon: ReactNode;
+  children: ReactNode;
+}) {
+  return (
+    <section className="tv-panel" aria-label={title}>
+      <div className="tv-panel__head">
+        <h2 className="tv-panel__title flex items-center gap-2">
+          {icon}
+          {title}
+        </h2>
+        {subtitle ? <span className="text-[12px] text-[var(--color-text-muted)]">{subtitle}</span> : null}
+      </div>
+      <div className="flex flex-col gap-4 p-5">{children}</div>
+    </section>
+  );
+}
+
+/** Butang Simpan yang bertukar ke keadaan "Disimpan" sekejap selepas disimpan. */
+function SaveButton({ saved, onClick, idleLabel, savedLabel }: { saved: boolean; onClick: () => void; idleLabel: string; savedLabel: string }) {
+  return (
+    <button type="button" onClick={onClick} className="tv-btn tv-btn--primary" aria-live="polite">
+      {saved ? <Check size={15} aria-hidden="true" /> : <Save size={15} aria-hidden="true" />}
+      {saved ? savedLabel : idleLabel}
+    </button>
+  );
+}
+
+// Nilai lalai — backend settings API menyusul pada fasa backend.
 export default function BookingDefaults() {
   const { t } = useLang();
   const [saved, setSaved] = useState(false);
@@ -70,9 +117,9 @@ export default function BookingDefaults() {
     suffixEn: string,
     Icon?: typeof Timer,
   ) => (
-    <div className="flex flex-col gap-1.5 min-w-0">
-      <label htmlFor={id} className="flex items-center gap-1.5 text-[12.5px] font-medium text-[var(--color-text-secondary)]">
-        {Icon && <Icon size={14} style={{ color: "var(--color-text-muted)" }} />}
+    <div className="flex min-w-0 flex-col gap-1.5">
+      <label htmlFor={id} className="tv-label flex items-center gap-1.5">
+        {Icon && <Icon size={14} className="text-[var(--color-text-muted)]" aria-hidden="true" />}
         {t(labelMs, labelEn)}
       </label>
       <div className="relative block">
@@ -83,8 +130,7 @@ export default function BookingDefaults() {
           max={max}
           value={value}
           onChange={(e) => set(Number(e.target.value))}
-          className="h-[37px] w-full rounded-[var(--radius-control)] border border-[var(--color-border-strong)] bg-[var(--color-surface)] pl-[11px] pr-[52px] text-[13.5px] text-[var(--color-text)] outline-none transition-colors focus-visible:outline focus-visible:outline-2 focus-visible:outline-[var(--color-focus-ring)] focus-visible:-outline-offset-1"
-          style={{ fontVariantNumeric: "tabular-nums" }}
+          className="tv-input tabular-nums pl-[11px] pr-[52px]"
         />
         <span className="pointer-events-none absolute right-[11px] top-1/2 -translate-y-1/2 text-[12px] text-[var(--color-text-muted)]">
           {t(suffixMs, suffixEn)}
@@ -93,38 +139,19 @@ export default function BookingDefaults() {
     </div>
   );
 
-  const sectionCard = (
-    title: string,
-    icon: React.ReactNode,
-    children: React.ReactNode,
-    subtitle?: string,
-  ) => (
-    <section style={panelStyle} aria-label={title}>
-      <div
-        className="flex flex-wrap items-center justify-between gap-3 px-5 py-4"
-        style={{ borderBottom: "1px solid var(--color-border)" }}
-      >
-        <h2 className="m-0 flex items-center gap-2 text-[14.5px] font-semibold text-[var(--color-text)]">
-          {icon}
-          {title}
-        </h2>
-        {subtitle ? <span className="text-[12px] text-[var(--color-text-muted)]">{subtitle}</span> : null}
-      </div>
-      <div className="flex flex-col gap-4 px-5 py-5">{children}</div>
-    </section>
-  );
-
   // Simulation values
   const sampleTotal = 2480;
   const depositAmount = Math.round((sampleTotal * depositPercent) / 100);
   const balanceAmount = sampleTotal - depositAmount;
   const formatNum = (n: number) => `RM ${n.toLocaleString("en-MY")}`;
 
+  const depositLabel = t("Deposit ({n}%)", "Deposit ({n}%)").replace("{n}", String(depositPercent));
+
   return (
     <div className="mx-auto flex w-full max-w-[1180px] flex-col gap-5">
       {/* Page head */}
       <div className="tvl-pagehead">
-        <div style={{ minWidth: 0 }}>
+        <div className="min-w-0">
           <h1 className="tvl-title">{t("Lalai Tempahan", "Booking Defaults")}</h1>
           <p className="tvl-subtitle">
             {t(
@@ -133,37 +160,26 @@ export default function BookingDefaults() {
             )}
           </p>
         </div>
-        <button
-          type="button"
+        <SaveButton
+          saved={saved}
           onClick={handleSave}
-          className={btnBase}
-          style={
-            saved
-              ? { border: "1px solid var(--color-success)", background: "var(--color-success)", color: "var(--color-surface)" }
-              : btnPrimary
-          }
-        >
-          {saved ? <Check size={15} /> : <Save size={15} />}
-          {saved ? t("Disimpan!", "Saved!") : t("Simpan", "Save")}
-        </button>
+          idleLabel={t("Simpan", "Save")}
+          savedLabel={t("Disimpan!", "Saved!")}
+        />
       </div>
 
       {/* Seat holds */}
-      {sectionCard(
-        t("Pegangan Kerusi", "Seat Holds"),
-        <span
-          aria-hidden="true"
-          className="grid h-[30px] w-[30px] place-items-center rounded-[9px]"
-          style={{ background: "var(--color-info-soft)", color: "var(--color-info)" }}
-        >
-          <Timer size={16} />
-        </span>,
+      <SettingsSection
+        title={t("Pegangan Kerusi", "Seat Holds")}
+        icon={
+          <IconTile tone="info">
+            <Timer size={16} />
+          </IconTile>
+        }
+      >
         <div className="grid gap-4 md:grid-cols-2">
           {numberField("bd-hold", "Tempoh pegangan kerusi draf", "Draft seat hold duration", holdMinutes, setHoldMinutes, 5, 240, "minit", "minutes", Timer)}
-          <label
-            className="flex items-center justify-between rounded-[var(--radius-control)] px-3 py-2"
-            style={{ border: "1px solid var(--color-border)", background: "var(--color-surface)" }}
-          >
+          <label className="flex items-center justify-between rounded-[var(--radius-control)] border border-[var(--color-border)] bg-[var(--color-surface)] px-3 py-2">
             <span className="text-[13px] font-medium text-[var(--color-text)]">
               {t("Lepaskan kerusi luput automatik", "Auto-release expired holds")}
             </span>
@@ -173,151 +189,115 @@ export default function BookingDefaults() {
               aria-checked={autoRelease}
               aria-label={t("Lepaskan kerusi luput automatik", "Auto-release expired holds")}
               onClick={() => setAutoRelease(!autoRelease)}
-              className="relative h-5 w-9 rounded-[var(--radius-pill)] transition-colors"
-              style={{ background: autoRelease ? "var(--color-primary)" : "var(--color-surface-muted)", border: "1px solid", borderColor: autoRelease ? "var(--color-primary)" : "var(--color-border-strong)" }}
+              className={`relative h-5 w-9 rounded-[var(--radius-pill)] border transition-colors ${
+                autoRelease
+                  ? "border-[var(--color-primary)] bg-[var(--color-primary)]"
+                  : "border-[var(--color-border-strong)] bg-[var(--color-surface-muted)]"
+              }`}
             >
               <span
-                className="absolute top-[2px] h-4 w-4 rounded-full bg-white transition-all"
+                className="absolute top-[2px] h-4 w-4 rounded-full bg-white transition-[left] duration-150 ease-out"
                 style={{ left: autoRelease ? 18 : 2 }}
               />
             </button>
           </label>
-        </div>,
-      )}
+        </div>
+      </SettingsSection>
 
       {/* Payments */}
-      {sectionCard(
-        t("Pembayaran", "Payments"),
-        <span
-          aria-hidden="true"
-          className="grid h-[30px] w-[30px] place-items-center rounded-[9px]"
-          style={{ background: "var(--color-success-soft)", color: "var(--color-success)" }}
-        >
-          <Percent size={16} />
-        </span>,
-        <>
-          <div className="grid gap-4 md:grid-cols-3">
-            {numberField("bd-deposit", "Deposit lalai", "Default deposit", depositPercent, setDepositPercent, 0, 100, "%", "%")}
-            {numberField("bd-full", "Bayaran penuh sebelum keberangkatan", "Full payment before departure", fullPaymentDays, setFullPaymentDays, 1, 60, "hari", "days")}
-            {numberField("bd-grace", "Tempoh tangguh bayaran tertunggak", "Overdue payment grace period", overdueGraceDays, setOverdueGraceDays, 0, 30, "hari", "days")}
+      <SettingsSection
+        title={t("Pembayaran", "Payments")}
+        icon={
+          <IconTile tone="success">
+            <Percent size={16} />
+          </IconTile>
+        }
+      >
+        <div className="grid gap-4 md:grid-cols-3">
+          {numberField("bd-deposit", "Deposit lalai", "Default deposit", depositPercent, setDepositPercent, 0, 100, "%", "%")}
+          {numberField("bd-full", "Bayaran penuh sebelum keberangkatan", "Full payment before departure", fullPaymentDays, setFullPaymentDays, 1, 60, "hari", "days")}
+          {numberField("bd-grace", "Tempoh tangguh bayaran tertunggak", "Overdue payment grace period", overdueGraceDays, setOverdueGraceDays, 0, 30, "hari", "days")}
+        </div>
+        <div className="border-t border-dashed border-[var(--color-border)] pt-3">
+          <p className="m-0 text-[12.5px] font-medium text-[var(--color-text-secondary)]">
+            {t("Kaedah pembayaran diterima", "Accepted payment methods")}
+          </p>
+          <div className="mt-2 flex flex-wrap gap-2">
+            {METHODS.map((m) => {
+              const active = acceptMethods.includes(m.id);
+              return (
+                <button
+                  key={m.id}
+                  type="button"
+                  aria-pressed={active}
+                  onClick={() => toggleMethod(m.id)}
+                  className="tv-chip focus-ring"
+                >
+                  {active ? <Check size={11} aria-hidden="true" /> : null}
+                  {t(m.label.ms, m.label.en)}
+                </button>
+              );
+            })}
           </div>
-          <div className="pt-1" style={{ borderTop: "1px dashed var(--color-border)" }}>
-            <p className="m-0 pt-3 text-[12.5px] font-medium text-[var(--color-text-secondary)]">
-              {t("Kaedah pembayaran diterima", "Accepted payment methods")}
-            </p>
-            <div className="mt-2 flex flex-wrap gap-2">
-              {METHODS.map((m) => {
-                const active = acceptMethods.includes(m.id);
-                return (
-                  <button
-                    key={m.id}
-                    type="button"
-                    aria-pressed={active}
-                    onClick={() => toggleMethod(m.id)}
-                    className="inline-flex items-center gap-1.5 rounded-[var(--radius-pill)] px-3 py-1.5 text-[11.5px] font-semibold transition-colors"
-                    style={
-                      active
-                        ? { background: "var(--color-primary-soft)", color: "var(--color-primary)", border: "1px solid color-mix(in srgb, var(--color-primary) 35%, var(--color-border))" }
-                        : { background: "var(--color-surface)", color: "var(--color-text-muted)", border: "1px solid var(--color-border)" }
-                    }
-                  >
-                    {active && <Check size={11} />}
-                    {t(m.label.ms, m.label.en)}
-                  </button>
-                );
-              })}
-            </div>
-          </div>
-        </>,
-      )}
+        </div>
+      </SettingsSection>
 
       {/* Trips */}
-      {sectionCard(
-        t("Trip", "Trips"),
-        <span
-          aria-hidden="true"
-          className="grid h-[30px] w-[30px] place-items-center rounded-[9px]"
-          style={{ background: "var(--color-warning-soft)", color: "var(--color-warning)" }}
-        >
-          <CalendarClock size={16} />
-        </span>,
+      <SettingsSection
+        title={t("Trip", "Trips")}
+        icon={
+          <IconTile tone="warning">
+            <CalendarClock size={16} />
+          </IconTile>
+        }
+      >
         <div className="grid gap-4 md:grid-cols-2">
           {numberField("bd-checkin", "Masa daftar masuk lapangan terbang", "Airport check-in before departure", checkInHours, setCheckInHours, 1, 12, "jam", "hours")}
           {numberField("bd-minpax", "Pax minimum setiap tempahan", "Minimum pax per booking", minPax, setMinPax, 1, 20, "pax", "pax")}
-        </div>,
-      )}
+        </div>
+      </SettingsSection>
 
       {/* Simulation card */}
-      {sectionCard(
-        t("Simulasi Tempahan", "Booking Simulation"),
-        <span
-          aria-hidden="true"
-          className="grid h-[30px] w-[30px] place-items-center rounded-[9px]"
-          style={{ background: "var(--color-neutral-soft)", color: "var(--color-text-secondary)" }}
-        >
-          <Wallet size={16} />
-        </span>,
-        <>
-          <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-            {[
-              { label: t("Jumlah contoh", "Sample total"), value: formatNum(sampleTotal), tone: "neutral" as const },
-              { label: t("Deposit ({n}%)", "Deposit ({n}%").replace("{n}", String(depositPercent)), value: formatNum(depositAmount), tone: "success" as const },
-              { label: t("Baki selepas deposit", "Balance after deposit"), value: formatNum(balanceAmount), tone: "warning" as const },
-              { label: t("Kerusi dipegang", "Seat held"), value: `${holdMinutes} ${t("minit", "min")}`, tone: "info" as const },
-            ].map((item) => (
-              <div
-                key={item.label}
-                className="flex flex-col gap-1.5 rounded-[var(--radius-card)] px-4 py-3"
-                style={{
-                  background:
-                    item.tone === "success"
-                      ? "var(--color-success-soft)"
-                      : item.tone === "warning"
-                        ? "var(--color-warning-soft)"
-                        : item.tone === "info"
-                          ? "var(--color-info-soft)"
-                          : "var(--color-neutral-soft)",
-                }}
-              >
-                <span className="flex items-center gap-1.5 text-[11.5px] font-semibold text-[var(--color-text-muted)]">
-                  <BadgeCheck
-                    size={12}
-                    style={{
-                      color:
-                        item.tone === "success"
-                          ? "var(--color-success)"
-                          : item.tone === "warning"
-                            ? "var(--color-warning)"
-                            : item.tone === "info"
-                              ? "var(--color-info)"
-                              : "var(--color-text-muted)",
-                    }}
-                  />
-                  {item.label}
-                </span>
-                <span
-                  className="text-[16px] font-bold text-[var(--color-text)]"
-                  style={{ fontVariantNumeric: "tabular-nums" }}
-                >
-                  {item.value}
-                </span>
-              </div>
-            ))}
-          </div>
-          <p className="m-0 text-[11.5px] text-[var(--color-text-muted)]">
-            {t(
-              "Kadar deposit dan tempoh pegangan dikenakan serta-merta pada tempahan baharu.",
-              "Deposit rate and hold duration apply immediately to new bookings.",
-            )}
-          </p>
-        </>,
-        t("Data contoh", "Sample data"),
-      )}
+      <SettingsSection
+        title={t("Simulasi Tempahan", "Booking Simulation")}
+        subtitle={t("Data contoh", "Sample data")}
+        icon={
+          <IconTile tone="neutral">
+            <Wallet size={16} />
+          </IconTile>
+        }
+      >
+        <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+          {[
+            { label: t("Jumlah contoh", "Sample total"), value: formatNum(sampleTotal), tone: "neutral" as Tone },
+            { label: depositLabel, value: formatNum(depositAmount), tone: "success" as Tone },
+            { label: t("Baki selepas deposit", "Balance after deposit"), value: formatNum(balanceAmount), tone: "warning" as Tone },
+            { label: t("Kerusi dipegang", "Seat held"), value: `${holdMinutes} ${t("minit", "min")}`, tone: "info" as Tone },
+          ].map((item) => (
+            <div
+              key={item.label}
+              className={`flex flex-col gap-1.5 rounded-[var(--radius-card)] px-4 py-3 ${TONE_BG[item.tone]}`}
+            >
+              <span className="flex items-center gap-1.5 text-[11.5px] font-semibold text-[var(--color-text-muted)]">
+                <BadgeCheck size={12} className={TONE_FG[item.tone]} aria-hidden="true" />
+                {item.label}
+              </span>
+              <span className="text-[16px] font-bold tabular-nums text-[var(--color-text)]">{item.value}</span>
+            </div>
+          ))}
+        </div>
+        <p className="m-0 text-[11.5px] text-[var(--color-text-muted)]">
+          {t(
+            "Kadar deposit dan tempoh pegangan dikenakan serta-merta pada tempahan baharu.",
+            "Deposit rate and hold duration apply immediately to new bookings.",
+          )}
+        </p>
+      </SettingsSection>
 
       <p className="m-0 text-[11.5px] text-[var(--color-text-muted)]">
         {t(
-          "Data olok-olok — lalai tempahan sebenar akan didayakan pada fasa backend.",
-          "Mock data — real booking defaults will be enabled in the backend phase.",
+          "Nilai lalai ini digunakan oleh modul tempahan semasa membuat tempahan baharu.",
+          "These defaults are used by the bookings module when creating a new booking.",
         )}
       </p>
     </div>

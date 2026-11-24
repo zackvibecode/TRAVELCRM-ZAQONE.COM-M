@@ -3,6 +3,7 @@ import AppShell from "@/components/AppShell";
 import ProtectedRoute from "@/components/ProtectedRoute";
 import RoleRoute from "@/components/RoleRoute";
 import LoginPage from "@/pages/LoginPage";
+import SignupPage from "@/pages/SignupPage";
 import ForgotPasswordPage from "@/pages/ForgotPasswordPage";
 import ResetPasswordPage from "@/pages/ResetPasswordPage";
 import BookingWorkspace from "@/pages/BookingWorkspace";
@@ -13,6 +14,8 @@ import FollowUpCenter from "@/pages/FollowUpCenter";
 import SalesLeaderboard from "@/pages/SalesLeaderboard";
 import LeadImport from "@/pages/LeadImport";
 import LeadManagement from "@/pages/LeadManagement";
+import FollowUpEngine from "@/pages/FollowUpEngine";
+import AccessOwnership from "@/pages/AccessOwnership";
 import WhatsAppTemplates from "@/pages/WhatsAppTemplates";
 import AdminConsole from "@/pages/AdminConsole";
 import LeadDetail from "@/pages/LeadDetail";
@@ -49,6 +52,7 @@ export default function App() {
     <Routes>
       {/* Staff login & password recovery (mock auth) */}
       <Route path="/login" element={<LoginPage />} />
+      <Route path="/signup" element={<SignupPage />} />
       <Route path="/forgot-password" element={<ForgotPasswordPage />} />
       <Route path="/reset-password" element={<ResetPasswordPage />} />
 
@@ -64,6 +68,8 @@ export default function App() {
           <Route path="/lead-import" element={<RoleRoute path="/lead-import"><LeadImport /></RoleRoute>} />
           <Route path="/lead-management" element={<RoleRoute path="/lead-management"><LeadManagement /></RoleRoute>} />
           <Route path="/lead-management/:id" element={<RoleRoute path="/lead-management"><LeadDetail /></RoleRoute>} />
+          <Route path="/mesin-follow-up" element={<RoleRoute path="/mesin-follow-up"><FollowUpEngine /></RoleRoute>} />
+          <Route path="/akses-kepemilikan" element={<RoleRoute path="/akses-kepemilikan"><AccessOwnership /></RoleRoute>} />
           <Route path="/leaderboard" element={<RoleRoute path="/leaderboard"><SalesLeaderboard /></RoleRoute>} />
           <Route path="/whatsapp-templates" element={<RoleRoute path="/whatsapp-templates"><WhatsAppTemplates /></RoleRoute>} />
           <Route path="/admin-console" element={<RoleRoute path="/admin-console"><AdminConsole /></RoleRoute>} />

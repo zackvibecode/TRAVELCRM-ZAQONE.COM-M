@@ -7,13 +7,28 @@ import { authClient, API_BASE_URL, getStoredToken } from "@/lib/auth";
  * cookie, the stored bearer token is attached via the Authorization header
  * instead (the server's bearer plugin converts it into a session).
  */
+/**
+ * Paths that are NOT data routes and must stay outside the /api prefix:
+ * /auth (Better Auth), /public (anonymous website branding/enquiry), /mcp
+ * (external MCP clients). Everything else is a Worker data route, which is
+ * mounted under /api/* so it can never collide with a React Router page
+ * path (e.g. the CRM page /api-tokens).
+ */
+const UNPREFIXED = ["/auth", "/api/", "/public", "/mcp"];
+
+function withApiPrefix(path: string): string {
+  const normalized = path.startsWith("/") ? path : `/${path}`;
+  if (UNPREFIXED.some((p) => normalized.startsWith(p))) return normalized;
+  return `/api${normalized}`;
+}
+
 export async function apiFetch<T>(
   path: string,
   options: RequestInit = {},
 ): Promise<T> {
   const url = path.startsWith("http")
     ? path
-    : `${API_BASE_URL}${path.startsWith("/") ? path : `/${path}`}`;
+    : `${API_BASE_URL}${withApiPrefix(path)}`;
 
   const headers = new Headers(options.headers);
   if (

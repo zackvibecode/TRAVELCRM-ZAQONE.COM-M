@@ -11,7 +11,7 @@
  * what mutations call to keep the screen truthful after a change.
  */
 import { useCallback, useEffect, useRef, useState } from "react";
-import { followupApi, type FollowupLead, type LeadFacets, type MyPipelineSummary } from "@/lib/followup-api";
+import { followupApi, type FollowupLead, type FuReportRow, type LeadFacets, type MyPipelineSummary } from "@/lib/followup-api";
 
 export type QueryStatus = "idle" | "loading" | "ready" | "error";
 
@@ -116,6 +116,11 @@ export function useLeadList(filters: LeadFilters, limit = 50): Query<{ data: Fol
 /** GET /leads/facets — counts that drive filter chips. */
 export function useLeadFacets(owner?: string): Query<LeadFacets> {
   return useQuery(`facets:${owner ?? ""}`, () => followupApi.leadFacets({ owner }));
+}
+
+/** GET /report/fu — confirmed follow-ups completed per stage per staff. */
+export function useFuReport(): Query<FuReportRow[]> {
+  return useQuery("report-fu", () => followupApi.reportFu());
 }
 
 /** GET /leaderboard — team ranking for one period/owner. */

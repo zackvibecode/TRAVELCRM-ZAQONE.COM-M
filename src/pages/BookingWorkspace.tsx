@@ -25,140 +25,6 @@ import {
 import type { BookingStatus } from "@/lib/types";
 import { useLang } from "@/lib/i18n";
 
-// ------------------------------------------------------------------ styles
-
-const css = `
-.bw-kpis { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: var(--space-4); }
-.bw-grid { display: grid; grid-template-columns: minmax(0, 1.55fr) minmax(0, 1fr); gap: var(--space-4); align-items: start; }
-.bw-card { background: var(--color-surface); border: 1px solid var(--color-border); border-radius: var(--radius-panel); min-width: 0; overflow: hidden; }
-.bw-card__head { display: flex; align-items: flex-start; justify-content: space-between; gap: var(--space-3); padding: 14px var(--space-5); border-bottom: 1px solid var(--color-border); flex-wrap: wrap; }
-.bw-card__title { margin: 0; font-size: 14.5px; font-weight: 600; color: var(--color-text); }
-.bw-card__sub { margin: 3px 0 0; font-size: 12px; color: var(--color-text-muted); }
-.bw-toolbar { display: flex; align-items: center; gap: var(--space-3); padding: var(--space-4) var(--space-5); border-bottom: 1px solid var(--color-border); flex-wrap: wrap; }
-.bw-search { display: flex; align-items: center; gap: 8px; flex: 1 1 220px; max-width: 320px; min-width: 0; padding: 8px 12px; border: 1px solid var(--color-border); border-radius: var(--radius-control); background: var(--color-surface-raised); color: var(--color-text-muted); }
-.bw-search input { flex: 1; min-width: 0; border: 0; background: transparent; font: inherit; font-size: 13px; color: var(--color-text); outline: none; }
-.bw-search:focus-within { border-color: var(--color-primary); background: var(--color-surface); box-shadow: 0 0 0 3px var(--color-primary-soft); }
-.bw-select { padding: 8px 10px; border: 1px solid var(--color-border); border-radius: var(--radius-control); background: var(--color-surface); font: inherit; font-size: 12.5px; font-weight: 500; color: var(--color-text-secondary); cursor: pointer; max-width: 100%; min-width: 0; }
-.bw-select:focus-visible { outline: 2px solid var(--color-focus-ring); outline-offset: 1px; }
-.bw-tabs { display: flex; gap: 4px; }
-.bw-tab { padding: 7px 12px; border-radius: var(--radius-pill); border: 1px solid transparent; background: transparent; font: inherit; font-size: 12.5px; font-weight: 600; color: var(--color-text-muted); cursor: pointer; white-space: nowrap; }
-.bw-tab:hover { background: var(--color-surface-muted); color: var(--color-text); }
-.bw-tab[aria-selected="true"] { background: var(--color-primary-soft); color: var(--color-primary); }
-.bw-tab:focus-visible { outline: 2px solid var(--color-focus-ring); outline-offset: 1px; }
-.bw-tab__count { font-size: 11px; font-weight: 700; padding: 0 5px; margin-left: 4px; border-radius: var(--radius-pill); background: var(--color-surface-muted); font-variant-numeric: tabular-nums; }
-.bw-tab[aria-selected="true"] .bw-tab__count { background: var(--color-surface); }
-
-.bw-list { display: flex; flex-direction: column; }
-.bw-row { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: var(--space-2) var(--space-3); align-items: center; width: 100%; padding: 12px var(--space-5); border: 0; border-bottom: 1px solid var(--color-border); background: transparent; font: inherit; text-align: left; cursor: pointer; color: var(--color-text); }
-.bw-row:last-child { border-bottom: 0; }
-.bw-row:hover { background: var(--color-surface-raised); }
-.bw-row:focus-visible { outline: 2px solid var(--color-focus-ring); outline-offset: -2px; }
-.bw-row[aria-current="true"] { background: var(--color-primary-soft); box-shadow: inset 3px 0 0 var(--color-primary); }
-.bw-row__main { min-width: 0; display: flex; flex-direction: column; gap: 3px; }
-.bw-row__ref { font-size: 12.5px; font-weight: 700; font-variant-numeric: tabular-nums; letter-spacing: -0.01em; }
-.bw-row__name { font-size: 13px; font-weight: 500; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.bw-row__meta { font-size: 11.5px; color: var(--color-text-muted); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.bw-row__side { display: flex; flex-direction: column; align-items: flex-end; gap: 5px; }
-.bw-row__amount { font-size: 12.5px; font-weight: 600; font-variant-numeric: tabular-nums; white-space: nowrap; }
-
-.bw-badge { display: inline-flex; align-items: center; gap: 5px; padding: 3px 9px; border-radius: var(--radius-pill); font-size: 11.5px; font-weight: 600; white-space: nowrap; }
-.bw-body { padding: var(--space-5); display: flex; flex-direction: column; gap: var(--space-5); }
-.bw-kv { display: grid; grid-template-columns: 96px minmax(0, 1fr); gap: 7px 12px; font-size: 12.5px; margin: 0; }
-.bw-kv dt { color: var(--color-text-muted); }
-.bw-kv dd { margin: 0; font-weight: 500; overflow-wrap: anywhere; }
-.bw-money { display: grid; gap: 6px; font-size: 12.5px; }
-.bw-money div { display: flex; justify-content: space-between; gap: var(--space-3); }
-.bw-money strong { font-variant-numeric: tabular-nums; white-space: nowrap; }
-.bw-bar { display: block; height: 7px; border-radius: var(--radius-pill); background: var(--color-surface-muted); overflow: hidden; }
-.bw-bar span { display: block; height: 100%; }
-.bw-pax { display: flex; align-items: flex-start; justify-content: space-between; gap: var(--space-3); padding: 9px 0; border-top: 1px solid var(--color-border); font-size: 12.5px; }
-.bw-pax:first-child { border-top: 0; padding-top: 0; }
-.bw-timeline { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 12px; font-size: 12.5px; }
-.bw-timeline li { display: flex; gap: 10px; align-items: flex-start; }
-.bw-dot { width: 8px; height: 8px; border-radius: 50%; margin-top: 5px; flex: none; }
-
-.bw-btn { display: inline-flex; align-items: center; justify-content: center; gap: 6px; padding: 8px 12px; border-radius: var(--radius-control); border: 1px solid var(--color-border); background: var(--color-surface); font: inherit; font-size: 12.5px; font-weight: 600; color: var(--color-text); cursor: pointer; text-decoration: none; transition: background 140ms ease, border-color 140ms ease; }
-.bw-btn:hover { background: var(--color-surface-muted); }
-.bw-btn:focus-visible { outline: 2px solid var(--color-focus-ring); outline-offset: 2px; }
-.bw-btn--primary { background: var(--color-primary); border-color: var(--color-primary); color: var(--color-on-primary); }
-.bw-btn--primary:hover { background: var(--color-primary-hover); border-color: var(--color-primary-hover); }
-.bw-btn--danger { color: var(--color-danger); border-color: color-mix(in srgb, var(--color-danger) 35%, transparent); }
-.bw-btn--danger:hover { background: var(--color-danger-soft); }
-.bw-btn.bg-solid { background: var(--color-danger); color: var(--color-on-primary); border-color: var(--color-danger); }
-.bw-btn.bg-solid:hover { background: color-mix(in srgb, var(--color-danger) 84%, var(--color-text)); }
-.bw-btn:disabled { opacity: 0.45; cursor: not-allowed; }
-.bw-actions { display: flex; gap: 8px; flex-wrap: wrap; }
-
-.bw-empty { display: flex; flex-direction: column; align-items: center; gap: 10px; padding: var(--space-8) var(--space-5); text-align: center; color: var(--color-text-muted); font-size: 13px; }
-.bw-empty svg { width: 26px; height: 26px; }
-
-.bw-dialog { width: min(880px, calc(100vw - 32px)); max-height: calc(100vh - 48px); border: 1px solid var(--color-border); border-radius: var(--radius-panel); padding: 0; background: var(--color-surface); color: var(--color-text); box-shadow: 0 24px 64px color-mix(in srgb, var(--color-text) 22%, transparent); }
-.bw-dialog[open] { display: flex; flex-direction: column; overflow: hidden; }
-.bw-dialog::backdrop { background: color-mix(in srgb, var(--color-text) 42%, transparent); }
-.bw-dialog__head { display: flex; align-items: flex-start; justify-content: space-between; gap: var(--space-3); padding: var(--space-4) var(--space-5); border-bottom: 1px solid var(--color-border); }
-.bw-dialog__body { padding: var(--space-5); display: flex; flex-direction: column; gap: var(--space-4); overflow-y: auto; min-height: 0; }
-.bw-dialog__foot { display: flex; justify-content: flex-end; align-items: center; gap: 8px; padding: var(--space-4) var(--space-5); border-top: 1px solid var(--color-border); background: var(--color-surface-raised); flex-wrap: wrap; }
-.bw-close { display: grid; place-items: center; width: 30px; height: 30px; border-radius: 6px; border: 0; background: transparent; color: var(--color-text-muted); cursor: pointer; font-size: 16px; flex: none; }
-.bw-close:hover { background: var(--color-surface-muted); color: var(--color-text); }
-.bw-close--inline { width: 22px; height: 22px; font-size: 13px; color: inherit; }
-.bw-close:focus-visible { outline: 2px solid var(--color-focus-ring); outline-offset: 1px; }
-
-.bw-steps { display: flex; gap: 6px; flex-wrap: wrap; }
-.bw-step { display: inline-flex; align-items: center; gap: 6px; padding: 5px 11px; border-radius: var(--radius-pill); border: 1px solid var(--color-border); background: var(--color-surface); font-size: 12px; font-weight: 600; color: var(--color-text-muted); }
-.bw-step[data-state="active"] { border-color: var(--color-primary); color: var(--color-primary); background: var(--color-primary-soft); }
-.bw-step[data-state="done"] { border-color: color-mix(in srgb, var(--color-success) 35%, transparent); color: var(--color-success); background: var(--color-success-soft); }
-
-.bw-fields { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: var(--space-4); }
-.bw-field { display: flex; flex-direction: column; gap: 6px; min-width: 0; }
-.bw-field--wide { grid-column: 1 / -1; }
-.bw-label { font-size: 12.5px; font-weight: 600; color: var(--color-text-secondary); }
-.bw-input { width: 100%; box-sizing: border-box; padding: 9px 11px; border: 1px solid var(--color-border); border-radius: var(--radius-control); background: var(--color-surface); font: inherit; font-size: 13px; color: var(--color-text); min-width: 0; }
-.bw-input:focus-visible { outline: 2px solid var(--color-focus-ring); outline-offset: 1px; border-color: var(--color-primary); }
-.bw-input[aria-invalid="true"] { border-color: var(--color-danger); background: var(--color-danger-soft); }
-.bw-hint { font-size: 11.5px; color: var(--color-text-muted); }
-.bw-error { display: flex; align-items: flex-start; gap: 7px; font-size: 12px; color: var(--color-danger); }
-.bw-alert { display: flex; gap: 9px; align-items: flex-start; padding: 10px 12px; border-radius: var(--radius-control); background: var(--color-info-soft); color: var(--color-info); font-size: 12.5px; line-height: 1.5; }
-.bw-alert--warn { background: var(--color-warning-soft); color: var(--color-warning); }
-.bw-alert--danger { background: var(--color-danger-soft); color: var(--color-danger); }
-.bw-alert--success { background: var(--color-success-soft); color: var(--color-success); }
-
-.bw-paxrow { display: grid; grid-template-columns: minmax(0, 1.4fr) minmax(0, 0.8fr) minmax(0, 1fr) auto; gap: var(--space-3); align-items: end; padding: var(--space-3); border: 1px solid var(--color-border); border-radius: var(--radius-control); background: var(--color-surface-raised); }
-.bw-summary { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: var(--space-3); }
-.bw-summary__cell { padding: 10px 12px; border-radius: var(--radius-control); background: var(--color-surface-muted); font-size: 12.5px; min-width: 0; }
-.bw-summary__cell span { display: block; color: var(--color-text-muted); font-size: 11.5px; }
-.bw-summary__cell strong { display: block; margin-top: 3px; font-size: 14px; font-variant-numeric: tabular-nums; overflow-wrap: anywhere; }
-.bw-sr { position: absolute; width: 1px; height: 1px; margin: -1px; padding: 0; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; border: 0; }
-
-@media (max-width: 1279px) {
-  .bw-kpis { grid-template-columns: repeat(2, minmax(0, 1fr)); }
-  .bw-grid { grid-template-columns: minmax(0, 1fr); }
-}
-@media (max-width: 767px) {
-  .bw-kpis { grid-template-columns: minmax(0, 1fr); }
-  .bw-row { grid-template-columns: minmax(0, 1fr); }
-  .bw-row__side { flex-direction: row; align-items: center; justify-content: flex-start; flex-wrap: wrap; gap: 6px; }
-  .bw-row__meta { white-space: normal; overflow-wrap: anywhere; }
-  .bw-row__name { white-space: normal; overflow-wrap: anywhere; }
-  .bw-tab { padding: 6px 9px; font-size: 12px; }
-  .bw-tabs { flex-wrap: wrap; }
-  .bw-toolbar { padding: var(--space-3) var(--space-4); }
-  .bw-search { max-width: none; flex: 1 1 100%; }
-  .bw-row { padding: 12px var(--space-4); }
-  .bw-fields { grid-template-columns: minmax(0, 1fr); }
-  .bw-paxrow { grid-template-columns: minmax(0, 1fr); }
-  .bw-summary { grid-template-columns: minmax(0, 1fr); }
-  .bw-kv { grid-template-columns: minmax(0, 1fr); gap: 2px 0; }
-  .bw-kv dd { margin-bottom: 6px; }
-  .bw-body { padding: var(--space-4); }
-  .bw-card__head { padding: 12px var(--space-4); }
-  .bw-dialog__body { padding: var(--space-4); }
-  .bw-dialog__foot { padding: var(--space-3) var(--space-4); }
-}
-@media (prefers-reduced-motion: reduce) {
-  .bw-btn { transition: none; }
-}
-`;
-
 // ------------------------------------------------------------------ types
 
 type Tone = "success" | "warning" | "info" | "danger" | "neutral";
@@ -312,7 +178,10 @@ function Badge({ status }: { status: BookingStatus }) {
   const meta = STATUS[status];
   const palette = TONE[meta.tone];
   return (
-    <span className="bw-badge" style={{ background: palette.bg, color: palette.fg }}>
+    <span
+      className="bw-badge"
+      style={{ "--bg": palette.bg, "--fg": palette.fg } as React.CSSProperties}
+    >
       {t(meta.label.ms, meta.label.en)}
     </span>
   );
@@ -320,7 +189,13 @@ function Badge({ status }: { status: BookingStatus }) {
 
 function Ikon({ icon, size = 15, style }: { icon: LucideIcon; size?: number; style?: React.CSSProperties }) {
   const Icon = icon;
-  return <Icon aria-hidden="true" style={{ fontSize: `${size}px`, width: size, height: size, flex: "none", ...style }} />;
+  return (
+    <Icon
+      aria-hidden="true"
+      className="bw-icon"
+      style={{ "--size": `${size}px`, ...style } as React.CSSProperties}
+    />
+  );
 }
 
 function Kpi({
@@ -335,15 +210,15 @@ function Kpi({
   fg: string;
 }) {
   return (
-    <article data-node-id={`bw.kpi.${id}`} style={{ background: "var(--color-surface)", border: "1px solid var(--color-border)", borderRadius: "var(--radius-panel)", padding: "var(--space-4)", display: "flex", flexDirection: "column", gap: "8px", minWidth: 0 }}>
-      <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: "8px" }}>
-        <span style={{ fontSize: "12.5px", fontWeight: 500, color: "var(--color-text-muted)", minWidth: 0, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{label}</span>
-        <span style={{ display: "grid", placeItems: "center", width: "30px", height: "30px", flex: "none", borderRadius: "9px", background: bg, color: fg }}>
+    <article className="bw-kpi" data-node-id={`bw.kpi.${id}`}>
+      <div className="bw-kpi__head">
+        <span className="bw-kpi__label">{label}</span>
+        <span className="bw-kpi__icon" style={{ background: bg, color: fg }}>
           <Ikon icon={ikon} />
         </span>
       </div>
-      <strong style={{ fontSize: "23px", fontWeight: 700, letterSpacing: "-0.03em", lineHeight: 1.1, fontVariantNumeric: "tabular-nums", whiteSpace: "nowrap" }}>{nilai}</strong>
-      <span style={{ fontSize: "11.5px", color: "var(--color-text-muted)" }}>{catatan}</span>
+      <strong className="bw-kpi__value">{nilai}</strong>
+      <span className="bw-kpi__note">{catatan}</span>
     </article>
   );
 }
@@ -365,7 +240,7 @@ function Medan({
       {hint && !error ? <span className="bw-hint">{hint}</span> : null}
       {error ? (
         <span className="bw-error" id={`${id}-error`}>
-          <Ikon icon={CircleAlert} size={13} style={{ marginTop: "1px" }} />
+          <Ikon icon={CircleAlert} size={13} />
           {error}
         </span>
       ) : null}
@@ -734,15 +609,10 @@ export default function BookingWorkspace() {
   ];
 
   return (
-    <main
-      data-node-id="bw.root"
-      style={{ display: "flex", flexDirection: "column", gap: "var(--space-4)", padding: "var(--space-5) var(--space-6) var(--space-8)", minWidth: 0, color: "var(--color-text)" }}
-    >
-      <style>{css}</style>
-
+    <main className="bw-root" data-node-id="bw.root">
       {/* Page head */}
       <div className="tvl-pagehead" data-node-id="bw.header">
-        <div style={{ minWidth: 0 }}>
+        <div className="bw-min0">
           <h1 className="tvl-title" data-node-id="bw.title">{t("Ruang Kerja Tempahan", "Booking Workspace")}</h1>
           <p className="tvl-subtitle">{t("Cipta, jejak dan siapkan tempahan pelanggan di satu tempat", "Create, track, and complete customer bookings in one place")}</p>
         </div>
@@ -761,7 +631,7 @@ export default function BookingWorkspace() {
       {pesan ? (
         <div className={`bw-alert bw-alert--${pesan.tone}`} role="status" data-node-id="bw.toast">
           <Ikon icon={pesan.tone === "success" ? BadgeCheck : CircleAlert} />
-          <span style={{ flex: 1, minWidth: 0 }}>{t(pesan.ms, pesan.en)}</span>
+          <span className="bw-alert__text">{t(pesan.ms, pesan.en)}</span>
           <button type="button" className="bw-close bw-close--inline" data-action="bw:dismiss" aria-label={t("Tutup notifikasi", "Dismiss notification")} onClick={() => setPesan(null)}>
             <Ikon icon={X} size={13} />
           </button>
@@ -812,7 +682,7 @@ export default function BookingWorkspace() {
       <div className="bw-grid">
         <section className="bw-card" data-node-id="bw.list" aria-labelledby="bw-list-title">
           <div className="bw-card__head">
-            <div style={{ minWidth: 0 }}>
+            <div className="bw-min0">
               <h2 className="bw-card__title" id="bw-list-title">{t("Tempahan", "Bookings")}</h2>
               <p className="bw-card__sub">{t("{n} daripada {total} tempahan", "{n} of {total} bookings").replace("{n}", String(terlihat.length)).replace("{total}", String(bookings.length))}</p>
             </div>
@@ -867,7 +737,7 @@ export default function BookingWorkspace() {
               ))}
             </select>
             <label className="bw-sr" htmlFor="bw-sort">{t("Susun mengikut", "Sort by")}</label>
-            <select id="bw-sort" className="bw-select" value={urutkan} onChange={(event) => setUrutkan(event.target.value as SortKey)} style={{ marginLeft: "auto" }}>
+            <select id="bw-sort" className="bw-select bw-select--end" value={urutkan} onChange={(event) => setUrutkan(event.target.value as SortKey)}>
               <option value="terbaru">{t("Susunan asal", "Source order")}</option>
               <option value="terbesar">{t("Nilai tertinggi", "Highest value")}</option>
               <option value="sisa">{t("Baki terbesar", "Largest balance")}</option>
@@ -878,7 +748,7 @@ export default function BookingWorkspace() {
             {terlihat.length === 0 ? (
               <div className="bw-empty" data-node-id="bw.empty">
                 <Inbox />
-                <p style={{ margin: 0 }}>{t("Tiada tempahan pada peringkat ini lagi.", "No bookings at this stage yet.")}</p>
+                <p className="bw-p">{t("Tiada tempahan pada peringkat ini lagi.", "No bookings at this stage yet.")}</p>
                 <button type="button" className="bw-btn" data-action="bw:reset" onClick={() => { setQuery(""); setStatusFilter("all"); tukarTahap("aktif") }}>
                   {t("Set semula penapis", "Reset filters")}
                 </button>
@@ -907,7 +777,7 @@ export default function BookingWorkspace() {
                       <span className="bw-row__side">
                         <Badge status={item.status} />
                         <span className="bw-row__amount">{rupiah(uang.total)}</span>
-                        <span style={{ fontSize: "11px", color: "var(--color-text-muted)" }}>{uang.sisa > 0 ? `${t("Baki", "Due")} ${rupiah(uang.sisa)}` : t("Selesai bayar", "Paid")}</span>
+                        <span className="bw-row__due">{uang.sisa > 0 ? `${t("Baki", "Due")} ${rupiah(uang.sisa)}` : t("Selesai bayar", "Paid")}</span>
                       </span>
                     </button>
                   );
@@ -920,7 +790,7 @@ export default function BookingWorkspace() {
         {aktif && aktifHitung && aktifPelanggan && aktifKeberangkatan ? (
         <section className="bw-card" data-node-id="bw.detail" aria-labelledby="bw-detail-title">
           <div className="bw-card__head">
-            <div style={{ minWidth: 0 }}>
+            <div className="bw-min0">
               <h2 className="bw-card__title" id="bw-detail-title">{aktif.ref}</h2>
               <p className="bw-card__sub">{aktifPelanggan.nama} · {t("dicipta", "created")} {aktif.dibuat}</p>
             </div>
@@ -939,45 +809,46 @@ export default function BookingWorkspace() {
               <dd>{aktifPelanggan.email}<br />{aktifPelanggan.wa}</dd>
             </dl>
 
-            <div>
-              <div style={{ display: "flex", justifyContent: "space-between", fontSize: "12.5px", marginBottom: "6px", gap: "8px" }}>
-                <span style={{ color: "var(--color-text-muted)" }}>{t("Dibayar", "Paid")}</span>
-                <span style={{ fontVariantNumeric: "tabular-nums" }}>
+            <div className="bw-progress">
+              <div className="bw-progress__head">
+                <span className="bw-muted">{t("Dibayar", "Paid")}</span>
+                <span className="bw-progress__num">
                   <strong>{rupiah(Math.min(aktif.dibayar, aktifHitung.total))}</strong> / {rupiah(aktifHitung.total)}
                 </span>
               </div>
               <span className="bw-bar">
                 <span
+                  className="bw-bar__fill"
                   style={{
-                    width: `${Math.min(100, Math.round((aktif.dibayar / Math.max(aktifHitung.total, 1)) * 100))}%`,
-                    background: aktif.status === "cancelled" ? "var(--color-danger)" : "var(--color-success)",
-                  }}
+                    "--w": `${Math.min(100, Math.round((aktif.dibayar / Math.max(aktifHitung.total, 1)) * 100))}%`,
+                    "--bar-color": aktif.status === "cancelled" ? "var(--color-danger)" : "var(--color-success)",
+                  } as React.CSSProperties}
                 />
               </span>
             </div>
 
             <div className="bw-money">
-              <div><span style={{ color: "var(--color-text-muted)" }}>{t("Subjumlah", "Subtotal")}</span><strong>{rupiah(aktifHitung.subtotal)}</strong></div>
-              <div><span style={{ color: "var(--color-text-muted)" }}>{t("Diskaun", "Discount")}</span><strong>{aktif.diskon > 0 ? `− ${rupiah(aktif.diskon)}` : "—"}</strong></div>
-              <div style={{ paddingTop: "6px", borderTop: "1px solid var(--color-border)" }}><span style={{ fontWeight: 600 }}>{t("Jumlah", "Total")}</span><strong>{rupiah(aktifHitung.total)}</strong></div>
+              <div><span className="bw-muted">{t("Subjumlah", "Subtotal")}</span><strong>{rupiah(aktifHitung.subtotal)}</strong></div>
+              <div><span className="bw-muted">{t("Diskaun", "Discount")}</span><strong>{aktif.diskon > 0 ? `− ${rupiah(aktif.diskon)}` : "—"}</strong></div>
+              <div className="bw-money__total"><span>{t("Jumlah", "Total")}</span><strong>{rupiah(aktifHitung.total)}</strong></div>
               <div>
-                <span style={{ color: "var(--color-text-muted)" }}>{t("Tertunggak", "Outstanding")}</span>
-                <strong style={{ color: aktifHitung.sisa > 0 ? "var(--color-warning)" : "var(--color-success)" }}>
+                <span className="bw-muted">{t("Tertunggak", "Outstanding")}</span>
+                <strong className={aktifHitung.sisa > 0 ? "bw-text-warning" : "bw-text-success"}>
                   {aktifHitung.sisa > 0 ? rupiah(aktifHitung.sisa) : t("Selesai bayar", "Paid")}
                 </strong>
               </div>
             </div>
 
             <div>
-              <h3 style={{ margin: "0 0 8px", fontSize: "12.5px", fontWeight: 600 }}>
-                {t("Penumpang", "Passengers")} <span style={{ color: "var(--color-text-muted)", fontWeight: 500 }}>({aktif.penumpang.length})</span>
+              <h3 className="bw-section-title">
+                {t("Penumpang", "Passengers")} <span className="bw-section-title__count">({aktif.penumpang.length})</span>
               </h3>
               {aktif.penumpang.map((orang) => {
                 const tipeMeta = TIPE_PENUMPANG.find((tp) => tp.id === orang.tipe) ?? TIPE_PENUMPANG[0];
                 return (
                   <div key={orang.id} className="bw-pax">
-                    <span style={{ minWidth: 0, overflowWrap: "anywhere" }}>{orang.nama}</span>
-                    <span style={{ color: "var(--color-text-muted)", flex: "none" }}>{t(tipeMeta.label.ms, tipeMeta.label.en)}</span>
+                    <span className="bw-pax__name">{orang.nama}</span>
+                    <span className="bw-pax__type">{t(tipeMeta.label.ms, tipeMeta.label.en)}</span>
                   </div>
                 );
               })}
@@ -1024,14 +895,14 @@ export default function BookingWorkspace() {
             </div>
 
             <div>
-              <h3 style={{ margin: "0 0 10px", fontSize: "12.5px", fontWeight: 600 }}>{t("Sejarah tempahan", "Booking history")}</h3>
+              <h3 className="bw-section-title bw-section-title--gap">{t("Sejarah tempahan", "Booking history")}</h3>
               <ol className="bw-timeline">
                 {aktif.riwayat.map((baris) => (
                   <li key={baris.id}>
-                    <span className="bw-dot" style={{ background: baris.tone }} />
-                    <div style={{ minWidth: 0 }}>
-                      <strong style={{ display: "block", fontWeight: 600 }}>{baris.teks}</strong>
-                      <span style={{ color: "var(--color-text-muted)" }}>{baris.ket}</span>
+                    <span className="bw-dot" style={{ "--dot": baris.tone } as React.CSSProperties} />
+                    <div className="bw-min0">
+                      <strong>{baris.teks}</strong>
+                      <span className="bw-muted">{baris.ket}</span>
                     </div>
                   </li>
                 ))}
@@ -1043,7 +914,7 @@ export default function BookingWorkspace() {
           <section className="bw-card" data-node-id="bw.detail-empty">
             <div className="bw-empty">
               <Inbox />
-              <p style={{ margin: 0 }}>{t("Pilih tempahan untuk lihat butiran, atau cipta tempahan baharu.", "Select a booking to see details, or create a new booking.")}</p>
+              <p className="bw-p">{t("Pilih tempahan untuk lihat butiran, atau cipta tempahan baharu.", "Select a booking to see details, or create a new booking.")}</p>
             </div>
           </section>
         )}
@@ -1052,11 +923,11 @@ export default function BookingWorkspace() {
       {/* Create booking dialog */}
       <dialog ref={dialogBuatan} className="bw-dialog" aria-labelledby="bw-create-title" data-node-id="bw.create" onClose={() => setGalat({})}>
         <div className="bw-dialog__head">
-          <div style={{ minWidth: 0 }}>
-            <h2 style={{ margin: 0, fontFamily: "var(--font-display)", fontSize: "17px", fontWeight: 700, letterSpacing: "-0.01em" }} id="bw-create-title">
+          <div className="bw-min0">
+            <h2 className="bw-dialog__title" id="bw-create-title">
               {t("Cipta tempahan", "Create a booking")}
             </h2>
-            <p style={{ margin: "4px 0 0", fontSize: "12.5px", color: "var(--color-text-muted)" }}>
+            <p className="bw-dialog__sub">
               {t("Pilih pelanggan dan keberangkatan, kemudian tambah penumpang.", "Choose the customer and departure, then add passengers.")}
             </p>
           </div>
@@ -1151,8 +1022,8 @@ export default function BookingWorkspace() {
 
           {langkah === 2 ? (
             <>
-              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: "8px", flexWrap: "wrap" }}>
-                <p style={{ margin: 0, fontSize: "12.5px", color: "var(--color-text-muted)" }}>
+              <div className="bw-toolbar-line">
+                <p className="bw-muted bw-p bw-text-sm">
                   {t("{n} penumpang · {sisa} kerusi tersedia", "{n} passengers · {sisa} seats available").replace("{n}", String(draftPenumpang.length)).replace("{sisa}", String(slotTersisa))}
                 </p>
                 <button type="button" className="bw-btn" data-action="bw:add-pax" onClick={tambahPenumpang}>
@@ -1191,7 +1062,7 @@ export default function BookingWorkspace() {
                   </div>
                   <div className="bw-field">
                     <span className="bw-label">{t("Harga", "Price")}</span>
-                    <span style={{ fontSize: "13px", fontVariantNumeric: "tabular-nums", padding: "9px 0", color: "var(--color-text-secondary)" }}>
+                    <span className="bw-price">
                       {rupiah(ambilPaket(form.paket, paketList).harga[orang.tipe])}
                     </span>
                   </div>
@@ -1293,14 +1164,14 @@ export default function BookingWorkspace() {
       </dialog>
 
       {/* Cancel booking dialog */}
-      <dialog ref={dialogBatal} className="bw-dialog" aria-labelledby="bw-cancel-title" style={{ width: "min(520px, calc(100vw - 32px))" }} data-node-id="bw.cancel">
+      <dialog ref={dialogBatal} className="bw-dialog bw-dialog--sm" aria-labelledby="bw-cancel-title" data-node-id="bw.cancel">
         <form method="dialog" onSubmit={konfirmasiBatal}>
           <div className="bw-dialog__head">
-            <div style={{ minWidth: 0 }}>
-              <h2 style={{ margin: 0, fontFamily: "var(--font-display)", fontSize: "17px", fontWeight: 700, letterSpacing: "-0.01em" }} id="bw-cancel-title">
+            <div className="bw-min0">
+              <h2 className="bw-dialog__title" id="bw-cancel-title">
                 {t("Batalkan tempahan", "Cancel booking")}
               </h2>
-              <p style={{ margin: "4px 0 0", fontSize: "12.5px", color: "var(--color-text-muted)" }}>{aktif?.ref} · {aktifPelanggan?.nama}</p>
+              <p className="bw-dialog__sub">{aktif?.ref} · {aktifPelanggan?.nama}</p>
             </div>
             <button type="button" className="bw-close" aria-label={t("Tutup dialog pembatalan", "Close cancellation dialog")} onClick={() => dialogBatal.current?.close()}>
               <Ikon icon={X} />
@@ -1309,7 +1180,7 @@ export default function BookingWorkspace() {
           <div className="bw-dialog__body">
             <div className="bw-alert bw-alert--danger">
               <Ikon icon={TriangleAlert} />
-              <span>
+              <span className="bw-alert__text">
                 {t(
                   "{n} kerusi akan dilepaskan semula ke keberangkatan {dep}. Ini direkodkan dalam sejarah tempahan.",
                   "{n} seats will be released back to departure {dep}. This is recorded in the booking history.",
@@ -1325,11 +1196,10 @@ export default function BookingWorkspace() {
                 aria-invalid={galatBatal ? "true" : undefined}
                 onChange={(event) => setAlasanBatal(event.target.value)}
                 placeholder={t("cth. pelanggan menangguhkan perjalanan", "e.g. customer postponed the trip")}
-                style={{ resize: "vertical", fontFamily: "inherit" }}
               />
             </Medan>
           </div>
-          <div className="bw-dialog__foot" style={{ borderBottomLeftRadius: "var(--radius-panel)", borderBottomRightRadius: "var(--radius-panel)" }}>
+          <div className="bw-dialog__foot">
             <button type="button" className="bw-btn" onClick={() => dialogBatal.current?.close()}>
               {t("Kekalkan tempahan", "Keep booking")}
             </button>

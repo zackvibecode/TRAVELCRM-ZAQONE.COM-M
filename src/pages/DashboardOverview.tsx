@@ -291,9 +291,8 @@ export default function DashboardOverview() {
           </button>
           <a
             href="/bookings"
-            className="inline-flex items-center gap-1.5 rounded-[var(--radius-control)] bg-[var(--color-primary)] px-3.5 py-1.5 text-[12.5px] font-semibold text-[var(--color-on-primary)] hover:bg-[var(--color-primary-hover)]"
-            style={{ textDecoration: "none" }}
-          >
+              className="inline-flex items-center gap-1.5 rounded-[var(--radius-control)] bg-[var(--color-primary)] px-3.5 py-1.5 text-[12.5px] font-semibold text-[var(--color-on-primary)] no-underline hover:bg-[var(--color-primary-hover)]"
+            >
             <Plus className="h-3.5 w-3.5" />
             {t("Tempahan Baharu", "New booking")}
           </a>
@@ -378,7 +377,7 @@ export default function DashboardOverview() {
         <Panel>
           <PanelHead
             title="Top packages"
-            aside={<a href="/packages" className="bg-transparent p-1 text-[12.5px] font-semibold text-[var(--color-primary)]" style={{ textDecoration: "none" }}>View catalogue</a>}
+              aside={<a href="/packages" className="bg-transparent p-1 text-[12.5px] font-semibold text-[var(--color-primary)] no-underline">View catalogue</a>}
           />
           <div className="flex flex-col">
             {TOP_PACKAGES.map((pkg) => (
@@ -447,10 +446,9 @@ export default function DashboardOverview() {
           </div>
           <a
             href={tab === "departures" ? "/trips" : "/bookings"}
-            className="bg-transparent p-1 text-[12.5px] font-semibold text-[var(--color-primary)]"
-            style={{ textDecoration: "none" }}
-          >
-            {tab === "departures" ? "All departures" : "All bookings"}
+              className="bg-transparent p-1 text-[12.5px] font-semibold text-[var(--color-primary)] no-underline"
+            >
+              {tab === "departures" ? "All departures" : "All bookings"}
           </a>
         </div>
 
@@ -471,9 +469,8 @@ export default function DashboardOverview() {
                 <a
                   key={dep.id}
                   href="/trips"
-                  className="grid grid-cols-[minmax(0,1.5fr)_minmax(0,0.9fr)_minmax(120px,1fr)_minmax(80px,auto)] items-center gap-3 border-b border-[var(--color-border)] px-5 py-3 last:border-b-0 hover:bg-[var(--color-surface-raised)]"
-                  style={{ textDecoration: "none", color: "inherit" }}
-                >
+                    className="grid grid-cols-[minmax(0,1.5fr)_minmax(0,0.9fr)_minmax(120px,1fr)_minmax(80px,auto)] items-center gap-3 border-b border-[var(--color-border)] px-5 py-3 text-inherit no-underline last:border-b-0 hover:bg-[var(--color-surface-raised)]"
+                  >
                   <div className="min-w-0">
                     <div className="truncate text-[13px] font-semibold">{dep.package}</div>
                     <div className="text-[11.5px] text-muted-foreground">{dep.id} · TL {dep.leader}</div>

@@ -1,69 +1,21 @@
-import { useState } from "react";
+﻿import { useState } from "react";
 import { Link, useNavigate, useSearchParams } from "react-router-dom";
 import { ArrowLeft, Eye, EyeOff, Languages, Lock, ShieldCheck, TriangleAlert, type LucideIcon } from "lucide-react";
 import { useLang } from "@/lib/i18n";
 import { resetPassword } from "@/lib/auth";
 
-/* --------------------------------------------------------------- styles */
-const css = `
-.au-shell { min-height: 100vh; display: flex; flex-direction: column; align-items: center; justify-content: center; padding: var(--space-6) var(--space-4); background: linear-gradient(160deg, #f6f7f9 0%, #eceff3 100%); }
 
-.au-card { width: 100%; max-width: 960px; display: grid; grid-template-columns: 1.15fr 1fr; border-radius: var(--radius-panel); overflow: hidden; box-shadow: 0 24px 60px color-mix(in srgb, var(--color-text) 14%, transparent); border: 1px solid var(--color-border); }
-
-.au-brand { position: relative; display: flex; flex-direction: column; justify-content: space-between; gap: var(--space-5); padding: var(--space-7); color: #fff; background: linear-gradient(150deg, #b3121f 0%, #e61828 55%, #ff4d55 100%); }
-.au-brand::before { content: ""; position: absolute; inset: 0; background: radial-gradient(700px 320px at 85% -10%, rgba(255,255,255,0.18), transparent 60%); pointer-events: none; }
-.au-brand__logo { display: block; width: 100%; height: auto; }
-.au-brand__headline { margin: 0; font-family: var(--font-display); font-size: 22px; font-weight: 800; line-height: 1.35; letter-spacing: -0.01em; }
-.au-brand__copy { margin: 8px 0 0; font-size: 13px; line-height: 1.6; color: rgba(255,255,255,0.88); max-width: 38ch; }
-.au-brand__tag { margin: 0; font-size: 10.5px; font-weight: 600; letter-spacing: 0.1em; text-transform: uppercase; color: rgba(255,255,255,0.75); }
-
-.au-panel { background: var(--color-surface); padding: var(--space-7) var(--space-6); display: flex; flex-direction: column; justify-content: center; }
-.au-panel form { display: flex; flex-direction: column; gap: var(--space-4); }
-
-.au-title { margin: 0; font-family: var(--font-display); font-size: 19px; font-weight: 700; letter-spacing: -0.01em; color: var(--color-text); }
-.au-sub { margin: 4px 0 0; font-size: 12.5px; color: var(--color-text-muted); }
-
-.au-field { display: flex; flex-direction: column; gap: 6px; min-width: 0; }
-.au-label { font-size: 12.5px; font-weight: 600; color: var(--color-text-secondary); }
-.au-control { position: relative; }
-.au-input { width: 100%; box-sizing: border-box; height: 42px; padding: 0 12px 0 36px; border: 1px solid var(--color-border); border-radius: var(--radius-control); background: var(--color-surface); font: inherit; font-size: 13px; color: var(--color-text); min-width: 0; }
-.au-input--peek { padding-right: 38px; }
-.au-input::placeholder { color: var(--color-text-muted); }
-.au-input:focus-visible { outline: 2px solid var(--color-focus-ring); outline-offset: 0; border-color: var(--color-primary); }
-.au-icon { position: absolute; left: 12px; top: 50%; transform: translateY(-50%); color: var(--color-text-muted); pointer-events: none; }
-.au-peek { position: absolute; right: 8px; top: 50%; transform: translateY(-50%); display: grid; place-items: center; width: 26px; height: 26px; border: 0; border-radius: 6px; background: transparent; color: var(--color-text-muted); cursor: pointer; }
-.au-peek:hover { background: var(--color-surface-muted); color: var(--color-text); }
-.au-peek:focus-visible { outline: 2px solid var(--color-focus-ring); outline-offset: 1px; }
-
-.au-error { display: flex; align-items: flex-start; gap: 7px; padding: 9px 12px; border-radius: var(--radius-control); background: var(--color-danger-soft); color: var(--color-danger); font-size: 12.5px; }
-.au-warn { display: flex; align-items: flex-start; gap: 7px; padding: 9px 12px; border-radius: var(--radius-control); background: var(--color-warning-soft); color: var(--color-warning); font-size: 12.5px; }
-
-.au-success { display: flex; flex-direction: column; align-items: center; gap: 10px; text-align: center; }
-.au-success__icon { display: grid; place-items: center; width: 40px; height: 40px; border-radius: var(--radius-pill); background: var(--color-success-soft); color: var(--color-success); }
-
-.au-btn { display: inline-flex; align-items: center; justify-content: center; gap: 6px; height: 42px; padding: 0 var(--space-4); border-radius: var(--radius-control); border: 1px solid var(--color-primary); background: var(--color-primary); color: var(--color-on-primary); font: inherit; font-size: 13px; font-weight: 600; cursor: pointer; transition: background 140ms ease, border-color 140ms ease; }
-.au-btn:hover { background: var(--color-primary-hover); border-color: var(--color-primary-hover); }
-.au-btn:focus-visible { outline: 2px solid var(--color-focus-ring); outline-offset: 2px; }
-.au-btn:disabled { opacity: 0.55; cursor: not-allowed; }
-
-.au-back { display: flex; align-items: center; justify-content: center; gap: 6px; padding-top: var(--space-4); border-top: 1px solid var(--color-border); margin-top: var(--space-5); }
-.au-back a { display: inline-flex; align-items: center; gap: 5px; font-size: 11.5px; font-weight: 600; color: var(--color-text-secondary); text-decoration: none; }
-.au-back a:hover { color: var(--color-text); text-decoration: underline; }
-.au-back a:focus-visible { outline: 2px solid var(--color-focus-ring); outline-offset: 2px; border-radius: 4px; }
-
-.au-foot { display: flex; justify-content: center; max-width: 960px; width: 100%; margin-top: var(--space-4); }
-.au-lang { display: inline-flex; align-items: center; gap: 6px; padding: 6px 10px; border: 1px solid var(--color-border); border-radius: var(--radius-control); background: var(--color-surface); color: var(--color-text-secondary); font: inherit; font-size: 11.5px; font-weight: 600; cursor: pointer; }
-.au-lang:hover { background: var(--color-surface-muted); }
-.au-lang:focus-visible { outline: 2px solid var(--color-focus-ring); outline-offset: 2px; }
-
-@media (max-width: 860px) { .au-card { grid-template-columns: 1fr; max-width: 440px; } .au-brand { display: none; } }
-@media (max-width: 480px) { .au-panel { padding: var(--space-5) var(--space-4); } }
-@media (prefers-reduced-motion: reduce) { .au-btn { transition: none; } }
-`;
-
-function Ikon({ icon, size = 15, style }: { icon: LucideIcon; size?: number; style?: React.CSSProperties }) {
+function Ikon({
+  icon, size = 15, style, className,
+}: { icon: LucideIcon; size?: number; style?: React.CSSProperties; className?: string }) {
   const Icon = icon;
-  return <Icon aria-hidden="true" style={{ fontSize: `${size}px`, width: size, height: size, flex: "none", ...style }} />;
+  return (
+    <Icon
+      aria-hidden="true"
+      className={className ? `au-ic ${className}` : "au-ic"}
+      style={{ "--size": `${size}px`, ...style } as React.CSSProperties}
+    />
+  );
 }
 
 export default function ResetPasswordPage() {
@@ -118,7 +70,7 @@ export default function ResetPasswordPage() {
 
   return (
     <div className="au-shell" data-node-id="auth.reset">
-      <style>{css}</style>
+      {/* Page */}
       <div className="au-card">
         <div className="au-brand">
           <div>
@@ -173,7 +125,7 @@ export default function ResetPasswordPage() {
 
               {!token ? (
                 <div className="au-warn" role="status">
-                  <Ikon icon={TriangleAlert} size={14} style={{ marginTop: 2 }} />
+                  <Ikon icon={TriangleAlert} size={14} className="au-warn__icon" />
                   <span>
                     {t(
                       "Tiada token reset dalam URL — ini adalah pratonton borang sahaja.",
@@ -186,7 +138,7 @@ export default function ResetPasswordPage() {
               <div className="au-field">
                 <label className="au-label" htmlFor="password">{t("Kata Laluan Baru", "New Password")}</label>
                 <div className="au-control">
-                  <Ikon icon={Lock} size={15} style={{ position: "absolute", left: 12, top: "50%", transform: "translateY(-50%)", color: "var(--color-text-muted)", pointerEvents: "none" }} />
+                  <Ikon icon={Lock} size={15} className="au-ic--field" />
                   <input
                     id="password"
                     type={showPassword ? "text" : "password"}
@@ -212,7 +164,7 @@ export default function ResetPasswordPage() {
               <div className="au-field">
                 <label className="au-label" htmlFor="confirm">{t("Sahkan Kata Laluan", "Confirm Password")}</label>
                 <div className="au-control">
-                  <Ikon icon={Lock} size={15} style={{ position: "absolute", left: 12, top: "50%", transform: "translateY(-50%)", color: "var(--color-text-muted)", pointerEvents: "none" }} />
+                  <Ikon icon={Lock} size={15} className="au-ic--field" />
                   <input
                     id="confirm"
                     type={showPassword ? "text" : "password"}

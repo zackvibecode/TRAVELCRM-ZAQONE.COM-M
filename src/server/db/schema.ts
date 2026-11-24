@@ -1433,7 +1433,7 @@ export const user = sqliteTable(
     })
       .notNull()
       .default("sales"),
-    status: text("status", { enum: ["active", "suspended"] })
+    status: text("status", { enum: ["active", "pending", "suspended"] })
       .notNull()
       .default("active"),
     createdAt: integer("createdAt", { mode: "timestamp" })

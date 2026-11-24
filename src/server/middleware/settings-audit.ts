@@ -43,8 +43,11 @@ export function settingsAuditMiddleware(): MiddlewareHandler {
         path.endsWith("/logo");
       if (alreadyLogged) return;
 
-      const segs = path.split("/").filter(Boolean); // e.g. settings, general
-      const module = segs[1] ?? "settings";
+      const segs = path.split("/").filter(Boolean); // e.g. api, settings, general
+      // Data routes are mounted under /api/*; drop that prefix so the
+      // recorded module is "settings", not "api".
+      if (segs[0] === "api") segs.shift();
+      const module = segs[1] ?? segs[0] ?? "settings";
       const staff = c.get("staff");
       const changeType =
         method === "DELETE" ? "deleted" : method === "POST" ? "created" : "updated";

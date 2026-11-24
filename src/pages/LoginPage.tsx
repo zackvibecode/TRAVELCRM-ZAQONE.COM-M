@@ -1,71 +1,22 @@
-import { useState } from "react";
+﻿import { useState } from "react";
 import { useLocation, useNavigate, Link } from "react-router-dom";
 import { Languages, Lock, LogIn, Mail, Eye, EyeOff, type LucideIcon } from "lucide-react";
 import { useLang } from "@/lib/i18n";
-import { login } from "@/lib/auth";
+import { login, verifyTurnstile } from "@/lib/auth";
+import TurnstileWidget, { getTurnstileSiteKey } from "@/components/TurnstileWidget";
 
-/* --------------------------------------------------------------- styles */
-const css = `
-.au-shell { min-height: 100vh; display: flex; flex-direction: column; align-items: center; justify-content: center; padding: var(--space-6) var(--space-4); background: linear-gradient(160deg, #f6f7f9 0%, #eceff3 100%); }
 
-/* Split card: brand panel (left) + form panel (right) */
-.au-card { width: 100%; max-width: 960px; display: grid; grid-template-columns: 1.15fr 1fr; border-radius: var(--radius-panel); overflow: hidden; box-shadow: 0 24px 60px color-mix(in srgb, var(--color-text) 14%, transparent); border: 1px solid var(--color-border); }
-
-.au-brand { position: relative; display: flex; flex-direction: column; justify-content: space-between; gap: var(--space-5); padding: var(--space-7); color: #fff; background: linear-gradient(150deg, #b3121f 0%, #e61828 55%, #ff4d55 100%); }
-.au-brand::before { content: ""; position: absolute; inset: 0; background: radial-gradient(700px 320px at 85% -10%, rgba(255,255,255,0.18), transparent 60%); pointer-events: none; }
-.au-brand__logo { display: block; width: 100%; height: auto; }
-.au-brand__headline { margin: 0; font-family: var(--font-display); font-size: 22px; font-weight: 800; line-height: 1.35; letter-spacing: -0.01em; }
-.au-brand__copy { margin: 8px 0 0; font-size: 13px; line-height: 1.6; color: rgba(255,255,255,0.88); max-width: 38ch; }
-.au-brand__tag { margin: 0; font-size: 10.5px; font-weight: 600; letter-spacing: 0.1em; text-transform: uppercase; color: rgba(255,255,255,0.75); }
-
-.au-panel { background: var(--color-surface); padding: var(--space-7) var(--space-6); display: flex; flex-direction: column; justify-content: center; }
-.au-panel form { display: flex; flex-direction: column; gap: var(--space-4); }
-
-.au-title { margin: 0; font-family: var(--font-display); font-size: 19px; font-weight: 700; letter-spacing: -0.01em; color: var(--color-text); }
-.au-sub { margin: 4px 0 0; font-size: 12.5px; color: var(--color-text-muted); }
-
-.au-field { display: flex; flex-direction: column; gap: 6px; min-width: 0; }
-.au-label { font-size: 12.5px; font-weight: 600; color: var(--color-text-secondary); }
-.au-control { position: relative; }
-.au-input { width: 100%; box-sizing: border-box; height: 42px; padding: 0 12px 0 36px; border: 1px solid var(--color-border); border-radius: var(--radius-control); background: var(--color-surface); font: inherit; font-size: 13px; color: var(--color-text); min-width: 0; }
-.au-input--peek { padding-right: 38px; }
-.au-input::placeholder { color: var(--color-text-muted); }
-.au-input:focus-visible { outline: 2px solid var(--color-focus-ring); outline-offset: 0; border-color: var(--color-primary); }
-.au-icon { position: absolute; left: 12px; top: 50%; transform: translateY(-50%); color: var(--color-text-muted); pointer-events: none; }
-.au-peek { position: absolute; right: 8px; top: 50%; transform: translateY(-50%); display: grid; place-items: center; width: 26px; height: 26px; border: 0; border-radius: 6px; background: transparent; color: var(--color-text-muted); cursor: pointer; }
-.au-peek:hover { background: var(--color-surface-muted); color: var(--color-text); }
-.au-peek:focus-visible { outline: 2px solid var(--color-focus-ring); outline-offset: 1px; }
-
-.au-error { display: flex; align-items: flex-start; gap: 7px; padding: 9px 12px; border-radius: var(--radius-control); background: var(--color-danger-soft); color: var(--color-danger); font-size: 12.5px; }
-
-.au-btn { display: inline-flex; align-items: center; justify-content: center; gap: 6px; height: 42px; padding: 0 var(--space-4); border-radius: var(--radius-control); border: 1px solid var(--color-primary); background: var(--color-primary); color: var(--color-on-primary); font: inherit; font-size: 13px; font-weight: 600; cursor: pointer; transition: background 140ms ease, border-color 140ms ease; }
-.au-btn:hover { background: var(--color-primary-hover); border-color: var(--color-primary-hover); }
-.au-btn:focus-visible { outline: 2px solid var(--color-focus-ring); outline-offset: 2px; }
-.au-btn:disabled { opacity: 0.55; cursor: not-allowed; }
-
-.au-link { align-self: flex-end; font-size: 11.5px; font-weight: 600; color: var(--color-primary); text-decoration: none; }
-.au-link:hover { text-decoration: underline; }
-.au-link:focus-visible { outline: 2px solid var(--color-focus-ring); outline-offset: 2px; border-radius: 4px; }
-
-.au-back { display: flex; align-items: center; justify-content: center; gap: 6px; padding-top: var(--space-4); border-top: 1px solid var(--color-border); margin-top: var(--space-5); }
-.au-back a { display: inline-flex; align-items: center; gap: 5px; font-size: 11.5px; font-weight: 600; color: var(--color-text-secondary); text-decoration: none; }
-.au-back a:hover { color: var(--color-text); text-decoration: underline; }
-.au-back a:focus-visible { outline: 2px solid var(--color-focus-ring); outline-offset: 2px; border-radius: 4px; }
-
-.au-foot { display: flex; align-items: center; justify-content: space-between; gap: var(--space-3); max-width: 960px; width: 100%; margin-top: var(--space-4); }
-.au-lang { display: inline-flex; align-items: center; gap: 6px; padding: 6px 10px; border: 1px solid var(--color-border); border-radius: var(--radius-control); background: var(--color-surface); color: var(--color-text-secondary); font: inherit; font-size: 11.5px; font-weight: 600; cursor: pointer; }
-.au-lang:hover { background: var(--color-surface-muted); }
-.au-lang:focus-visible { outline: 2px solid var(--color-focus-ring); outline-offset: 2px; }
-.au-note { font-size: 11.5px; color: var(--color-text-muted); }
-
-@media (max-width: 860px) { .au-card { grid-template-columns: 1fr; max-width: 440px; } .au-brand { display: none; } }
-@media (max-width: 480px) { .au-panel { padding: var(--space-5) var(--space-4); } .au-foot { flex-direction: column; gap: var(--space-2); } }
-@media (prefers-reduced-motion: reduce) { .au-btn { transition: none; } }
-`;
-
-function Ikon({ icon, size = 15, style }: { icon: LucideIcon; size?: number; style?: React.CSSProperties }) {
+function Ikon({
+  icon, size = 15, style, className,
+}: { icon: LucideIcon; size?: number; style?: React.CSSProperties; className?: string }) {
   const Icon = icon;
-  return <Icon aria-hidden="true" style={{ fontSize: `${size}px`, width: size, height: size, flex: "none", ...style }} />;
+  return (
+    <Icon
+      aria-hidden="true"
+      className={className ? `au-ic ${className}` : "au-ic"}
+      style={{ "--size": `${size}px`, ...style } as React.CSSProperties}
+    />
+  );
 }
 
 export default function LoginPage() {
@@ -79,14 +30,33 @@ export default function LoginPage() {
   const [showPassword, setShowPassword] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
+  const [turnstileToken, setTurnstileToken] = useState("");
+  const [turnstileReset, setTurnstileReset] = useState(0);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError(null);
+
+    const turnstileEnabled = !!getTurnstileSiteKey();
+
+    if (turnstileEnabled && !turnstileToken) {
+      setError(t("Sila sahkan anda bukan robot.", "Please complete the security check."));
+      return;
+    }
+
     setSubmitting(true);
     try {
+      if (turnstileEnabled) {
+        const ok = await verifyTurnstile(turnstileToken, "login");
+        if (!ok) {
+          setTurnstileReset((n) => n + 1);
+          setError(t("Pengesahan keselamatan gagal. Cuba lagi.", "Security check failed. Try again."));
+          return;
+        }
+      }
       const result = await login(email, password);
       if (!result.ok) {
+        setTurnstileReset((n) => n + 1);
         setError(
           result.error === "Invalid email or password"
             ? t("Emel atau kata laluan tidak sah.", "Invalid email or password.")
@@ -102,7 +72,7 @@ export default function LoginPage() {
 
   return (
     <div className="au-shell" data-node-id="auth.login">
-      <style>{css}</style>
+      {/* Page */}
       <div className="au-card">
         {/* Brand panel — red gradient with logo + marketing copy */}
         <div className="au-brand">
@@ -143,7 +113,7 @@ export default function LoginPage() {
             <div className="au-field">
               <label className="au-label" htmlFor="email">{t("Emel Staf", "Staff Email")}</label>
               <div className="au-control">
-                <Ikon icon={Mail} size={15} style={{ left: 12, top: "50%", transform: "translateY(-50%)", color: "var(--color-text-muted)", position: "absolute", pointerEvents: "none" }} />
+                <Ikon icon={Mail} size={15} className="au-ic--field" />
                 <input
                   id="email"
                   type="email"
@@ -160,7 +130,7 @@ export default function LoginPage() {
             <div className="au-field">
               <label className="au-label" htmlFor="password">{t("Kata Laluan", "Password")}</label>
               <div className="au-control">
-                <Ikon icon={Lock} size={15} style={{ position: "absolute", left: 12, top: "50%", transform: "translateY(-50%)", color: "var(--color-text-muted)", pointerEvents: "none" }} />
+                <Ikon icon={Lock} size={15} className="au-ic--field" />
                 <input
                   id="password"
                   type={showPassword ? "text" : "password"}
@@ -187,9 +157,20 @@ export default function LoginPage() {
               <div className="au-error" role="alert">{error}</div>
             ) : null}
 
-            <Link to="/forgot-password" className="au-link">
-              {t("Lupa kata laluan?", "Forgot password?")}
-            </Link>
+            <TurnstileWidget
+              action="login"
+              onToken={setTurnstileToken}
+              resetKey={turnstileReset}
+            />
+
+            <div className="flex items-center justify-between">
+              <Link to="/forgot-password" className="au-link">
+                {t("Lupa kata laluan?", "Forgot password?")}
+              </Link>
+              <Link to="/signup" className="au-link">
+                {t("Daftar akaun", "Create account")}
+              </Link>
+            </div>
 
             <button type="submit" className="au-btn" disabled={submitting}>
               <Ikon icon={LogIn} size={15} />
@@ -200,7 +181,7 @@ export default function LoginPage() {
       </div>
 
       {/* Footer */}
-      <div className="au-foot">
+      <div className="au-foot au-foot--split">
         <button
           type="button"
           className="au-lang"

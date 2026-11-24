@@ -357,17 +357,11 @@ export default function TripsDashboard() {
                   {t("Tersedia", "Available")}
                 </span>
                 <span className="inline-flex items-center gap-1.5">
-                  <span
-                    className="h-3 w-3 rounded"
-                    style={{ background: "var(--color-primary)", borderColor: "var(--color-primary)" }}
-                  />
+                  <span className="h-3 w-3 rounded border border-[var(--color-primary)] bg-[var(--color-primary)]" />
                   {t("Diduduki", "Occupied")}
                 </span>
                 <span className="inline-flex items-center gap-1.5">
-                  <span
-                    className="h-3 w-3 rounded"
-                    style={{ background: "var(--color-warning-soft)", borderColor: "var(--color-warning)" }}
-                  />
+                  <span className="h-3 w-3 rounded border border-[var(--color-warning)] bg-[var(--color-warning-soft)]" />
                   {t("Ditahan", "On hold")}
                 </span>
               </div>
@@ -401,8 +395,7 @@ export default function TripsDashboard() {
                       </div>
                       <Link
                         to={`/bookings?ref=${pickedPerson.booking}`}
-                        className="ml-auto inline-flex items-center gap-1.5 rounded-[var(--radius-control)] border border-[var(--color-border)] bg-[var(--color-surface)] px-3 py-2 text-[12.5px] font-semibold text-[var(--color-text)] hover:bg-[var(--color-surface-muted)]"
-                        style={{ textDecoration: "none" }}
+                        className="ml-auto inline-flex items-center gap-1.5 rounded-[var(--radius-control)] border border-[var(--color-border)] bg-[var(--color-surface)] px-3 py-2 text-[12.5px] font-semibold text-[var(--color-text)] no-underline hover:bg-[var(--color-surface-muted)]"
                       >
                         <ExternalLink className="h-3.5 w-3.5" aria-hidden="true" />
                         {t("Lihat Tempahan", "View booking")}

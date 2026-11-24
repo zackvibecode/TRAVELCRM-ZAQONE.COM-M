@@ -737,7 +737,7 @@ export default function WebsiteContentEditor() {
             {blocks.length === 0 ? (
               <div className="px-5 py-12 text-center">
                 <p className="font-semibold">{t("Halaman ini belum ada kandungan", "This page has no content yet")}</p>
-                <p className="mt-1.5 text-[13px] text-muted-foreground">{t("Guna templat travel agency di atas untuk susun kandungan sekali gus, atau tambah blok sendiri di bawah.", "Use a travel agency template above to arrange content in one go, or add blocks yourself below.")}</p>
+                <p className="mt-1.5 text-[13px] text-muted-foreground">{t("Guna templat travel agency di atas untuk susun kandungan sekali gus, atau tambah blok sendiri di bawah.", "Pick a travel agency template above to set up your content in one go, or add your own sections below.")}</p>
               </div>
             ) : (
               <ul className="flex flex-col gap-3 p-5">
@@ -966,7 +966,7 @@ export default function WebsiteContentEditor() {
           <DialogHeader>
             <DialogTitle>{t("Terbitkan halaman ini?", "Publish this page?")}</DialogTitle>
             <DialogDescription>
-              {t("Perubahan terus tayang di travelcrm.zaqone.com dan boleh dilihat pengunjung.", "Changes go live on travelcrm.zaqone.com straight away and visitors can see them.")}
+              {t("Perubahan terus tayang di travelcrm.zaqone.com dan pengunjung boleh nampaknya.", "Your changes go live on travelcrm.zaqone.com right away, and visitors can see them.")}
             </DialogDescription>
           </DialogHeader>
           <ul className="flex flex-col gap-2 text-[13px]">

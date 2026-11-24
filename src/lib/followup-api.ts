@@ -99,6 +99,14 @@ function normalizeFacets(w: LeadFacetsWire): LeadFacets {
   };
 }
 
+/** One confirmed follow-up count row from GET /report/fu. */
+export interface FuReportRow {
+  userId: string;
+  name: string;
+  stage: "FU1" | "FU2" | "FU3";
+  count: number;
+}
+
 /** One timeline entry from GET /leads/:id/history. */
 export interface TimelineEntry {
   id: string;
@@ -229,6 +237,7 @@ export interface AdminUser {
   email: string;
   role: "super_admin" | "management" | "sales" | "finance" | "operations";
   active: boolean;
+  status: "active" | "pending" | "suspended";
   openLeads: number;
 }
 
@@ -296,6 +305,9 @@ export const followupApi = {
 
   leadFacets: (params: { owner?: string } = {}) =>
     apiFetch<Ok<LeadFacetsWire>>(`${BASE}/leads/facets${qs(params)}`).then((r) => normalizeFacets(r.data)),
+
+  /** GET /report/fu — confirmed follow-ups completed per stage per staff. */
+  reportFu: () => apiFetch<Ok<FuReportRow[]>>(`${BASE}/report/fu`).then((r) => r.data),
 
   /** GET /leads/:id returns `{ lead, activities, notes }`; we unwrap the row. */
   lead: (id: string) =>
@@ -478,4 +490,8 @@ export const followupApi = {
       `${BASE}/import/batches/${batchId}/retry`,
       { method: "POST", body: JSON.stringify({ rows }) },
     ).then((r) => r.data),
+
+  /** DELETE /import/batches/:id — remove an import batch and its error rows. */
+  deleteImportBatch: (batchId: string) =>
+    apiFetch<Ok<{ id: string }>>(`${BASE}/import/batches/${batchId}`, { method: "DELETE" }).then((r) => r.data),
 };

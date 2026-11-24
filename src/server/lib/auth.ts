@@ -87,7 +87,7 @@ export function createAuth(db: DrizzleD1Database<typeof schema>, env: Env) {
         status: {
           type: "string",
           required: true,
-          defaultValue: "active",
+          defaultValue: "pending",
           input: false,
         },
       },

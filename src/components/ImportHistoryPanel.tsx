@@ -4,6 +4,7 @@ import {
   ChevronDown,
   FileSpreadsheet,
   RotateCcw,
+  Trash2,
   XCircle,
 } from "lucide-react";
 import { useLang } from "@/lib/i18n";
@@ -78,36 +79,36 @@ function FailedRowsEditor({
 
   return (
     <div className="space-y-2">
-      <p className="text-xs font-semibold uppercase tracking-wide text-rose-700">
+      <p className="text-xs font-semibold uppercase tracking-wide text-[var(--color-danger)]">
         {t(
           "Baris gagal — betulkan & import semula",
           "Failed rows — fix & re-import",
         )}
       </p>
-      <div className="overflow-hidden rounded-lg border border-rose-200 bg-white">
+      <div className="overflow-hidden rounded-lg border border-[var(--color-danger-soft)] bg-[var(--color-surface)]">
         <table className="w-full text-xs">
-          <thead className="bg-rose-50 text-left text-[11px] uppercase tracking-wide text-rose-600">
+          <thead className="bg-[var(--color-danger-soft)] text-left text-[11px] uppercase tracking-wide text-[var(--color-danger)]">
             <tr>
-              <th className="px-3 py-2">#</th>
-              <th className="px-3 py-2">{t("Nama", "Name")}</th>
-              <th className="px-3 py-2">{t("Telepon", "Phone")}</th>
-              <th className="px-3 py-2">{t("Sebab asal", "Original reason")}</th>
+              <th className="px-3 py-2 font-semibold">#</th>
+              <th className="px-3 py-2 font-semibold">{t("Nama", "Name")}</th>
+              <th className="px-3 py-2 font-semibold">{t("Telepon", "Phone")}</th>
+              <th className="px-3 py-2 font-semibold">{t("Sebab asal", "Original reason")}</th>
             </tr>
           </thead>
-          <tbody className="divide-y divide-rose-100">
+          <tbody className="divide-y divide-[var(--color-border)]">
             {drafts.map((e, i) => (
               <tr key={e.rowNumber}>
-                <td className="px-3 py-2 text-slate-400">{e.rowNumber}</td>
+                <td className="px-3 py-2 text-muted-foreground">{e.rowNumber}</td>
                 <td className="px-3 py-2">
                   <input
                     value={e.name}
                     onChange={(ev) => update(i, { name: ev.target.value })}
                     placeholder={t("Nama", "Name")}
                     className={cn(
-                      "w-36 rounded border px-2 py-1 text-slate-800 focus:outline-none focus:ring-1",
+                      "w-36 rounded border px-2 py-1 text-[var(--color-text)] focus:outline-none focus:ring-1",
                       fixable[i]
-                        ? "border-slate-300 focus:border-emerald-500 focus:ring-emerald-500"
-                        : "border-rose-300 focus:border-rose-500 focus:ring-rose-500",
+                        ? "border-[var(--color-border)] focus:border-[var(--color-primary)] focus:ring-[var(--color-primary)]"
+                        : "border-[var(--color-danger)]/40 focus:border-[var(--color-danger)] focus:ring-[var(--color-danger)]",
                     )}
                   />
                 </td>
@@ -117,14 +118,14 @@ function FailedRowsEditor({
                     onChange={(ev) => update(i, { phone: ev.target.value })}
                     placeholder="012-345 6789"
                     className={cn(
-                      "w-36 rounded border px-2 py-1 font-mono text-slate-800 focus:outline-none focus:ring-1",
+                      "w-36 rounded border px-2 py-1 font-mono text-[var(--color-text)] focus:outline-none focus:ring-1",
                       fixable[i]
-                        ? "border-slate-300 focus:border-emerald-500 focus:ring-emerald-500"
-                        : "border-rose-300 focus:border-rose-500 focus:ring-rose-500",
+                        ? "border-[var(--color-border)] focus:border-[var(--color-primary)] focus:ring-[var(--color-primary)]"
+                        : "border-[var(--color-danger)]/40 focus:border-[var(--color-danger)] focus:ring-[var(--color-danger)]",
                     )}
                   />
                 </td>
-                <td className="px-3 py-2 font-semibold text-rose-600">
+                <td className="px-3 py-2 font-semibold text-[var(--color-danger)]">
                   {translateReason(e.reason, t)}
                 </td>
               </tr>
@@ -135,7 +136,7 @@ function FailedRowsEditor({
       <button
         onClick={() => onRetry(batch.id, drafts.filter((_, i) => fixable[i]))}
         disabled={!anyFixable}
-        className="inline-flex items-center gap-1.5 rounded-lg bg-emerald-600 px-3 py-1.5 text-xs font-semibold text-white shadow-sm transition hover:bg-emerald-700 disabled:cursor-not-allowed disabled:opacity-50"
+        className="inline-flex items-center gap-1.5 rounded-[var(--radius-control)] bg-[var(--color-primary)] px-3 py-1.5 text-xs font-semibold text-[var(--color-on-primary)] shadow-sm transition-colors hover:bg-[var(--color-primary-hover)] disabled:cursor-not-allowed disabled:opacity-50"
       >
         <RotateCcw className="h-3.5 w-3.5" />
         {t("Import semula baris diperbaiki", "Re-import fixed rows")}
@@ -152,19 +153,22 @@ function FailedRowsEditor({
 export default function ImportHistoryPanel({
   batches,
   onRetryFixed,
+  onDeleteBatch,
 }: {
   batches: ImportBatch[];
   /** Called with the corrected rows when the user re-imports a batch. */
   onRetryFixed?: (batchId: string, fixed: ImportErrorItem[]) => void;
+  /** Called with the batch id when the user deletes a batch. */
+  onDeleteBatch?: (batchId: string) => void;
 }) {
   const { t } = useLang();
   const [expandedId, setExpandedId] = useState<string | null>(null);
 
   if (batches.length === 0) {
     return (
-      <div className="rounded-xl border border-dashed border-slate-300 p-8 text-center">
-        <FileSpreadsheet className="mx-auto mb-2 h-8 w-8 text-slate-400" />
-        <p className="text-sm text-slate-500">
+      <div className="rounded-[var(--radius-card)] border border-dashed border-[var(--color-border-strong)] p-8 text-center">
+        <FileSpreadsheet className="mx-auto mb-2 h-8 w-8 text-muted-foreground" />
+        <p className="text-[13px] text-muted-foreground">
           {t(
             "Belum ada import. Muat naik Excel/CSV pertama anda.",
             "No imports yet. Upload your first Excel/CSV.",
@@ -175,28 +179,31 @@ export default function ImportHistoryPanel({
   }
 
   return (
-    <div className="overflow-hidden rounded-xl border border-slate-200">
-      <table className="w-full text-sm">
-        <thead className="bg-slate-50 text-left text-xs uppercase tracking-wide text-slate-500">
+    <div className="overflow-hidden rounded-[var(--radius-panel)] border border-[var(--color-border)] bg-[var(--color-surface)]">
+      <table className="w-full text-[13px]">
+        <thead className="bg-[var(--color-surface-raised)] text-left text-[11px] uppercase tracking-[0.06em] text-muted-foreground">
           <tr>
             <th className="w-8 px-2 py-3" aria-hidden />
-            <th className="px-4 py-3">
+            <th className="px-4 py-3 font-semibold">
               {t("Fail / File", "File")}
             </th>
-            <th className="px-4 py-3">{t("Tarikh (KL)", "Date (KL)")}</th>
-            <th className="px-4 py-3 text-right">{t("Baris", "Rows")}</th>
-            <th className="px-4 py-3 text-right text-emerald-600">
+            <th className="px-4 py-3 font-semibold">{t("Tarikh (KL)", "Date (KL)")}</th>
+            <th className="px-4 py-3 text-right font-semibold">{t("Baris", "Rows")}</th>
+            <th className="px-4 py-3 text-right font-semibold text-[var(--color-success)]">
               {t("Berjaya", "Inserted")}
             </th>
-            <th className="px-4 py-3 text-right text-amber-600">
+            <th className="px-4 py-3 text-right font-semibold text-[var(--color-warning)]">
               {t("Duplikat", "Duplicates")}
             </th>
-            <th className="px-4 py-3 text-right text-rose-600">
+            <th className="px-4 py-3 text-right font-semibold text-[var(--color-danger)]">
               {t("Gagal", "Failed")}
+            </th>
+            <th className="px-4 py-3 text-right font-semibold">
+              {t("Tindakan", "Actions")}
             </th>
           </tr>
         </thead>
-        <tbody className="divide-y divide-slate-100 bg-white">
+        <tbody className="divide-y divide-[var(--color-border)]">
           {batches.map((b) => {
             const hasErrors = (b.errors?.length ?? 0) > 0;
             const expanded = expandedId === b.id;
@@ -205,7 +212,7 @@ export default function ImportHistoryPanel({
                 <tr
                   key={b.id}
                   className={cn(
-                    "hover:bg-slate-50",
+                    "hover:bg-[var(--color-surface-raised)]",
                     hasErrors && "cursor-pointer",
                   )}
                   onClick={() =>
@@ -216,7 +223,7 @@ export default function ImportHistoryPanel({
                     {hasErrors && (
                       <ChevronDown
                         className={cn(
-                          "h-4 w-4 text-slate-400 transition-transform",
+                          "h-4 w-4 text-muted-foreground transition-transform",
                           expanded && "rotate-180",
                         )}
                       />
@@ -224,20 +231,20 @@ export default function ImportHistoryPanel({
                   </td>
                   <td className="px-4 py-3">
                     <div className="flex items-center gap-2">
-                      <FileSpreadsheet className="h-4 w-4 shrink-0 text-emerald-600" />
-                      <span className="font-medium text-slate-800">
+                      <FileSpreadsheet className="h-4 w-4 shrink-0 text-[var(--color-primary)]" />
+                      <span className="font-medium text-[var(--color-text)]">
                         {b.fileName}
                       </span>
                     </div>
                   </td>
-                  <td className="px-4 py-3 text-slate-500">
+                  <td className="px-4 py-3 text-muted-foreground">
                     {formatKl(b.createdAt)}
                   </td>
-                  <td className="px-4 py-3 text-right text-slate-700">
+                  <td className="px-4 py-3 text-right text-[var(--color-text-secondary)]">
                     {b.totalRows}
                   </td>
                   <td className="px-4 py-3 text-right">
-                    <span className="inline-flex items-center gap-1 font-semibold text-emerald-600">
+                    <span className="inline-flex items-center gap-1 font-semibold text-[var(--color-success)]">
                       <CheckCircle2 className="h-3.5 w-3.5" /> {b.insertedRows}
                     </span>
                   </td>
@@ -245,7 +252,7 @@ export default function ImportHistoryPanel({
                     <span
                       className={cn(
                         "inline-flex items-center gap-1 font-semibold",
-                        b.duplicateRows > 0 ? "text-amber-600" : "text-slate-400",
+                        b.duplicateRows > 0 ? "text-[var(--color-warning)]" : "text-muted-foreground",
                       )}
                     >
                       {b.duplicateRows > 0 && <XCircle className="h-3.5 w-3.5" />}
@@ -256,18 +263,32 @@ export default function ImportHistoryPanel({
                     <span
                       className={cn(
                         "inline-flex items-center gap-1 font-semibold",
-                        b.failedRows > 0 ? "text-rose-600" : "text-slate-400",
+                        b.failedRows > 0 ? "text-[var(--color-danger)]" : "text-muted-foreground",
                       )}
                     >
                       {b.failedRows > 0 && <XCircle className="h-3.5 w-3.5" />}
                       {b.failedRows}
                     </span>
                   </td>
+                  <td className="px-4 py-3 text-right">
+                    <button
+                      type="button"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        onDeleteBatch?.(b.id);
+                      }}
+                      aria-label={t("Padam batch", "Delete batch")}
+                      className="inline-flex items-center gap-1 rounded-[6px] border border-[var(--color-danger)]/40 bg-[var(--color-danger-soft)] px-2 py-1 text-[11.5px] font-medium text-[var(--color-danger)] hover:bg-[var(--color-danger)]/10"
+                    >
+                      <Trash2 className="h-3 w-3" />
+                      {t("Padam", "Delete")}
+                    </button>
+                  </td>
                 </tr>
                 {expanded && hasErrors && (
-                  <tr key={`${b.id}-errors`} className="bg-rose-50/40">
+                  <tr key={`${b.id}-errors`} className="bg-[var(--color-danger-soft)]/40">
                     <td />
-                    <td colSpan={6} className="px-4 pb-4 pt-1">
+                    <td colSpan={7} className="px-4 pb-4 pt-1">
                       <FailedRowsEditor
                         key={expandedId}
                         batch={b}

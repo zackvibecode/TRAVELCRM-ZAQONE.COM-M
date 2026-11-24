@@ -1,6 +1,7 @@
 import { useRef, useState } from "react";
-import { BadgeCheck, Copy, KeyRound, Plus, ShieldAlert, Trash2 } from "lucide-react";
+import { BadgeCheck, Copy, KeyRound, Plus, ShieldAlert, Trash2, X } from "lucide-react";
 import { useLang } from "@/lib/i18n";
+import { EmptyState } from "@/components/Ui";
 
 type TokenStatus = "active" | "revoked" | "expired";
 
@@ -34,11 +35,11 @@ const STATUS_LABEL: Record<TokenStatus, { ms: string; en: string }> = {
 };
 
 const BTN =
-  "inline-flex items-center gap-1.5 rounded-[var(--radius-control)] border px-3.5 py-2 text-[13px] font-semibold transition-colors disabled:opacity-55 disabled:cursor-not-allowed";
-const BTN_PRIMARY = `${BTN} border-[var(--color-primary)] bg-[var(--color-primary)] text-[var(--color-on-primary)] hover:bg-[var(--color-primary-hover)] hover:border-[var(--color-primary-hover)]`;
-const BTN_SECONDARY = `${BTN} border-[var(--color-border)] bg-[var(--color-surface)] text-[var(--color-text)] hover:bg-[var(--color-surface-muted)]`;
-const BTN_DANGER = `${BTN} border-[color-mix(in_srgb,var(--color-danger)_35%,var(--color-border))] bg-[var(--color-surface)] text-[var(--color-danger)] hover:bg-[var(--color-danger-soft)]`;
-const BTN_GHOST = `${BTN} border-transparent bg-transparent text-[var(--color-text-secondary)] hover:bg-[var(--color-surface-muted)] hover:text-[var(--color-text)]`;
+  "tv-btn disabled:opacity-55 disabled:cursor-not-allowed";
+const BTN_PRIMARY = `${BTN} tv-btn--primary`;
+const BTN_SECONDARY = `${BTN} tv-btn--secondary`;
+const BTN_DANGER = `${BTN} tv-btn--ghost-danger`;
+const BTN_GHOST = "inline-flex items-center gap-1.5 rounded-[var(--radius-control)] border border-transparent bg-transparent px-3.5 py-2 text-[13px] font-semibold text-[var(--color-text-secondary)] transition-colors hover:bg-[var(--color-surface-muted)] hover:text-[var(--color-text)]";
 
 export default function ApiTokenPanel() {
   const { t } = useLang();
@@ -127,7 +128,7 @@ export default function ApiTokenPanel() {
   const metricValue = "mt-1 font-display text-xl font-bold tabular-nums";
 
   return (
-    <div className="space-y-5">
+    <div className="mx-auto flex w-full max-w-[1180px] flex-col gap-5">
       {/* Page head */}
       <div className="tvl-pagehead">
         <div className="min-w-0">
@@ -139,8 +140,8 @@ export default function ApiTokenPanel() {
             )}
           </p>
         </div>
-        <button onClick={openDialog} className={BTN_PRIMARY}>
-          <Plus className="h-4 w-4" />
+        <button type="button" onClick={openDialog} className={BTN_PRIMARY}>
+          <Plus className="h-4 w-4" aria-hidden="true" />
           {t("Bina Token", "Create Token")}
         </button>
       </div>
@@ -162,7 +163,23 @@ export default function ApiTokenPanel() {
       </div>
 
       {/* Token table */}
-      <div className="overflow-hidden rounded-[var(--radius-panel)] border border-[var(--color-border)] bg-[var(--color-surface)]">
+      {tokens.length === 0 ? (
+        <EmptyState
+          icon={KeyRound}
+          title={t("Belum ada token API", "No API tokens yet")}
+          description={t(
+            "Cipta token untuk membenarkan integrasi luaran mengakses data tempahan dan webhook.",
+            "Create a token to let external integrations access booking data and webhooks.",
+          )}
+          action={
+            <button type="button" onClick={openDialog} className="tv-btn tv-btn--primary">
+              <Plus className="h-4 w-4" aria-hidden="true" />
+              {t("Bina Token", "Create Token")}
+            </button>
+          }
+        />
+      ) : (
+      <div className="tv-panel overflow-hidden">
         <div className="overflow-x-auto">
           <table className="w-full border-collapse text-[13px]">
             <thead>
@@ -256,11 +273,12 @@ export default function ApiTokenPanel() {
           </table>
         </div>
       </div>
+      )}
 
-      <p className="text-xs text-[var(--color-text-muted)]">
+      <p className="m-0 text-[11.5px] text-[var(--color-text-muted)]">
         {t(
-          "Data olok-olok — token API sebenar akan didayakan pada fasa backend.",
-          "Mock data — real API tokens will be enabled in the backend phase.",
+          "Token hanya dipaparkan sekali semasa dijana — simpan di tempat selamat.",
+          "Tokens are shown only once when generated — store them somewhere safe.",
         )}
       </p>
 
@@ -285,8 +303,8 @@ export default function ApiTokenPanel() {
                   : t("Pilih nama dan skop untuk token baharu.", "Pick a name and scopes for the new token.")}
               </p>
             </div>
-            <button onClick={closeDialog} className={`${BTN_GHOST} px-2 py-1.5`} aria-label={t("Tutup", "Close")}>
-              ✕
+            <button type="button" onClick={closeDialog} className={`${BTN_GHOST} px-2 py-1.5`} aria-label={t("Tutup", "Close")}>
+              <X className="h-4 w-4" aria-hidden="true" />
             </button>
           </div>
 

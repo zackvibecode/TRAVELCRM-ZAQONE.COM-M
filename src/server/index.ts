@@ -35,6 +35,7 @@ import maintenanceRouter from "./routes/data-maintenance";
 import bootstrapRouter from "./routes/bootstrap";
 import publicEnquiryRouter from "./routes/public-enquiry";
 import aiRouter from "./routes/ai";
+import turnstileRouter from "./routes/turnstile";
 import { releaseExpiredHolds } from "./lib/seat-availability";
 import { runScheduledContent } from "./lib/scheduled-content";
 import { runAutoPause } from "./lib/followup-auto-pause";
@@ -45,6 +46,8 @@ export type Env = {
   DOCUMENTS: R2Bucket;
   ASSETS?: Fetcher;
   BETTER_AUTH_SECRET?: string;
+  TURNSTILE_SECRET_KEY?: string;
+  TURNSTILE_HOSTNAMES?: string;
 };
 
 type AppEnv = {
@@ -108,14 +111,15 @@ app.route("/auth", authRouter);
 // Compatibility alias: the Better Auth JS client calls /api/auth/* by
 // default. Rewrite the path to /auth/* before the Better Auth handler.
 app.route("/api/auth", apiAuthRouter);
-app.route("/bootstrap", bootstrapRouter);
+app.route("/api/bootstrap", bootstrapRouter);
 app.route("/public", publicEnquiryRouter);
-app.route("/staff", staffRouter);
-app.route("/staff-audit", staffAuditRouter);
-app.route("/settings", settingsRouter);
-app.route("/notification-templates", templatesRouter);
-app.route("/api-tokens", apiTokensRouter);
-app.route("/data-maintenance", maintenanceRouter);
+app.route("/api/turnstile", turnstileRouter);
+app.route("/api/staff", staffRouter);
+app.route("/api/staff-audit", staffAuditRouter);
+app.route("/api/settings", settingsRouter);
+app.route("/api/notification-templates", templatesRouter);
+app.route("/api/api-tokens", apiTokensRouter);
+app.route("/api/data-maintenance", maintenanceRouter);
 
 // Public branding assets (company logo) served from R2, cacheable.
 app.get("/branding/*", async (c) => {
@@ -133,31 +137,35 @@ app.get("/branding/*", async (c) => {
   headers.set("cache-control", "public, max-age=86400");
   return new Response(obj.body, { headers });
 });
-app.route("/bookings", bookingsRouter);
-app.route("/", passengersRouter);
-app.route("/departures", departuresRouter);
-app.route("/", checklistRouter);
-app.route("/", documentsRouter);
-app.route("/", suppliersRouter);
-app.route("/", packagesRouter);
-app.route("/leads", leadsRouter);
+// Data routes live under /api/* so they can never collide with a React
+// Router page path (e.g. the CRM page /api-tokens vs the old API
+// /api-tokens). Only /auth (Better Auth), /public (anonymous website
+// branding), /mcp (external MCP clients) and /branding/* stay outside.
+app.route("/api/bookings", bookingsRouter);
+app.route("/api", passengersRouter);
+app.route("/api/departures", departuresRouter);
+app.route("/api", checklistRouter);
+app.route("/api", documentsRouter);
+app.route("/api", suppliersRouter);
+app.route("/api", packagesRouter);
+app.route("/api/leads", leadsRouter);
 app.route("/api/followup", followupRouter);
 app.route("/api/followup/templates", whatsappTemplatesRouter);
 app.route("/api/followup/admin", followupAdminRouter);
-app.route("/customers", customersRouter);
-app.route("/lead-sources", leadSourcesRouter);
-app.route("/quotations", quotationsRouter);
-app.route("/invoices", invoicesRouter);
-app.route("/payments", paymentsRouter);
-app.route("/refunds", refundsRouter);
-app.route("/payment-reminders", paymentRemindersRouter);
-app.route("/dashboard", dashboardRouter);
-app.route("/reports", reportsRouter);
-app.route("/alerts", alertsRouter);
-app.route("/website", websiteRouter);
-app.route("/mcp-admin", mcpAdminRouter);
+app.route("/api/customers", customersRouter);
+app.route("/api/lead-sources", leadSourcesRouter);
+app.route("/api/quotations", quotationsRouter);
+app.route("/api/invoices", invoicesRouter);
+app.route("/api/payments", paymentsRouter);
+app.route("/api/refunds", refundsRouter);
+app.route("/api/payment-reminders", paymentRemindersRouter);
+app.route("/api/dashboard", dashboardRouter);
+app.route("/api/reports", reportsRouter);
+app.route("/api/alerts", alertsRouter);
+app.route("/api/website", websiteRouter);
+app.route("/api/mcp-admin", mcpAdminRouter);
 app.route("/mcp", mcpRouter);
-app.route("/ai", aiRouter);
+app.route("/api/ai", aiRouter);
 
 // SPA fallback: serve the React frontend for any path not matched by an
 // API route or a static asset. Assets binding handles hashed files; this

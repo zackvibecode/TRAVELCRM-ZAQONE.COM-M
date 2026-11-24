@@ -225,8 +225,8 @@ export default function SalesLeaderboard() {
             icon={Trophy}
             title={t("Belum ada peringkat", "No rankings yet")}
             description={t(
-              "Belum ada aktiviti susulan untuk tempoh ini. Peringkat muncul setelah sales mula menandakan susulan selesai.",
-              "No follow-up activity for this period yet. Rankings appear once sales start marking follow-ups complete.",
+              "Belum ada aktiviti susulan untuk tempoh ini. Peringkat akan muncul selepas sales mula melengkapkan susulan.",
+              "No follow-up activity for this period yet. Rankings will show once sales start completing follow-ups.",
             )}
           />
         ) : (
@@ -373,8 +373,8 @@ export default function SalesLeaderboard() {
         <p className="m-0 flex items-start gap-1.5 border-t border-[var(--color-border)] px-4 py-2.5 text-[11.5px] text-muted-foreground">
           <MessageCircle className="mt-0.5 h-3.5 w-3.5 flex-none" />
           {t(
-            "Skor = (lead unik × 10) + (hari aktif × 5) + (deal dimenangi × 25). Jumlah susulan selesai tidak dikira dalam skor supaya mengulang lead yang sama tidak menaikkan peringkat.",
-            "Score = (unique leads × 10) + (active days × 5) + (deals won × 25). Total follow-ups done is not scored, so re-nudging the same lead does not raise a rank.",
+            "Skor = (lead unik × 10) + (hari aktif × 5) + (deal menang × 25). Follow-up berulang pada lead sama tidak menambah skor.",
+            "Score = (unique leads × 10) + (active days × 5) + (deals won × 25). Repeating follow-ups on the same lead does not add to your score.",
           )}
         </p>
       </section>

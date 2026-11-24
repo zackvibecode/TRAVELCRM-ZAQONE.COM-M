@@ -1,6 +1,7 @@
 import { useRef, useState } from "react";
 import { Bot, Copy, KeyRound, Plus, ShieldAlert, Trash2 } from "lucide-react";
 import { useLang } from "@/lib/i18n";
+import { EmptyState } from "@/components/Ui";
 
 type TokenStatus = "active" | "revoked" | "expired";
 type TokenRole = "super_admin" | "management" | "sales" | "finance" | "operations";
@@ -39,57 +40,8 @@ export const MCP_SCOPES = [
   "customers:read",
 ];
 
-// Stub data — backend MCP token API menyusul pada task backend.
-const STUB_TOKENS: ApiToken[] = [
-  {
-    id: "tok_01",
-    name: "Claude Desktop — Owner",
-    tokenPreview: "zqk_live_7f3a…9d21",
-    role: "super_admin",
-    scopes: ["leads:read", "bookings:read", "packages:read", "departures:read", "seats:read", "invoices:read", "customers:read"],
-    status: "active",
-    createdAt: "2026-11-02",
-    lastUsed: "2026-11-16 09:12",
-    expiresAt: "2027-05-02",
-    callsLast30d: 482,
-  },
-  {
-    id: "tok_02",
-    name: "Sales Bot — WhatsApp Assistant",
-    tokenPreview: "zqk_live_b8e2…41cc",
-    role: "sales",
-    scopes: ["leads:read", "leads:write", "bookings:read"],
-    status: "active",
-    createdAt: "2026-10-18",
-    lastUsed: "2026-11-15 17:40",
-    expiresAt: "2027-04-18",
-    callsLast30d: 1290,
-  },
-  {
-    id: "tok_03",
-    name: "Finance Report Sync",
-    tokenPreview: "zqk_live_c91d…77ab",
-    role: "finance",
-    scopes: ["invoices:read"],
-    status: "expired",
-    createdAt: "2026-09-01",
-    lastUsed: "2026-10-30 12:05",
-    expiresAt: "2026-10-31",
-    callsLast30d: 0,
-  },
-  {
-    id: "tok_04",
-    name: "Old IDE Agent",
-    tokenPreview: "zqk_live_44f0…e102",
-    role: "management",
-    scopes: ["leads:read", "bookings:read", "packages:read"],
-    status: "revoked",
-    createdAt: "2026-08-12",
-    lastUsed: "2026-09-20 08:22",
-    expiresAt: "2027-02-12",
-    callsLast30d: 0,
-  },
-];
+// Empty until the backend MCP token API is wired up.
+const STUB_TOKENS: ApiToken[] = [];
 
 const STATUS_PILL: Record<TokenStatus, string> = {
   active: "bg-[var(--color-success-soft)] text-[var(--color-success)]",
@@ -103,11 +55,10 @@ const STATUS_LABEL: Record<TokenStatus, { ms: string; en: string }> = {
   revoked: { ms: "Dibatalkan", en: "Revoked" },
 };
 
-const PANEL = "rounded-[var(--radius-panel)] border border-[var(--color-border)] bg-[var(--color-surface)]";
-const BTN =
-  "inline-flex items-center gap-1.5 rounded-[var(--radius-control)] border px-3.5 py-2 text-[13px] font-semibold transition-colors disabled:opacity-55 disabled:cursor-not-allowed";
-const BTN_PRIMARY = `${BTN} border-[var(--color-primary)] bg-[var(--color-primary)] text-[var(--color-on-primary)] hover:bg-[var(--color-primary-hover)] hover:border-[var(--color-primary-hover)]`;
-const BTN_GHOST = `${BTN} border-transparent bg-transparent text-[var(--color-text-secondary)] hover:bg-[var(--color-surface-muted)] hover:text-[var(--color-text)]`;
+const PANEL = "tv-panel";
+const BTN = "tv-btn disabled:opacity-55 disabled:cursor-not-allowed";
+const BTN_PRIMARY = `${BTN} tv-btn--primary`;
+const BTN_GHOST = "inline-flex items-center gap-1.5 rounded-[var(--radius-control)] border border-transparent bg-transparent px-3.5 py-2 text-[13px] font-semibold text-[var(--color-text-secondary)] transition-colors hover:bg-[var(--color-surface-muted)] hover:text-[var(--color-text)]";
 
 export default function AiTokens() {
   const { t } = useLang();
@@ -210,7 +161,7 @@ export default function AiTokens() {
   const metricValue = "mt-2 font-display text-2xl font-bold tabular-nums";
 
   return (
-    <div className="space-y-5">
+    <div className="mx-auto flex w-full max-w-[1180px] flex-col gap-5">
       {/* Page head */}
       <div className="tvl-pagehead">
         <div className="min-w-0">
@@ -222,7 +173,7 @@ export default function AiTokens() {
             )}
           </p>
         </div>
-        <button onClick={openDialog} className={BTN_PRIMARY}>
+        <button type="button" onClick={openDialog} className={BTN_PRIMARY}>
           <Plus className="h-4 w-4" />
           {t("Jana Token Baru", "Generate New Token")}
         </button>
@@ -308,7 +259,23 @@ export default function AiTokens() {
       </div>
 
       {/* Token table */}
-      <div className="overflow-hidden rounded-[var(--radius-panel)] border border-[var(--color-border)] bg-[var(--color-surface)]">
+      {tokens.length === 0 ? (
+        <EmptyState
+          icon={KeyRound}
+          title={t("Belum ada token akses AI", "No AI access tokens yet")}
+          description={t(
+            "Jana token untuk membenarkan pembantu AI dan MCP mengakses data mengikut peranan staf.",
+            "Generate a token to let the AI assistant and MCP access data based on staff role.",
+          )}
+          action={
+            <button type="button" onClick={openDialog} className="tv-btn tv-btn--primary">
+              <Plus className="h-4 w-4" aria-hidden="true" />
+              {t("Jana Token", "Generate Token")}
+            </button>
+          }
+        />
+      ) : (
+      <div className="tv-panel overflow-hidden">
         <div className="overflow-x-auto">
           <table className="w-full border-collapse text-[13px]">
             <thead>
@@ -415,6 +382,7 @@ export default function AiTokens() {
           </table>
         </div>
       </div>
+      )}
 
       {/* Safety note */}
       <div className="flex items-start gap-2 rounded-[var(--radius-card)] border border-[var(--color-warning-soft)] bg-[var(--color-warning-soft)] p-4 text-[13px] leading-relaxed text-[var(--color-warning)]">

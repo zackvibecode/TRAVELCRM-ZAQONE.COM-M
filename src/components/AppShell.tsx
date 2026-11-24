@@ -37,6 +37,8 @@ import {
   Trophy,
   MessageCircle,
   Settings2,
+  Workflow,
+  Lock,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useLang, type Lang } from "@/lib/i18n";
@@ -44,6 +46,7 @@ import { AiAssistantFab } from "@/pages/AiAssistant";
 import { getSession, logout, type StaffRole } from "@/lib/auth";
 import { canAccess } from "@/lib/roles";
 import { useBranding } from "@/lib/useBranding";
+import { followupApi } from "@/lib/followup-api";
 
 const ROLE_BADGE: Record<StaffRole, { ms: string; en: string }> = {
   super_admin: { ms: "Super Admin", en: "Super Admin" },
@@ -252,6 +255,30 @@ export default function AppShell() {
   const navigate = useNavigate();
   const session = getSession();
 
+  // Global search / command palette state.
+  const [searchOpen, setSearchOpen] = useState(false);
+  const [searchQuery, setSearchQuery] = useState("");
+
+  // Pending-approval user count, shown as a badge on the bell for admins.
+  const [pendingUsers, setPendingUsers] = useState(0);
+  useEffect(() => {
+    const role = session?.role;
+    if (role !== "super_admin" && role !== "management") {
+      setPendingUsers(0);
+      return;
+    }
+    let active = true;
+    followupApi
+      .adminUsers()
+      .then((users) => {
+        if (active) setPendingUsers(users.filter((u) => u.status === "pending").length);
+      })
+      .catch(() => {});
+    return () => {
+      active = false;
+    };
+  }, [session?.role]);
+
   const handleSignOut = async () => {
     setUserMenuOpen(false);
     await logout();
@@ -268,12 +295,6 @@ export default function AppShell() {
         { to: "/", label: t("Papan Pemuka", "Dashboard"), icon: LayoutDashboard, end: true },
         { to: "/customers", label: t("Pelanggan & Leads", "Customers & Leads"), icon: Users },
         { to: "/leads", label: t("Saluran Leads", "Leads Pipeline"), icon: TrendingUp },
-        { to: "/followups", label: t("Pusat Susulan", "Follow-Up Center"), icon: ListChecks },
-        { to: "/lead-import", label: t("Import Lead", "Import Leads"), icon: FileSpreadsheet },
-        { to: "/lead-management", label: t("Pengurusan Lead", "Lead Management"), icon: UserCircle2 },
-        { to: "/leaderboard", label: t("Dashboard & Peringkat", "Leaderboard"), icon: Trophy },
-        { to: "/whatsapp-templates", label: t("Templat WhatsApp", "WhatsApp Templates"), icon: MessageCircle },
-        { to: "/admin-console", label: t("Konsol Admin", "Admin Console"), icon: Settings2 },
         { to: "/bookings", label: t("Tempahan", "Bookings"), icon: BookOpenCheck },
         { to: "/billing", label: t("Bil & Pembayaran", "Billing & Payments"), icon: Banknote },
         { to: "/reports", label: t("Laporan", "Reports"), icon: FileBarChart },
@@ -284,6 +305,19 @@ export default function AppShell() {
       items: [
         { to: "/packages", label: t("Pakej", "Packages"), icon: Luggage },
         { to: "/trips", label: t("Trip & Kerusi", "Trips & Seats"), icon: CalendarDays },
+      ],
+    },
+    {
+      title: t("Susulan", "Follow-Up"),
+      items: [
+        { to: "/mesin-follow-up", label: t("Mesin Follow-Up", "Follow-Up Engine"), icon: Workflow },
+        { to: "/followups", label: t("Pusat Susulan", "Follow-Up Center"), icon: ListChecks },
+        { to: "/lead-management", label: t("Pengurusan Lead", "Lead Management"), icon: UserCircle2 },
+        { to: "/lead-import", label: t("Import Lead", "Import Leads"), icon: FileSpreadsheet },
+        { to: "/whatsapp-templates", label: t("Templat WhatsApp", "WhatsApp Templates"), icon: MessageCircle },
+        { to: "/leaderboard", label: t("Dashboard & Peringkat", "Dashboard & Ranking"), icon: Trophy },
+        { to: "/akses-kepemilikan", label: t("Akses & Kepemilikan", "Access & Ownership"), icon: Lock },
+        { to: "/admin-console", label: t("Konsol Admin", "Admin Console"), icon: Settings2 },
       ],
     },
     {
@@ -313,20 +347,22 @@ export default function AppShell() {
     },
   ];
 
-  const pageTitle = (() => {
-    // Collect every navigable route (including collapsible children) and pick
-    // the longest matching prefix so "/settings-audit" does not get labelled
-    // as "/settings".
-    const flat: Array<{ to: string; label: string; end?: boolean; exact?: boolean }> = [];
-    for (const section of navSections) {
-      for (const item of section.items) {
-        flat.push({ to: item.to, label: item.label, end: item.end });
-        for (const child of item.children ?? []) {
-          flat.push({ to: child.to, label: child.label, exact: true });
-        }
+  // Every navigable route (including collapsible children), flattened for
+  // both the page-title resolution and the global search palette.
+  const flatNav: Array<{ to: string; label: string; end?: boolean; exact?: boolean; section: string }> = [];
+  for (const section of navSections) {
+    for (const item of section.items) {
+      flatNav.push({ to: item.to, label: item.label, end: item.end, section: section.title });
+      for (const child of item.children ?? []) {
+        flatNav.push({ to: child.to, label: child.label, exact: true, section: section.title });
       }
     }
-    const match = flat
+  }
+
+  const pageTitle = (() => {
+    // Pick the longest matching prefix so "/settings-audit" does not get
+    // labelled as "/settings".
+    const match = flatNav
       .filter((i) => {
         const path = window.location.pathname;
         if (i.exact) return path === i.to || path.startsWith(`${i.to}/`);
@@ -337,6 +373,25 @@ export default function AppShell() {
     if (match) return match.label;
     return t("Papan Pemuka", "Dashboard");
   })();
+
+  // Filter the flattened nav for the command palette.
+  const searchResults = (() => {
+    const q = searchQuery.trim().toLowerCase();
+    if (!q) return flatNav;
+    return flatNav.filter((i) => i.label.toLowerCase().includes(q) || i.to.toLowerCase().includes(q));
+  })();
+
+  // Open the palette with ⌘K / Ctrl+K.
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === "k") {
+        e.preventDefault();
+        setSearchOpen((o) => !o);
+      }
+    };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, []);
 
   return (
     <div className="flex min-h-screen bg-background" data-layout-system="travelos-shell">
@@ -526,18 +581,19 @@ export default function AppShell() {
           </div>
 
           {/* Global search */}
-          <div className="hidden h-9 flex-1 items-center gap-2 rounded-[var(--radius-control)] border border-[var(--color-border)] bg-[var(--color-surface-raised)] px-3 text-muted-foreground transition-colors focus-within:border-[var(--color-border-strong)] focus-within:bg-[var(--color-surface)] md:flex md:max-w-[340px] md:ml-auto">
+          <button
+            type="button"
+            onClick={() => setSearchOpen(true)}
+            className="hidden h-9 flex-1 items-center gap-2 rounded-[var(--radius-control)] border border-[var(--color-border)] bg-[var(--color-surface-raised)] px-3 text-muted-foreground transition-colors hover:border-[var(--color-border-strong)] hover:bg-[var(--color-surface)] md:flex md:max-w-[340px] md:ml-auto"
+          >
             <Search className="h-4 w-4" />
-            <input
-              type="search"
-              placeholder={t("Cari tempahan, pelanggan, pakej…", "Search bookings, customers, packages…")}
-              aria-label={t("Carian sejagat", "Global search")}
-              className="min-w-0 flex-1 border-0 bg-transparent text-[13px] text-foreground outline-none placeholder:text-muted-foreground"
-            />
+            <span className="min-w-0 flex-1 truncate text-left text-[13px]">
+              {t("Cari tempahan, pelanggan, pakej…", "Search bookings, customers, packages…")}
+            </span>
             <kbd className="rounded border border-[var(--color-border)] px-1.5 py-0.5 font-mono text-[10.5px] text-muted-foreground">
               ⌘K
             </kbd>
-          </div>
+          </button>
 
           <div className="ml-auto flex items-center gap-2 md:ml-0">
             {/* Language switcher */}
@@ -563,10 +619,16 @@ export default function AppShell() {
             <button
               className="relative grid h-9 w-9 place-items-center rounded-[var(--radius-control)] border border-[var(--color-border)] text-[var(--color-text-secondary)] hover:bg-[var(--color-surface-muted)] hover:text-foreground focus-ring"
               aria-label={t("Pemberitahuan", "Notifications")}
-              onClick={() => navigate("/reports")}
+              onClick={() => navigate("/admin-console")}
             >
               <Bell className="h-4 w-4" />
-              <span className="absolute right-2 top-1.5 h-[7px] w-[7px] rounded-full border-[1.5px] border-[var(--color-surface)] bg-[var(--color-primary)]" />
+              {pendingUsers > 0 ? (
+                <span className="absolute right-1 top-1 grid h-4 min-w-4 place-items-center rounded-full bg-[var(--color-warning)] px-1 text-[10px] font-bold leading-none text-white">
+                  {pendingUsers}
+                </span>
+              ) : (
+                <span className="absolute right-2 top-1.5 h-[7px] w-[7px] rounded-full border-[1.5px] border-[var(--color-surface)] bg-[var(--color-primary)]" />
+              )}
             </button>
 
             {/* User menu */}
@@ -625,6 +687,71 @@ export default function AppShell() {
 
         {/* Floating AI assistant — available on every CRM page. */}
         <AiAssistantFab />
+
+        {/* Global search command palette */}
+        {searchOpen && (
+          <div
+            className="fixed inset-0 z-[100] grid place-items-start justify-center bg-black/40 p-4 pt-[12vh]"
+            role="dialog"
+            aria-modal="true"
+            aria-label={t("Carian sejagat", "Global search")}
+            onClick={() => setSearchOpen(false)}
+          >
+            <div
+              className="w-full max-w-lg overflow-hidden rounded-xl border border-[var(--color-border)] bg-[var(--color-surface)] shadow-2xl"
+              onClick={(e) => e.stopPropagation()}
+            >
+              <div className="flex items-center gap-2 border-b border-[var(--color-border)] px-4 py-3">
+                <Search className="h-4 w-4 text-muted-foreground" />
+                <input
+                  autoFocus
+                  type="search"
+                  value={searchQuery}
+                  onChange={(e) => setSearchQuery(e.target.value)}
+                  placeholder={t("Taip untuk cari halaman…", "Type to search pages…")}
+                  className="min-w-0 flex-1 border-0 bg-transparent text-[14px] text-foreground outline-none placeholder:text-muted-foreground"
+                  aria-label={t("Carian sejagat", "Global search")}
+                />
+                <button
+                  type="button"
+                  onClick={() => setSearchOpen(false)}
+                  className="grid h-6 w-6 place-items-center rounded text-muted-foreground hover:bg-[var(--color-surface-muted)] hover:text-foreground"
+                  aria-label={t("Tutup", "Close")}
+                >
+                  <X className="h-4 w-4" />
+                </button>
+              </div>
+              <ul className="m-0 max-h-[60vh] list-none overflow-y-auto p-2">
+                {searchResults.length === 0 ? (
+                  <li className="px-3 py-6 text-center text-[13px] text-muted-foreground">
+                    {t("Tiada hasil sepadan.", "No matching results.")}
+                  </li>
+                ) : (
+                  searchResults.map((r) => (
+                    <li key={r.to}>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          navigate(r.to);
+                          setSearchOpen(false);
+                          setSearchQuery("");
+                        }}
+                        className="flex w-full items-center gap-3 rounded-lg px-3 py-2 text-left hover:bg-[var(--color-surface-muted)]"
+                      >
+                        <span className="flex-1 truncate text-[13.5px] font-medium text-foreground">
+                          {r.label}
+                        </span>
+                        <span className="flex-none text-[11px] text-muted-foreground">
+                          {r.section}
+                        </span>
+                      </button>
+                    </li>
+                  ))
+                )}
+              </ul>
+            </div>
+          </div>
+        )}
       </div>
     </div>
   );

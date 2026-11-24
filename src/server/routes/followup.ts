@@ -1,5 +1,5 @@
 import { Hono } from "hono";
-import { and, asc, desc, eq, isNotNull, or, sql } from "drizzle-orm";
+import { and, asc, desc, eq, inArray, isNotNull, or, sql } from "drizzle-orm";
 import type { AnySQLiteColumn } from "drizzle-orm/sqlite-core";
 import type { DrizzleD1Database } from "drizzle-orm/d1";
 import * as schema from "../db/schema";
@@ -492,6 +492,56 @@ followupRouter.get("/leads/facets", async (c) => {
       byStage,
       byOwner,
     },
+  });
+});
+
+/** GET /api/followup/report/fu — confirmed follow-ups completed per stage per staff. */
+followupRouter.get("/report/fu", async (c) => {
+  const db = c.get("db");
+  const staff = c.get("staff");
+  const access = followupAccessRole(staff.role);
+  if (!access) {
+    return Response.json(
+      { error: "not_found", message: "Follow-up CRM not available for this role" },
+      { status: 404 },
+    );
+  }
+
+  const scope =
+    access === "SALES"
+      ? eq(schema.followupActivities.user, staff.id)
+      : undefined;
+
+  const rows = await db
+    .select({
+      stage: schema.followupActivities.stage,
+      user: schema.followupActivities.user,
+      count: sql<number>`count(*)`.mapWith(Number),
+    })
+    .from(schema.followupActivities)
+    .where(and(eq(schema.followupActivities.confirmed, true), scope))
+    .groupBy(schema.followupActivities.stage, schema.followupActivities.user)
+    .all();
+
+  const userIds = [...new Set(rows.map((r) => r.user))];
+  const names = new Map<string, string>();
+  if (userIds.length > 0) {
+    const users = await db
+      .select({ id: schema.user.id, name: schema.user.name })
+      .from(schema.user)
+      .where(inArray(schema.user.id, userIds))
+      .all();
+    for (const u of users) names.set(u.id, u.name);
+  }
+
+  return c.json({
+    success: true,
+    data: rows.map((r) => ({
+      userId: r.user,
+      name: names.get(r.user) ?? r.user,
+      stage: r.stage,
+      count: r.count,
+    })),
   });
 });
 
@@ -1532,6 +1582,52 @@ followupRouter.get("/import/batches/:id", async (c) => {
       })),
     },
   });
+});
+
+/**
+ * DELETE /api/followup/import/batches/:id — remove an import batch and its
+ * error rows. SALES may only delete their own batches (neutral 404
+ * otherwise); ADMIN may delete any batch.
+ */
+followupRouter.delete("/import/batches/:id", async (c) => {
+  const db = c.get("db");
+  const staff = c.get("staff");
+  const access = followupAccessRole(staff.role);
+  if (!access) {
+    return Response.json(
+      { error: "not_found", message: "Follow-up CRM not available for this role" },
+      { status: 404 },
+    );
+  }
+
+  const batchId = c.req.param("id") ?? "";
+  const [batch] = await db
+    .select()
+    .from(schema.importBatches)
+    .where(eq(schema.importBatches.id, batchId))
+    .limit(1);
+
+  // Neutral 404 for missing batches AND batches the caller does not own.
+  if (!batch || (access === "SALES" && batch.createdBy !== staff.id)) {
+    return Response.json(
+      { error: "not_found", message: "Import batch not found" },
+      { status: 404 },
+    );
+  }
+
+  await db.delete(schema.importErrors).where(eq(schema.importErrors.batchId, batchId)).run();
+  await db.delete(schema.importBatches).where(eq(schema.importBatches.id, batchId)).run();
+
+  await logAudit(db, {
+    actor: staff.id,
+    role: staff.role,
+    action: "import_batch.delete",
+    entityType: "import_batches",
+    entityId: batchId,
+    detail: `file=${batch.fileName}`,
+  });
+
+  return c.json({ success: true, data: { id: batchId } });
 });
 
 /**

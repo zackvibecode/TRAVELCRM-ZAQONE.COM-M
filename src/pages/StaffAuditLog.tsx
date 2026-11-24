@@ -324,11 +324,11 @@ export default function StaffAuditLog() {
         </div>
       </dialog>
 
-      <p className="flex items-center gap-1.5 text-xs text-[var(--color-text-muted)]">
-        <ScrollText className="h-3.5 w-3.5" />
+      <p className="m-0 flex items-center gap-1.5 text-[11.5px] text-[var(--color-text-muted)]">
+        <ScrollText className="h-3.5 w-3.5 flex-none" aria-hidden="true" />
         {t(
-          "Data olok-olok — log audit sebenar akan didayakan pada fasa backend.",
-          "Mock data — real audit log will be enabled in the backend phase.",
+          "Setiap tindakan staf direkod dengan masa, alamat IP dan hasilnya.",
+          "Every staff action is recorded with time, IP address and outcome.",
         )}
       </p>
     </div>

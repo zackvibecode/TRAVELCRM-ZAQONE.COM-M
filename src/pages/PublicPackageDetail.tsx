@@ -723,7 +723,7 @@ export default function PublicPackageDetail() {
                   <p role="alert" className="dtl-err m-0 mt-2 text-caption text-[var(--color-danger)]">
                     {t(
                       "Bilangan pengembara melebihi kerusi yang tinggal pada tarikh ini. Sila pilih tarikh lain.",
-                      "That is more travellers than the seats left on this date. Please choose another date.",
+                      "There are more travellers than seats left on this date. Please pick another date.",
                     )}
                   </p>
                 ) : null}

@@ -203,6 +203,36 @@ export async function logout(): Promise<void> {
   cacheSession(null);
 }
 
+/**
+ * Self-service sign up. Creates the account with a "pending" approval status
+ * (set server-side) — the user cannot sign in until an admin approves them.
+ */
+export async function signUp(
+  name: string,
+  email: string,
+  password: string,
+): Promise<{ ok: boolean; error?: string }> {
+  try {
+    const res = await authClient.signUp.email({
+      name: name.trim(),
+      email: email.trim().toLowerCase(),
+      password,
+    });
+    if ("error" in res && res.error) {
+      return { ok: false, error: res.error.message ?? "Unable to create account" };
+    }
+    // Do NOT auto sign in or cache a session — the account is pending approval.
+    storeToken(null);
+    cacheSession(null);
+    return { ok: true };
+  } catch (err) {
+    return {
+      ok: false,
+      error: err instanceof Error ? err.message : "Network error",
+    };
+  }
+}
+
 /** Request a password-reset email through Better Auth. */
 export async function requestPasswordReset(email: string): Promise<void> {
   await authClient.$fetch("/forget-password", {
@@ -217,4 +247,23 @@ export async function resetPassword(
   newPassword: string,
 ): Promise<void> {
   await authClient.resetPassword({ newPassword, token });
+}
+
+/** Verify a Turnstile token server-side before allowing login/signup. */
+export async function verifyTurnstile(
+  token: string,
+  action: "login" | "signup",
+): Promise<boolean> {
+  try {
+    const res = await fetch(`${API_BASE_URL}/api/turnstile`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ token, action }),
+    });
+    if (!res.ok) return false;
+    const data = (await res.json()) as { success?: boolean };
+    return data.success === true;
+  } catch {
+    return false;
+  }
 }

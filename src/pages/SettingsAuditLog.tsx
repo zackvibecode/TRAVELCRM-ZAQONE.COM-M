@@ -294,10 +294,10 @@ export default function SettingsAuditLog() {
         </div>
       </dialog>
 
-      <p className="text-xs text-[var(--color-text-muted)]">
+      <p className="m-0 text-[11.5px] text-[var(--color-text-muted)]">
         {t(
-          "Data olok-olok — log audit sebenar akan didayakan pada fasa backend.",
-          "Mock data — real audit log will be enabled in the backend phase.",
+          "Setiap perubahan tetapan direkod dengan nilai sebelum dan selepas untuk tujuan audit.",
+          "Every settings change is recorded with before and after values for audit purposes.",
         )}
       </p>
     </div>

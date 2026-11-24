@@ -261,7 +261,7 @@ export default function LeadsPipeline() {
           {!selected ? (
             <div className="flex flex-col gap-1.5 p-5">
               <p className="m-0 font-semibold">{t("Pilih lead", "Select a lead")}</p>
-              <p className="m-0 text-[13px] text-muted-foreground">{t("Butiran lead dan tindakan pipeline dipaparkan di sini.", "Lead details and pipeline actions appear here.")}</p>
+              <p className="m-0 text-[13px] text-muted-foreground">{t("Butiran lead dan tindakan pipeline dipaparkan di sini.", "Lead details and pipeline actions show here.")}</p>
             </div>
           ) : (
             <div className="flex flex-col gap-4 p-5">
@@ -323,7 +323,7 @@ export default function LeadsPipeline() {
             <div className="flex flex-col gap-4 p-5">
               <div>
                 <h2 className="m-0 font-display text-[17px] font-bold">{t("Tambah Lead Baharu", "Add a new lead")}</h2>
-                <p className="mb-0 mt-1 text-[12.5px] text-muted-foreground">{t("Lead bermula di peringkat New dan boleh ditindaklanjuti serta-merta.", "The lead starts in the New stage and can be followed up straight away.")}</p>
+                <p className="mb-0 mt-1 text-[12.5px] text-muted-foreground">{t("Lead bermula di peringkat New dan boleh di-follow up terus.", "The lead starts in the New stage and can be followed up right away.")}</p>
               </div>
               {([
                 { key: "name", label: t("Nama Penuh", "Full name"), placeholder: "Prospect name" },

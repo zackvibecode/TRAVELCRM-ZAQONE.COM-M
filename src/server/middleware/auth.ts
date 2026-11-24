@@ -65,6 +65,12 @@ export async function requireStaffSession(c: Context<AuthEnv>, next: Next) {
     status?: string;
   };
 
+  if (user.status === "pending") {
+    return c.json(
+      { error: "forbidden", message: "Account pending approval" },
+      403,
+    );
+  }
   if (user.status && user.status !== "active") {
     return c.json({ error: "forbidden", message: "Account suspended" }, 403);
   }
@@ -103,6 +109,12 @@ export function requireRole(...allowed: Role[]): MiddlewareHandler {
           role?: string;
           status?: string;
         };
+        if (user.status === "pending") {
+          return c.json(
+            { success: false, error: "Account pending approval" },
+            403,
+          );
+        }
         if (user.status && user.status !== "active") {
           return c.json({ success: false, error: "Account suspended" }, 403);
         }

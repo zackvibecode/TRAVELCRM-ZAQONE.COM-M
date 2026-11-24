@@ -4,40 +4,41 @@ import { useLang } from "@/lib/i18n";
 import { apiFetch } from "@/lib/api";
 import { invalidateBranding } from "@/lib/useBranding";
 
-// Mock data — backend company profile API menyusul pada fasa backend.
+// Empty defaults — real company profile is loaded from the backend API.
 const INITIAL = {
-  name: "ZAQONE TRAVEL & TOURS",
-  brandName: "ZAQONE TRAVEL",
-  registrationNo: "SA0123456789-KLM",
-  licenseNo: "KPL/LN/000012345",
-  licenseExpiry: "2028-06-30",
-  phone: "+60 3-2168 8888",
-  email: "hello@zaqone.travel",
-  website: "https://travelcrm.zaqone.com",
-  address: "Lot 12, Jalan Sultan Ismail, 50250 Kuala Lumpur",
-  city: "Kuala Lumpur",
-  state: "Wilayah Persekutuan",
-  postcode: "50250",
-  country: "Malaysia",
-  taxId: "MY-TIN-2026-001",
-  bankName: "Maybank Islamic Berhad",
-  bankAccount: "1234 5678 9012",
-  bankHolder: "ZAQONE TRAVEL & TOURS SDN BHD",
+  name: "",
+  brandName: "",
+  registrationNo: "",
+  licenseNo: "",
+  licenseExpiry: "",
+  phone: "",
+  email: "",
+  website: "",
+  address: "",
+  city: "",
+  state: "",
+  postcode: "",
+  country: "",
+  taxId: "",
+  bankName: "",
+  bankAccount: "",
+  bankHolder: "",
 };
 
 type FormKey = keyof typeof INITIAL;
 
-const panelStyle: React.CSSProperties = {
-  background: "var(--color-surface)",
-  border: "1px solid var(--color-border)",
-  borderRadius: "var(--radius-panel)",
-};
-
-const inputCls =
-  "h-[37px] w-full rounded-[var(--radius-control)] border px-[11px] text-[13.5px] text-[var(--color-text)] bg-[var(--color-surface)] outline-none transition-colors focus-visible:outline focus-visible:outline-2 focus-visible:outline-[var(--color-focus-ring)] focus-visible:-outline-offset-1";
-
-const fieldCls = (invalid?: string) =>
-  `${inputCls} ${invalid ? "border-[var(--color-danger)] bg-[var(--color-danger-soft)]" : "border-[var(--color-border-strong)]"}`;
+function FormSection({ id, title, children }: { id: string; title: string; children: React.ReactNode }) {
+  return (
+    <section className="tv-panel" aria-labelledby={id}>
+      <div className="tv-panel__head">
+        <h2 id={id} className="tv-panel__title">
+          {title}
+        </h2>
+      </div>
+      <div className="grid gap-4 p-5 md:grid-cols-2">{children}</div>
+    </section>
+  );
+}
 
 export default function CompanyProfile() {
   const { t } = useLang();
@@ -142,8 +143,8 @@ export default function CompanyProfile() {
     labelEn: string,
     opts?: { type?: string; span?: boolean },
   ) => (
-    <div className={`flex flex-col gap-1.5 min-w-0 ${opts?.span ? "md:col-span-2" : ""}`}>
-      <label htmlFor={`cp-${key}`} className="text-[12.5px] font-medium text-[var(--color-text-secondary)]">
+    <div className={`flex min-w-0 flex-col gap-1.5 ${opts?.span ? "md:col-span-2" : ""}`}>
+      <label htmlFor={`cp-${key}`} className="tv-label">
         {t(labelMs, labelEn)}
       </label>
       <input
@@ -152,7 +153,7 @@ export default function CompanyProfile() {
         value={form[key]}
         onChange={(e) => set(key, e.target.value)}
         aria-invalid={errors[key] ? "true" : undefined}
-        className={fieldCls(errors[key])}
+        className="tv-input"
       />
       {errors[key] ? (
         <span className="text-[11.5px] font-semibold text-[var(--color-danger)]" role="alert">
@@ -162,15 +163,11 @@ export default function CompanyProfile() {
     </div>
   );
 
-  const sectionTitle = (title: string) => (
-    <h2 className="m-0 text-[14.5px] font-semibold text-[var(--color-text)]">{title}</h2>
-  );
-
   return (
     <div className="mx-auto flex w-full max-w-[1180px] flex-col gap-5">
       {/* Page head */}
       <div className="tvl-pagehead">
-        <div style={{ minWidth: 0 }}>
+        <div className="min-w-0">
           <h1 className="tvl-title">{t("Profil Syarikat", "Company Profile")}</h1>
           <p className="tvl-subtitle">
             {t(
@@ -182,57 +179,46 @@ export default function CompanyProfile() {
         <button
           type="button"
           onClick={handleSave}
-          className="inline-flex items-center justify-center gap-1.5 rounded-[var(--radius-control)] px-3.5 py-2 text-[13px] font-semibold transition-colors disabled:cursor-not-allowed disabled:opacity-55"
-          style={
-            saved
-              ? { background: "var(--color-success)", border: "1px solid var(--color-success)", color: "var(--color-surface)" }
-              : { background: "var(--color-primary)", border: "1px solid var(--color-primary)", color: "var(--color-on-primary)" }
-          }
+          disabled={loading}
+          className="tv-btn tv-btn--primary"
+          aria-live="polite"
         >
-          {saved ? <Check size={15} /> : <Save size={15} />}
+          {saved ? <Check size={15} aria-hidden="true" /> : <Save size={15} aria-hidden="true" />}
           {saved ? t("Disimpan!", "Saved!") : t("Simpan Profil", "Save Profile")}
         </button>
       </div>
 
       {/* Logo */}
-      <section style={panelStyle} aria-labelledby="cp-logo-title">
-        <div
-          className="flex flex-wrap items-center justify-between gap-3 px-5 py-4"
-          style={{ borderBottom: "1px solid var(--color-border)" }}
-        >
-          <h2 id="cp-logo-title" className="m-0 text-[14.5px] font-semibold text-[var(--color-text)]">
+      <section className="tv-panel" aria-labelledby="cp-logo-title">
+        <div className="tv-panel__head">
+          <h2 id="cp-logo-title" className="tv-panel__title">
             {t("Logo Syarikat", "Company Logo")}
           </h2>
           <span className="text-[12px] text-[var(--color-text-muted)]">PNG / JPG · 2MB</span>
         </div>
-        <div className="flex flex-wrap items-center gap-4 px-5 py-5">
+        <div className="flex flex-wrap items-center gap-4 p-5">
           {logoUrl ? (
             <img
               src={logoUrl}
               alt={t("Logo syarikat", "Company logo")}
-              className="h-[56px] w-[56px] flex-none rounded-[var(--radius-card)] object-contain"
-              style={{ background: "var(--color-surface-muted)" }}
+              className="h-14 w-14 flex-none rounded-[var(--radius-card)] bg-[var(--color-surface-muted)] object-contain p-1.5"
             />
           ) : (
             <div
               aria-hidden="true"
-              className="grid h-[56px] w-[56px] flex-none place-items-center rounded-[var(--radius-card)]"
-              style={{ background: "var(--color-primary)", color: "var(--color-on-primary)" }}
+              className="grid h-14 w-14 flex-none place-items-center rounded-[var(--radius-card)] bg-[var(--color-primary)] text-[var(--color-on-primary)]"
             >
               <Building2 size={26} />
             </div>
           )}
-          <div className="min-w-0" style={{ flex: "1 1 220px" }}>
+          <div className="min-w-0 flex-[1_1_220px]">
             <p className="m-0 text-[13.5px] font-semibold text-[var(--color-text)]">{logoName}</p>
             <p className="m-0 mt-0.5 text-[11.5px] text-[var(--color-text-muted)]">
               {t("PNG atau JPG · maks. 2MB", "PNG or JPG · max 2MB")}
             </p>
           </div>
-          <label
-            className="inline-flex cursor-pointer items-center gap-1.5 rounded-[var(--radius-control)] px-3.5 py-2 text-[12.5px] font-semibold text-[var(--color-text)] transition-colors hover:bg-[var(--color-surface-muted)]"
-            style={{ border: "1px solid var(--color-border)", background: "var(--color-surface)" }}
-          >
-            <ImagePlus size={14} style={{ color: "var(--color-primary)" }} />
+          <label className="tv-btn tv-btn--secondary cursor-pointer">
+            <ImagePlus size={14} className="text-[var(--color-primary)]" aria-hidden="true" />
             {t("Tukar Logo", "Change Logo")}
             <input
               type="file"
@@ -249,62 +235,42 @@ export default function CompanyProfile() {
       </section>
 
       {/* Company details */}
-      <section style={panelStyle} aria-labelledby="cp-details-title">
-        <div
-          className="px-5 py-4"
-          style={{ borderBottom: "1px solid var(--color-border)" }}
-        >
-          {sectionTitle(t("Maklumat Syarikat", "Company Details"))}
-        </div>
-        <div className="grid gap-4 px-5 py-5 md:grid-cols-2">
-          {field("name", "Nama Penuh Syarikat", "Full Company Name", { span: true })}
-          {field("brandName", "Nama Jenama", "Brand Name")}
-          {field("registrationNo", "No. Pendaftaran (SSM)", "Registration No. (SSM)")}
-          {field("phone", "Telefon", "Phone")}
-          {field("email", "Emel", "Email", { type: "email" })}
-          {field("website", "Laman Web", "Website", { type: "url", span: true })}
-        </div>
-      </section>
+      <FormSection id="cp-details-title" title={t("Maklumat Syarikat", "Company Details")}>
+        {field("name", "Nama Penuh Syarikat", "Full Company Name", { span: true })}
+        {field("brandName", "Nama Jenama", "Brand Name")}
+        {field("registrationNo", "No. Pendaftaran (SSM)", "Registration No. (SSM)")}
+        {field("phone", "Telefon", "Phone")}
+        {field("email", "Emel", "Email", { type: "email" })}
+        {field("website", "Laman Web", "Website", { type: "url", span: true })}
+      </FormSection>
 
       {/* Licence */}
-      <section style={panelStyle} aria-labelledby="cp-licence-title">
-        <div
-          className="px-5 py-4"
-          style={{ borderBottom: "1px solid var(--color-border)" }}
-        >
-          {sectionTitle(t("Lesen & Lokasi", "Licence & Location"))}
-        </div>
-        <div className="grid gap-4 px-5 py-5 md:grid-cols-2">
-          {field("licenseNo", "No. Lesen KPL", "Travel Licence No. (KPL)")}
-          {field("licenseExpiry", "Tarikh Luput Lesen", "Licence Expiry", { type: "date" })}
-          {field("address", "Alamat", "Address", { span: true })}
-          {field("city", "Bandar", "City")}
-          {field("state", "Negeri", "State")}
-          {field("postcode", "Poskod", "Postcode")}
-          {field("country", "Negara", "Country")}
-        </div>
-      </section>
+      <FormSection id="cp-licence-title" title={t("Lesen & Lokasi", "Licence & Location")}>
+        {field("licenseNo", "No. Lesen KPL", "Travel Licence No. (KPL)")}
+        {field("licenseExpiry", "Tarikh Luput Lesen", "Licence Expiry", { type: "date" })}
+        {field("address", "Alamat", "Address", { span: true })}
+        {field("city", "Bandar", "City")}
+        {field("state", "Negeri", "State")}
+        {field("postcode", "Poskod", "Postcode")}
+        {field("country", "Negara", "Country")}
+      </FormSection>
 
       {/* Bank & tax */}
-      <section style={panelStyle} aria-labelledby="cp-invoice-title">
-        <div
-          className="px-5 py-4"
-          style={{ borderBottom: "1px solid var(--color-border)" }}
-        >
-          {sectionTitle(t("Butiran Invois", "Invoice Details"))}
+      <section className="tv-panel" aria-labelledby="cp-invoice-title">
+        <div className="tv-panel__head">
+          <h2 id="cp-invoice-title" className="tv-panel__title">
+            {t("Butiran Invois", "Invoice Details")}
+          </h2>
         </div>
-        <div className="grid gap-4 px-5 py-5 md:grid-cols-2">
+        <div className="grid gap-4 p-5 md:grid-cols-2">
           {field("taxId", "No. Cukai (TIN)", "Tax ID (TIN)")}
           {field("bankName", "Nama Bank", "Bank Name")}
           {field("bankAccount", "No. Akaun Bank", "Bank Account No.")}
           {field("bankHolder", "Nama Pemegang Akaun", "Account Holder", { span: true })}
         </div>
         <div className="px-5 pb-5">
-          <div
-            className="flex items-start gap-2 rounded-[var(--radius-card)] px-4 py-3 text-[12.5px] leading-relaxed"
-            style={{ background: "var(--color-info-soft)", color: "var(--color-info)" }}
-          >
-            <UploadCloud size={15} style={{ flex: "none", marginTop: 1 }} aria-hidden="true" />
+          <div className="flex items-start gap-2 rounded-[var(--radius-card)] bg-[var(--color-info-soft)] px-4 py-3 text-[12.5px] leading-relaxed text-[var(--color-info)]">
+            <UploadCloud size={15} className="mt-px flex-none" aria-hidden="true" />
             <span>
               {t(
                 "Data ini dipaparkan pada kop invois, resit dan sebut harga pelanggan.",

@@ -562,7 +562,7 @@ export default function Settings() {
               ))}
               <p className="flex items-start gap-1.5 rounded-md bg-amber-50 p-3 text-xs text-amber-800">
                 <AlertTriangle className="mt-0.5 h-3.5 w-3.5 flex-none" />
-                {t("Perubahan prefix dan nombor hanya untuk dokumen baru. Dokumen sudah terbit kekal dengan nombornya.", "Prefix and number changes apply only to new documents. Already-issued documents keep their numbers.")}
+                {t("Tukar prefix dan nombor hanya untuk dokumen baru. Dokumen yang sudah keluar kekal dengan nombornya.", "Changes to prefix and number apply only to new documents. Documents already issued keep their numbers.")}
               </p>
             </div>
           </section>

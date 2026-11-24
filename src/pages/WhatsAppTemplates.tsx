@@ -1,22 +1,20 @@
 ﻿import { useMemo, useState } from "react";
 import {
   CheckCircle2,
+  Clock,
   Copy,
-  Eye,
   Languages,
   MessageCircle,
-  Pencil,
+  Phone,
   Plus,
-  Search,
-  Sparkles,
+  Send,
   X,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useLang } from "@/lib/i18n";
 import { followupApi, type TemplateGroup } from "@/lib/followup-api";
-import { useTemplates } from "@/lib/useFollowup";
+import { useLeadList, useTemplates } from "@/lib/useFollowup";
 import {
-  FollowupEmptyState,
   FollowupErrorState,
   FollowupLoading,
 } from "@/components/FollowupStates";
@@ -150,30 +148,77 @@ export function unknownTokensIn(body: string): string[] {
   return allTokensIn(body).filter((token) => !known.has(token));
 }
 
-const STAGE_LABELS: Record<Exclude<TemplateStage, null>, [string, string]> = {
-  FU1: ["Susulan 1", "Follow-up 1"],
-  FU2: ["Susulan 2", "Follow-up 2"],
-  FU3: ["Susulan 3", "Follow-up 3"],
-};
-
 export default function WhatsAppTemplates() {
   const { t, lang } = useLang();
   const query = useTemplates();
   const templates = useMemo(() => flattenTemplateGroups(query.data ?? []), [query.data]);
-  const [search, setSearch] = useState("");
-  const [stageFilter, setStageFilter] = useState<"all" | "FU1" | "FU2" | "FU3" | "general">("all");
-  /** The locale whose card is shown first / expanded by default. */
-  const [previewId, setPreviewId] = useState<string | null>(null);
+  /** Logical groups: one per code, with its en/ms rows. */
+  const groups = useMemo(() => {
+    const map = new Map<string, { code: string; name: string; stage: TemplateStage; rows: WaTemplate[] }>();
+    for (const tpl of templates) {
+      const g = map.get(tpl.code);
+      if (g) g.rows.push(tpl);
+      else map.set(tpl.code, { code: tpl.code, name: tpl.name, stage: tpl.stage, rows: [tpl] });
+    }
+    return [...map.values()];
+  }, [templates]);
+
+  const [langFilter, setLangFilter] = useState<"all" | "en" | "ms">("all");
+  const [selectedCode, setSelectedCode] = useState<string | null>(null);
+  const [salesName, setSalesName] = useState("Farid Osman");
+  const [departDate, setDepartDate] = useState("20 April 2026");
   const [notice, setNotice] = useState("");
   /** Bilingual create/edit dialog — null when closed. */
   const [editor, setEditor] = useState<TemplateEditorState | null>(null);
   /** Template code pending deactivation — confirm dialog shown while set. */
   const [pendingDeactivate, setPendingDeactivate] = useState<string | null>(null);
 
+  /** Real leads for the "Preview for" selector. */
+  const leadList = useLeadList({}, 200);
+  const leads = useMemo(() => leadList.data?.data ?? [], [leadList.data]);
+  const [leadId, setLeadId] = useState<string>("");
+
   function showNotice(message: string) {
     setNotice(message);
     window.setTimeout(() => setNotice(""), 4000);
   }
+
+  const visibleGroups = useMemo(
+    () => groups.filter((g) => langFilter === "all" || g.rows.some((r) => r.locale === langFilter)),
+    [groups, langFilter],
+  );
+
+  const selectedGroup = useMemo(
+    () => groups.find((g) => g.code === selectedCode) ?? visibleGroups[0] ?? null,
+    [groups, selectedCode, visibleGroups],
+  );
+
+  const selectedRow = useMemo(() => {
+    if (!selectedGroup) return null;
+    return (
+      selectedGroup.rows.find((r) => r.locale === lang) ??
+      selectedGroup.rows.find((r) => r.locale === "en") ??
+      selectedGroup.rows[0] ??
+      null
+    );
+  }, [selectedGroup, lang]);
+
+  const lead = useMemo(() => leads.find((l) => l.id === leadId) ?? leads[0] ?? null, [leads, leadId]);
+
+  /** Fills the selected body with real lead values for the chat preview. */
+  const rendered = useMemo(() => {
+    if (!selectedRow) return "";
+    const values: Record<string, string> = {
+      "{{leadName}}": lead?.name ?? "",
+      "{{packageName}}": lead?.destination ?? lead?.name ?? "",
+      "{{date}}": departDate.trim() || "20 April 2026",
+      "{{salesName}}": salesName.trim() || "Farid Osman",
+    };
+    return selectedRow.body.replace(/\{\{(\w+)\}\}/g, (whole) => {
+      const v = values[whole];
+      return v && v.trim() ? v : whole;
+    });
+  }, [selectedRow, lead, departDate, salesName]);
 
   /** Toggles active for BOTH locale rows of one logical template. */
   async function applyActive(code: string, next: boolean) {
@@ -191,15 +236,11 @@ export default function WhatsAppTemplates() {
     }
   }
 
-  /** Deactivate goes through a confirm dialog; activate is immediate. */
   function toggleActive(code: string) {
     const group = templates.filter((x) => x.code === code);
     const next = !group.every((x) => x.active);
-    if (next) {
-      void applyActive(code, true);
-    } else {
-      setPendingDeactivate(code);
-    }
+    if (next) void applyActive(code, true);
+    else setPendingDeactivate(code);
   }
 
   function confirmDeactivate() {
@@ -207,37 +248,62 @@ export default function WhatsAppTemplates() {
     setPendingDeactivate(null);
   }
 
-  /** Copies the filled sample body to the clipboard. */
-  async function copyBody(tpl: WaTemplate) {
+  async function copyMessage() {
     try {
-      await navigator.clipboard.writeText(fillSample(tpl.body));
-      showNotice(t("Mesej disalin ke papan klip.", "Message copied to clipboard."));
+      await navigator.clipboard.writeText(rendered);
+      showNotice(t("Pratonton disalin dengan placeholder terisi.", "Preview copied to the clipboard with placeholders filled in."));
     } catch {
       showNotice(t("Papan klip tidak tersedia.", "Clipboard unavailable."));
     }
+  }
+
+  function openWhatsApp() {
+    if (!lead) return;
+    const digits = lead.phone?.replace(/\D/g, "") ?? "";
+    const url = `https://wa.me/${digits}?text=${encodeURIComponent(rendered)}`;
+    window.open(url, "_blank", "noopener,noreferrer");
+    showNotice(
+      t(
+        `WhatsApp dibuka untuk ${lead.name} dengan mesej pra-isi. Tiada mesej dihantar automatik.`,
+        `WhatsApp opened for ${lead.name} with the message pre-filled. No message is sent automatically.`,
+      ),
+    );
+  }
+
+  function insertPlaceholder(token: string) {
+    if (!selectedGroup || !selectedRow) return;
+    const code = selectedGroup.code;
+    const locale = selectedRow.locale;
+    const body = selectedRow.body;
+    const next = body ? `${body} ${token}` : token;
+    const payload = {
+      name: selectedGroup.name,
+      stage: selectedGroup.stage,
+      enBody: locale === "en" ? next : selectedGroup.rows.find((r) => r.locale === "en")?.body ?? "",
+      msBody: locale === "ms" ? next : selectedGroup.rows.find((r) => r.locale === "ms")?.body ?? "",
+    };
+    void (async () => {
+      try {
+        await followupApi.updateTemplate(code, payload);
+        await query.refetch();
+      } catch (err) {
+        showNotice(err instanceof Error ? err.message : String(err));
+      }
+    })();
   }
 
   /** Persists the bilingual form through the templates API. */
   async function saveTemplate(draft: TemplateEditorState): Promise<boolean> {
     const errors = validateTemplate(draft.name, draft.enBody, draft.msBody);
     if (Object.keys(errors).length > 0) return false;
-    // Unknown placeholders are a hard block — the message would ship with raw {{tokens}}.
     if (unknownTokensIn(draft.enBody).length > 0 || unknownTokensIn(draft.msBody).length > 0) {
       showNotice(t("Placeholder tidak dikenali — periksa mesej.", "Unknown placeholders — check the message."));
       return false;
     }
-    const payload = {
-      name: draft.name,
-      stage: draft.stage,
-      enBody: draft.enBody,
-      msBody: draft.msBody,
-    };
+    const payload = { name: draft.name, stage: draft.stage, enBody: draft.enBody, msBody: draft.msBody };
     try {
-      if (draft.code) {
-        await followupApi.updateTemplate(draft.code, payload);
-      } else {
-        await followupApi.createTemplate({ ...payload, code: templateCodeFrom(draft.name) });
-      }
+      if (draft.code) await followupApi.updateTemplate(draft.code, payload);
+      else await followupApi.createTemplate({ ...payload, code: templateCodeFrom(draft.name) });
       setEditor(null);
       await query.refetch();
       showNotice(
@@ -252,164 +318,280 @@ export default function WhatsAppTemplates() {
     }
   }
 
-  /** Groups locale rows into logical templates: one card per `code`. */
-  const groups = useMemo(() => {
-    const map = new Map<string, { code: string; name: string; stage: TemplateStage; rows: WaTemplate[] }>();
-    for (const tpl of templates) {
-      const g = map.get(tpl.code);
-      if (g) g.rows.push(tpl);
-      else map.set(tpl.code, { code: tpl.code, name: tpl.name, stage: tpl.stage, rows: [tpl] });
-    }
-    return [...map.values()];
-  }, [templates]);
-
-  const visible = useMemo(() => {
-    const q = search.trim().toLowerCase();
-    return groups.filter((g) => {
-      const matchQuery =
-        !q ||
-        g.name.toLowerCase().includes(q) ||
-        g.code.toLowerCase().includes(q) ||
-        g.rows.some((r) => r.body.toLowerCase().includes(q));
-      const matchStage =
-        stageFilter === "all" ||
-        (stageFilter === "general" ? g.stage === null : g.stage === stageFilter);
-      return matchQuery && matchStage;
-    });
-  }, [groups, search, stageFilter]);
-
-  const stageOptions: { value: "all" | "FU1" | "FU2" | "FU3" | "general"; label: string }[] = [
-    { value: "all", label: t("Semua peringkat", "All stages") },
-    { value: "FU1", label: t("Susulan 1", "Follow-up 1") },
-    { value: "FU2", label: t("Susulan 2", "Follow-up 2") },
-    { value: "FU3", label: t("Susulan 3", "Follow-up 3") },
-    { value: "general", label: t("Umum", "General") },
-  ];
+  const langLabel = selectedRow?.locale === "ms" ? "Bahasa Malaysia" : "English";
+  const allActive = selectedGroup ? selectedGroup.rows.every((r) => r.active) : false;
 
   return (
     <div className="flex flex-col gap-5">
-      <header className="flex flex-wrap items-end justify-between gap-4">
-        <div className="min-w-0">
-          <h1 className="m-0 font-display text-[22px] font-bold tracking-tight">
-            {t("Templat WhatsApp", "WhatsApp Templates")}
-          </h1>
-          <p className="mt-1.5 text-[13px] text-muted-foreground">
-            {t(
-              "Templat mesej dwibahasa dengan placeholder — pratonton sebelum dibuka di WhatsApp.",
-              "Bilingual message templates with placeholders — preview before opening in WhatsApp.",
-            )}
-          </p>
+      {/* Hero — prototype twt-hero */}
+      <section className="relative overflow-hidden rounded-[var(--radius-panel)] border border-[var(--color-border-strong)] bg-[linear-gradient(132deg,var(--color-primary-soft)_0%,var(--color-surface)_58%,var(--color-surface-muted)_100%)] p-5 md:p-6">
+        <div aria-hidden="true" className="pointer-events-none absolute -bottom-[120px] -right-[60px] h-[280px] w-[280px] rounded-full" style={{ background: "color-mix(in srgb, var(--color-primary) 12%, transparent)" }} />
+        <div className="relative z-[1] flex flex-wrap items-start justify-between gap-4">
+          <div className="min-w-0">
+            <span className="inline-flex items-center gap-1.5 text-[11.5px] font-bold uppercase tracking-[0.06em] text-[var(--color-primary)]">
+              <MessageCircle className="h-3.5 w-3.5" />
+              {t("Pemesejan susulan", "Follow-up messaging")}
+            </span>
+            <h1 className="mt-2 m-0 font-display text-[22px] font-bold tracking-tight text-[var(--color-text)]">
+              {t("Templat WhatsApp", "WhatsApp Templates")}
+            </h1>
+            <p className="m-0 mt-1.5 max-w-[60ch] text-[14px] leading-relaxed text-[var(--color-text-secondary)]">
+              {t(
+                "Templat English & Bahasa Malaysia dengan placeholder dinamik — dihantar hanya via wa.me, tidak automatik.",
+                "English & Bahasa Malaysia templates with dynamic placeholders — sent only via wa.me, never automatically.",
+              )}
+            </p>
+          </div>
+          <div className="flex flex-wrap gap-2">
+            <button
+              type="button"
+              onClick={() => setEditor({ code: null, name: "", stage: "FU1", enBody: "", msBody: "" })}
+              className="inline-flex items-center gap-1.5 rounded-[var(--radius-control)] border border-[var(--color-border-strong)] bg-[var(--color-surface)] px-4 py-2 text-[13px] font-semibold text-[var(--color-text-secondary)] transition-colors hover:bg-[var(--color-surface-muted)] hover:text-foreground"
+            >
+              <Plus className="h-4 w-4" />
+              {t("Templat baharu", "New template")}
+            </button>
+            <button
+              type="button"
+              onClick={openWhatsApp}
+              className="inline-flex items-center gap-1.5 rounded-[var(--radius-control)] border border-[var(--color-primary)] bg-[var(--color-primary)] px-4 py-2 text-[13px] font-semibold text-[var(--color-on-primary)] transition-colors hover:bg-[var(--color-primary-hover)]"
+            >
+              <Send className="h-4 w-4" />
+              {t("Buka di WhatsApp", "Open in WhatsApp")}
+            </button>
+          </div>
         </div>
-        <div className="flex items-center gap-2">
-          <span className="inline-flex items-center gap-1.5 rounded-full bg-[var(--color-success-soft)] px-3 py-1.5 text-[12px] font-bold text-[var(--color-success)]">
-            <MessageCircle className="h-3.5 w-3.5" />
-            {t("Klik untuk sembang", "Click-to-chat")}
-          </span>
-          <button
-            type="button"
-            onClick={() => setEditor({ code: null, name: "", stage: "FU1", enBody: "", msBody: "" })}
-            className="inline-flex items-center gap-1.5 rounded-lg bg-[var(--color-primary)] px-3 py-2 text-[12.5px] font-bold text-[var(--color-primary-foreground)] hover:opacity-90"
-          >
-            <Plus className="h-3.5 w-3.5" />
-            {t("Templat baharu", "New template")}
-          </button>
-        </div>
-      </header>
 
-      <section className="grid grid-cols-2 gap-3 xl:grid-cols-4" aria-label={t("Ringkasan templat", "Template summary")}>
-        <MetricCard label={t("Jumlah templat", "Total templates")} icon={Languages} value={String(groups.length)} note={t("Setiap satu dalam EN & BM", "Each in EN & BM")} />
-        <MetricCard label={t("Aktif", "Active")} icon={CheckCircle2} value={String(groups.filter((g) => g.rows.every((r) => r.active)).length)} note={t("Sedia digunakan", "Ready to use")} />
-        <MetricCard label={t("Peringkat", "Stages")} icon={Sparkles} value={String(groups.filter((g) => g.stage !== null).length)} note={t("FU1 · FU2 · FU3", "FU1 · FU2 · FU3")} />
-        <MetricCard label={t("Placeholder", "Placeholders")} icon={Copy} value={String(TEMPLATE_PLACEHOLDERS.length)} note={t("Diisi automatik", "Filled automatically")} />
+        <div className="relative z-[1] mt-4 grid grid-cols-2 gap-3 md:grid-cols-4">
+          <HeroStat label={t("Templat", "Templates")} value={String(groups.length)} />
+          <HeroStat label={t("Bahasa", "Languages")} value="2" />
+          <HeroStat label={t("Placeholder", "Placeholders")} value={String(TEMPLATE_PLACEHOLDERS.length)} />
+          <HeroStat label={t("Pratonton", "Previewing")} value={lead?.name ?? "—"} small />
+        </div>
       </section>
 
-      <section className="min-w-0 overflow-hidden rounded-[var(--radius-panel)] border border-[var(--color-border)] bg-[var(--color-surface)]">
-        <div className="flex flex-wrap gap-2 px-4 py-3">
-          <div className="flex min-w-0 max-w-[300px] flex-1 items-center gap-2 rounded-lg border border-[var(--color-border)] bg-[var(--color-surface-raised)] px-3 py-2">
-            <Search className="h-3.5 w-3.5 text-muted-foreground" />
-            <input
-              type="search"
-              value={search}
-              onChange={(e) => setSearch(e.target.value)}
-              placeholder={t("Cari nama, kod, isi mesej…", "Search name, code, message body…")}
-              aria-label={t("Cari templat", "Search templates")}
-              className="min-w-0 flex-1 border-0 bg-transparent text-[13px] outline-none"
-            />
-          </div>
-          <label className="flex items-center gap-1.5 text-[12px] text-muted-foreground">
-            {t("Peringkat", "Stage")}
-            <select
-              value={stageFilter}
-              onChange={(e) => setStageFilter(e.target.value as typeof stageFilter)}
-              className="rounded-lg border border-[var(--color-border)] bg-[var(--color-surface)] px-2 py-2 text-[13px]"
-            >
-              {stageOptions.map((o) => (
-                <option key={o.value} value={o.value}>{o.label}</option>
-              ))}
-            </select>
-          </label>
+      {notice && (
+        <div role="status" className="flex items-center gap-2 rounded-[var(--radius-control)] bg-[var(--color-primary-soft)] px-4 py-2.5 text-[13px] text-[var(--color-primary)]">
+          <CheckCircle2 className="h-4 w-4 flex-none" />
+          <span className="min-w-0 flex-1">{notice}</span>
+          <button type="button" aria-label={t("Tutup", "Dismiss")} onClick={() => setNotice("")} className="grid place-items-center border-0 bg-transparent text-inherit">
+            <X className="h-3.5 w-3.5" />
+          </button>
         </div>
+      )}
 
-        {query.loading ? (
-          <FollowupLoading label={t("Memuatkan templat...", "Loading templates...")} />
-        ) : query.status === "error" ? (
-          <div className="px-4 py-4">
-            <FollowupErrorState message={query.error ?? ""} onRetry={() => void query.refetch()} />
+      {/* Two-column list + compose */}
+      <div className="grid grid-cols-1 gap-5 lg:grid-cols-[320px_minmax(0,1fr)]">
+        {/* Left: template list */}
+        <section className="min-w-0 overflow-hidden rounded-[var(--radius-panel)] border border-[var(--color-border)] bg-[var(--color-surface)]">
+          <div className="flex items-center justify-between gap-3 border-b border-[var(--color-border)] px-5 py-4">
+            <h2 className="m-0 text-[15px] font-semibold text-[var(--color-text)]">{t("Templat", "Templates")}</h2>
+            <span className="text-[12px] text-muted-foreground">{visibleGroups.length}</span>
           </div>
-        ) : visible.length === 0 ? (
-          <div className="px-4 py-4">
-            <FollowupEmptyState
-              icon={MessageCircle}
-              title={
-                groups.length === 0
-                  ? t("Tiada templat lagi", "No templates yet")
-                  : t("Tiada templat sepadan", "No templates match")
-              }
-              description={
-                groups.length === 0
-                  ? t(
-                      "Cipta templat dwibahasa pertama anda untuk memulakan susulan WhatsApp.",
-                      "Create your first bilingual template to start WhatsApp follow-ups.",
-                    )
-                  : t("Tukar kata kunci atau tapis peringkat.", "Change the keyword or stage filter.")
-              }
-              action={
-                groups.length === 0 ? (
-                  <button
-                    type="button"
-                    onClick={() => setEditor({ code: null, name: "", stage: "FU1", enBody: "", msBody: "" })}
-                    className="inline-flex items-center gap-1.5 rounded-lg bg-[var(--color-primary)] px-3 py-2 text-[12.5px] font-bold text-[var(--color-primary-foreground)] hover:opacity-90"
-                  >
-                    <Plus className="h-3.5 w-3.5" />
-                    {t("Templat baharu", "New template")}
-                  </button>
-                ) : undefined
-              }
-            />
-          </div>
-        ) : (
-          <ul className="m-0 flex flex-col gap-3 list-none px-4 pb-4">
-            {visible.map((g) => (
-              <TemplateCard
-                key={g.code}
-                code={g.code}
-                name={g.name}
-                stage={g.stage}
-                rows={g.rows}
-                preferredLocale={lang}
-                expanded={previewId === g.code}
-                onTogglePreview={() => setPreviewId((cur) => (cur === g.code ? null : g.code))}
-                onToggleActive={toggleActive}
-                onCopy={copyBody}
-                onEdit={() => {
-                  const en = g.rows.find((r) => r.locale === "en");
-                  const ms = g.rows.find((r) => r.locale === "ms");
-                  setEditor({ code: g.code, name: g.name, stage: g.stage, enBody: en?.body ?? "", msBody: ms?.body ?? "" });
-                }}
-              />
+          <div className="flex flex-wrap gap-1.5 px-4 py-3" role="group" aria-label={t("Tapis templat mengikut bahasa", "Filter templates by language")}>
+            {([["all", t("Semua", "All")], ["en", "English"], ["ms", "Bahasa Malaysia"]] as const).map(([value, label]) => (
+              <button
+                key={value}
+                type="button"
+                aria-pressed={langFilter === value}
+                onClick={() => setLangFilter(value)}
+                className={cn(
+                  "rounded-full border px-3 py-1.5 text-[12px] font-semibold transition-colors",
+                  langFilter === value
+                    ? "border-[var(--color-primary)] bg-[var(--color-primary)] text-[var(--color-on-primary)]"
+                    : "border-[var(--color-border)] bg-[var(--color-surface)] text-[var(--color-text-secondary)] hover:border-[var(--color-primary)] hover:text-[var(--color-primary)]",
+                )}
+              >
+                {label}
+              </button>
             ))}
-          </ul>
-        )}
+          </div>
+          {query.loading ? (
+            <FollowupLoading label={t("Memuatkan templat...", "Loading templates...")} />
+          ) : query.status === "error" ? (
+            <div className="px-4 py-4">
+              <FollowupErrorState message={query.error ?? ""} onRetry={() => void query.refetch()} />
+            </div>
+          ) : visibleGroups.length === 0 ? (
+            <div className="px-4 py-5 text-center text-[13px] text-muted-foreground">
+              {t("Tiada templat dalam bahasa ini.", "No templates in this language yet.")}
+            </div>
+          ) : (
+            <div className="flex flex-col">
+              {visibleGroups.map((g) => {
+                const sel = selectedGroup?.code === g.code;
+                const row = g.rows[0];
+                return (
+                  <button
+                    key={g.code}
+                    type="button"
+                    aria-selected={sel}
+                    onClick={() => setSelectedCode(g.code)}
+                    className={cn(
+                      "flex w-full items-start gap-2.5 border-0 border-t border-l-[3px] border-l-transparent bg-transparent px-4 py-3 text-left transition-colors first:border-t-0",
+                      sel ? "border-l-[var(--color-primary)] bg-[var(--color-primary-soft)]" : "hover:bg-[var(--color-surface-raised)]",
+                    )}
+                  >
+                    <span className={cn("grid h-7 w-7 flex-none place-items-center rounded-[9px]", sel ? "bg-[var(--color-primary)] text-[var(--color-on-primary)]" : "bg-[var(--color-surface-muted)] text-[var(--color-text-secondary)]")}>
+                      <MessageCircle className="h-3.5 w-3.5" />
+                    </span>
+                    <span className="flex min-w-0 flex-1 flex-col gap-0.5">
+                      <strong className="truncate text-[13.5px] font-semibold text-[var(--color-text)]">{g.name}</strong>
+                      <span className="truncate text-[12px] text-muted-foreground">
+                        {row?.body.length ?? 0} {t("aksara", "chars")} · {placeholdersIn(row?.body ?? "").length} {t("placeholder", "placeholders")}
+                      </span>
+                    </span>
+                    <span className={cn("flex-none rounded-full px-2 py-0.5 text-[11px] font-semibold", sel ? "bg-[var(--color-surface)] text-[var(--color-primary)]" : "bg-[var(--color-surface-muted)] text-muted-foreground")}>
+                      {g.rows.some((r) => r.locale === "ms") ? "BM" : "EN"}
+                    </span>
+                  </button>
+                );
+              })}
+            </div>
+          )}
+        </section>
+
+        {/* Right: compose */}
+        <section className="min-w-0 overflow-hidden rounded-[var(--radius-panel)] border border-[var(--color-border)] bg-[var(--color-surface)]">
+          {selectedRow ? (
+            <>
+              <div className="flex items-center justify-between gap-3 border-b border-[var(--color-border)] px-5 py-4">
+                <h2 className="m-0 text-[15px] font-semibold text-[var(--color-text)]">{t("Karang", "Compose")}</h2>
+                <span className="rounded-full bg-[var(--color-primary-soft)] px-2.5 py-0.5 text-[12px] font-semibold text-[var(--color-primary)]">{langLabel}</span>
+              </div>
+              <div className="flex flex-col gap-4 p-5">
+                <div className="grid grid-cols-1 gap-3 md:grid-cols-3">
+                  <label className="flex min-w-0 flex-col gap-1.5 text-[11.5px] font-semibold uppercase tracking-[0.04em] text-muted-foreground">
+                    {t("Nama templat", "Template name")}
+                    <input
+                      type="text"
+                      value={selectedGroup.name}
+                      onChange={(e) => void (async () => {
+                        const code = selectedGroup.code;
+                        await followupApi.updateTemplate(code, { name: e.target.value });
+                        await query.refetch();
+                      })()}
+                      className="rounded-[var(--radius-control)] border border-[var(--color-border)] bg-[var(--color-surface)] px-2.5 py-2 text-[13px] text-[var(--color-text)] outline-none focus:border-[var(--color-primary)]"
+                    />
+                  </label>
+                  <label className="flex min-w-0 flex-col gap-1.5 text-[11.5px] font-semibold uppercase tracking-[0.04em] text-muted-foreground">
+                    {t("Nama sales", "Sales name")}
+                    <input type="text" value={salesName} onChange={(e) => setSalesName(e.target.value)} className="rounded-[var(--radius-control)] border border-[var(--color-border)] bg-[var(--color-surface)] px-2.5 py-2 text-[13px] text-[var(--color-text)] outline-none focus:border-[var(--color-primary)]" />
+                  </label>
+                  <label className="flex min-w-0 flex-col gap-1.5 text-[11.5px] font-semibold uppercase tracking-[0.04em] text-muted-foreground">
+                    {t("Tarikh berlepas", "Departure date")}
+                    <input type="text" value={departDate} onChange={(e) => setDepartDate(e.target.value)} className="rounded-[var(--radius-control)] border border-[var(--color-border)] bg-[var(--color-surface)] px-2.5 py-2 text-[13px] text-[var(--color-text)] outline-none focus:border-[var(--color-primary)]" />
+                  </label>
+                </div>
+
+                <div className="flex flex-wrap items-center justify-between gap-3">
+                  <span className="text-[11.5px] font-semibold uppercase tracking-[0.04em] text-muted-foreground">
+                    {t("Isi mesej", "Message body")}
+                  </span>
+                  <div className="flex flex-wrap gap-1.5" aria-label={t("Sisip placeholder", "Insert placeholder")}>
+                    {TEMPLATE_PLACEHOLDERS.map((p) => (
+                      <button key={p.token} type="button" onClick={() => insertPlaceholder(p.token)} title={t(p.ms, p.en)} className="rounded-full border border-[var(--color-border)] bg-[var(--color-surface-muted)] px-2.5 py-1 font-mono text-[11.5px] font-semibold text-[var(--color-text-secondary)] transition-colors hover:border-[var(--color-primary)] hover:bg-[var(--color-primary-soft)] hover:text-[var(--color-primary)]">
+                        {p.token}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+                <textarea
+                  value={selectedRow.body}
+                  onChange={(e) => void (async () => {
+                    const code = selectedGroup.code;
+                    const locale = selectedRow.locale;
+                    const body = e.target.value;
+                    const payload = {
+                      name: selectedGroup.name,
+                      stage: selectedGroup.stage,
+                      enBody: locale === "en" ? body : selectedGroup.rows.find((r) => r.locale === "en")?.body ?? "",
+                      msBody: locale === "ms" ? body : selectedGroup.rows.find((r) => r.locale === "ms")?.body ?? "",
+                    };
+                    await followupApi.updateTemplate(code, payload);
+                    await query.refetch();
+                  })()}
+                  aria-label={t("Isi mesej templat", "Template message body")}
+                  className="min-h-[120px] w-full resize-y rounded-[var(--radius-control)] border border-[var(--color-border)] bg-[var(--color-surface)] px-3 py-2 text-[13.5px] leading-relaxed text-[var(--color-text)] outline-none focus:border-[var(--color-primary)]"
+                />
+              </div>
+            </>
+          ) : (
+            <div className="px-5 py-8 text-center text-[13.5px] text-muted-foreground">
+              {t("Pilih templat di kiri atau cipta yang baharu.", "Pick a template on the left, or create a new one.")}
+            </div>
+          )}
+        </section>
+      </div>
+
+      {/* Preview */}
+      <section className="min-w-0 overflow-hidden rounded-[var(--radius-panel)] border border-[var(--color-border)] bg-[var(--color-surface)]">
+        <div className="flex items-center justify-between gap-3 border-b border-[var(--color-border)] px-5 py-4">
+          <h2 className="m-0 text-[15px] font-semibold text-[var(--color-text)]">{t("Pratonton mesej", "Message preview")}</h2>
+          <span className="text-[12px] text-muted-foreground">{rendered.length} {t("aksara", "characters")}</span>
+        </div>
+        <div className="flex flex-col gap-4 p-5">
+          <div className="flex flex-wrap items-end justify-between gap-4">
+            <div className="flex items-center gap-2">
+              <label htmlFor="twt-lead" className="text-[12.5px] font-semibold text-[var(--color-text-secondary)]">
+                {t("Pratonton untuk", "Preview for")}
+              </label>
+              <select id="twt-lead" value={leadId} onChange={(e) => setLeadId(e.target.value)} className="rounded-[var(--radius-control)] border border-[var(--color-border)] bg-[var(--color-surface)] px-2.5 py-1.5 text-[13px] text-[var(--color-text)]">
+                {leads.map((l) => (
+                  <option key={l.id} value={l.id}>{l.name}</option>
+                ))}
+                {leads.length === 0 && <option value="">{t("Tiada lead", "No leads")}</option>}
+              </select>
+            </div>
+            {lead && (
+              <span className="inline-flex items-center gap-1.5 text-[12.5px] text-[var(--color-text-secondary)]">
+                <Phone className="h-3.5 w-3.5" />
+                {lead.phone ?? "—"}
+              </span>
+            )}
+          </div>
+
+          <div className="flex flex-col gap-2.5 rounded-[var(--radius-card)] border border-[var(--color-border)] bg-[var(--color-surface-muted)] p-4">
+            <span className="text-[11.5px] font-semibold uppercase tracking-[0.04em] text-muted-foreground">
+              {lead?.destination ?? lead?.name ?? "—"}
+            </span>
+            <div className="max-w-[92%] self-start whitespace-pre-wrap rounded-[4px_var(--radius-card)_var(--radius-card)_var(--radius-card)] border border-[var(--color-border-strong)] bg-[var(--color-surface)] px-4 py-2.5 text-[13.5px] leading-relaxed text-[var(--color-text)] shadow-sm">
+              {rendered || t("Tulis mesej untuk melihat pratonton.", "Write a message to see the preview.")}
+            </div>
+            <span className="inline-flex items-center gap-1.5 self-end text-[11.5px] text-muted-foreground">
+              <Clock className="h-3.5 w-3.5" />
+              {t("Akan membuka WhatsApp anda — tiada mesej dihantar automatik", "Will open your WhatsApp app — nothing is sent automatically")}
+            </span>
+          </div>
+
+          <div className="flex flex-wrap items-center justify-end gap-2">
+            <button
+              type="button"
+              onClick={() => void copyMessage()}
+              className="inline-flex items-center gap-1.5 rounded-[var(--radius-control)] border border-[var(--color-border-strong)] bg-[var(--color-surface)] px-4 py-2 text-[13px] font-semibold text-[var(--color-text-secondary)] transition-colors hover:bg-[var(--color-surface-muted)] hover:text-foreground"
+            >
+              <Copy className="h-4 w-4" />
+              {t("Salin mesej", "Copy message")}
+            </button>
+            {selectedGroup && (
+              <button
+                type="button"
+                onClick={() => toggleActive(selectedGroup.code)}
+                className="inline-flex items-center gap-1.5 rounded-[var(--radius-control)] border border-[var(--color-danger-soft)] bg-[var(--color-surface)] px-4 py-2 text-[13px] font-semibold text-[var(--color-danger)] transition-colors hover:bg-[var(--color-danger-soft)]"
+              >
+                {allActive ? t("Nyahaktif", "Deactivate") : t("Aktifkan", "Activate")}
+              </button>
+            )}
+            <button
+              type="button"
+              onClick={openWhatsApp}
+              className="inline-flex items-center gap-1.5 rounded-[var(--radius-control)] border border-[var(--color-primary)] bg-[var(--color-primary)] px-4 py-2 text-[13px] font-semibold text-[var(--color-on-primary)] transition-colors hover:bg-[var(--color-primary-hover)]"
+            >
+              <Send className="h-4 w-4" />
+              {t("Buka di WhatsApp", "Open in WhatsApp")}
+            </button>
+          </div>
+        </div>
       </section>
 
       {editor && (
@@ -459,141 +641,18 @@ export default function WhatsAppTemplates() {
           </div>
         </div>
       )}
-
-      {notice && (
-        <div className="fixed bottom-6 right-6 z-[60] flex max-w-[340px] items-center gap-3 rounded-[var(--radius-card)] bg-[var(--color-text)] px-3.5 py-3 text-[13px] text-[var(--color-surface)] shadow-2xl" role="status" aria-live="polite">
-          <CheckCircle2 className="h-4 w-4 flex-none" />
-          <span className="flex-1">{notice}</span>
-          <button type="button" aria-label={t("Tutup", "Dismiss")} onClick={() => setNotice("")} className="grid place-items-center">
-            <X className="h-3.5 w-3.5" />
-          </button>
-        </div>
-      )}
     </div>
   );
 }
 
-function MetricCard({ label, icon: Icon, value, note }: { label: string; icon: typeof Languages; value: string; note: string }) {
+function HeroStat({ label, value, small }: { label: string; value: string; small?: boolean }) {
   return (
-    <div className="flex min-w-0 flex-col gap-1 rounded-[var(--radius-card)] border border-[var(--color-border)] bg-[var(--color-surface)] p-4">
-      <span className="flex items-center gap-1.5 text-[12px] font-semibold text-muted-foreground">
-        <Icon className="h-3.5 w-3.5" /> {label}
-      </span>
-      <span className="font-display text-[24px] font-bold leading-tight tracking-tight [font-variant-numeric:tabular-nums]">{value}</span>
-      <span className="text-[12px] text-muted-foreground">{note}</span>
+    <div className="flex min-w-0 flex-col gap-0.5 rounded-[var(--radius-card)] border border-[var(--color-border)] bg-[var(--color-surface)] px-4 py-3">
+      <span className="text-[11.5px] font-semibold uppercase tracking-[0.04em] text-muted-foreground">{label}</span>
+      <strong className={cn("font-display leading-tight tracking-tight text-[var(--color-text)]", small ? "text-[15px] font-semibold" : "text-[22px] font-bold")} style={small ? { overflowWrap: "anywhere" } : undefined}>
+        {value}
+      </strong>
     </div>
-  );
-}
-
-/** One logical template: header + one message bubble per locale. */
-function TemplateCard({
-  code,
-  name,
-  stage,
-  rows,
-  preferredLocale,
-  expanded,
-  onTogglePreview,
-  onToggleActive,
-  onCopy,
-  onEdit,
-}: {
-  code: string;
-  name: string;
-  stage: TemplateStage;
-  rows: WaTemplate[];
-  preferredLocale: TemplateLocale;
-  expanded: boolean;
-  onTogglePreview: () => void;
-  onToggleActive: (code: string) => void;
-  onCopy: (tpl: WaTemplate) => void;
-  onEdit: () => void;
-}) {
-  const { t } = useLang();
-  const ordered = [...rows].sort((a, b) => (a.locale === preferredLocale ? -1 : b.locale === preferredLocale ? 1 : 0));
-  const allActive = rows.every((r) => r.active);
-  return (
-    <li className="rounded-[var(--radius-card)] border border-[var(--color-border)] bg-[var(--color-surface-raised)] p-4">
-      <div className="flex flex-wrap items-start justify-between gap-3">
-        <div className="min-w-0">
-          <div className="flex flex-wrap items-center gap-2">
-            <h2 className="m-0 font-display text-[15px] font-bold">{name}</h2>
-            <span className="rounded-full bg-[var(--color-neutral-soft)] px-2 py-0.5 font-mono text-[11px] font-semibold text-[var(--color-text-secondary)]">{code}</span>
-            {stage ? (
-              <span className="rounded-full bg-[var(--color-primary-soft)] px-2 py-0.5 text-[11.5px] font-semibold text-[var(--color-primary)]">{t(...STAGE_LABELS[stage])}</span>
-            ) : (
-              <span className="rounded-full bg-[var(--color-neutral-soft)] px-2 py-0.5 text-[11.5px] font-semibold text-[var(--color-text-secondary)]">{t("Umum", "General")}</span>
-            )}
-            <span className={cn("rounded-full px-2 py-0.5 text-[11.5px] font-semibold", allActive ? "bg-[var(--color-success-soft)] text-[var(--color-success)]" : "bg-[var(--color-neutral-soft)] text-[var(--color-text-secondary)]")}>
-              {allActive ? t("Aktif", "Active") : t("Tidak aktif", "Inactive")}
-            </span>
-          </div>
-          <p className="m-0 mt-1 text-[12px] text-muted-foreground">
-            {t(
-              `${ordered.length} bahasa · ${placeholdersIn(ordered[0]?.body ?? "").length} placeholder`,
-              `${ordered.length} languages · ${placeholdersIn(ordered[0]?.body ?? "").length} placeholders`,
-            )}
-          </p>
-        </div>
-        <div className="flex items-center gap-1.5">
-          <button
-            type="button"
-            onClick={onEdit}
-            className="inline-flex items-center gap-1.5 rounded-lg border border-[var(--color-border)] bg-[var(--color-surface)] px-2.5 py-1.5 text-[12px] font-semibold hover:bg-[var(--color-surface-raised)]"
-          >
-            <Pencil className="h-3.5 w-3.5" />
-            {t("Edit", "Edit")}
-          </button>
-          <button
-            type="button"
-            onClick={onTogglePreview}
-            aria-expanded={expanded}
-            className="inline-flex items-center gap-1.5 rounded-lg border border-[var(--color-border)] bg-[var(--color-surface)] px-2.5 py-1.5 text-[12px] font-semibold hover:bg-[var(--color-surface-raised)]"
-          >
-            <Eye className="h-3.5 w-3.5" />
-            {expanded ? t("Tutup pratonton", "Hide preview") : t("Pratonton", "Preview")}
-          </button>
-          <button
-            type="button"
-            onClick={() => onToggleActive(code)}
-            disabled={rows.length === 0}
-            className="rounded-lg border border-[var(--color-border)] bg-[var(--color-surface)] px-2.5 py-1.5 text-[12px] font-semibold hover:bg-[var(--color-surface-raised)] disabled:cursor-not-allowed disabled:opacity-50"
-          >
-            {allActive ? t("Nyahaktif", "Deactivate") : t("Aktifkan", "Activate")}
-          </button>
-        </div>
-      </div>
-
-      <div className="mt-3 grid gap-3 md:grid-cols-2">
-        {ordered.map((row) => (
-          <div key={row.id} className="flex flex-col gap-2 rounded-xl border border-[var(--color-border)] bg-[var(--color-surface)] p-3">
-            <div className="flex items-center justify-between gap-2">
-              <span className="inline-flex items-center gap-1.5 text-[11.5px] font-bold uppercase tracking-wider text-muted-foreground">
-                <Languages className="h-3.5 w-3.5" />
-                {row.locale === "ms" ? "Bahasa Malaysia" : "English"}
-              </span>
-              <button
-                type="button"
-                onClick={() => onCopy(row)}
-                className="inline-flex items-center gap-1 text-[11.5px] font-semibold text-[var(--color-primary)] hover:underline"
-              >
-                <Copy className="h-3 w-3" />
-                {t("Salin", "Copy")}
-              </button>
-            </div>
-            <p className="m-0 whitespace-pre-wrap rounded-[14px] rounded-tl-[4px] bg-[#d9fdd3] px-3 py-2 text-[13px] leading-relaxed text-[#111b21] dark:bg-[#005c4b] dark:text-[#e9edef]">
-              {expanded ? fillSample(row.body) : row.body}
-            </p>
-            {expanded && placeholdersIn(row.body).length > 0 && (
-              <p className="m-0 text-[11.5px] text-muted-foreground">
-                {t("Diisi dengan: ", "Filled with: ")}
-                {placeholdersIn(row.body).map((token) => (t(TEMPLATE_PLACEHOLDERS.find((p) => p.token === token)?.ms ?? token, TEMPLATE_PLACEHOLDERS.find((p) => p.token === token)?.en ?? token))).join(" · ")}
-              </p>
-            )}
-          </div>
-        ))}
-      </div>
-    </li>
   );
 }
 

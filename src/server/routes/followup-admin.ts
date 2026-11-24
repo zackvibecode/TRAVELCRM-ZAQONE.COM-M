@@ -129,6 +129,8 @@ export interface AdminUser {
   email: string;
   role: "super_admin" | "management" | "sales" | "finance" | "operations";
   active: boolean;
+  /** "pending" when the account awaits admin approval before first sign-in. */
+  status: "active" | "pending" | "suspended";
   /** Leads currently assigned to this user in an open follow-up state. */
   openLeads: number;
 }
@@ -172,6 +174,7 @@ adminRouter.get("/users", async (c) => {
       email: r.email,
       role: r.role,
       active: r.status === "active",
+      status: r.status as AdminUser["status"],
       openLeads: openByOwner.get(r.id) ?? 0,
     }));
 

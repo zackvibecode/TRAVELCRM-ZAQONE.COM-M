@@ -28,11 +28,11 @@ async function purgeContentCache(c: { req: { url: string } }): Promise<void> {
     if (!cache) return;
     const origin = new URL(c.req.url).origin;
     const paths = [
-      "/website/pages",
-      "/website/banners",
-      "/website/seo",
-      "/website/packages",
-      "/website/featured",
+      "/api/website/pages",
+      "/api/website/banners",
+      "/api/website/seo",
+      "/api/website/packages",
+      "/api/website/featured",
     ];
     await Promise.all(
       paths.map((p) => cache.delete(new Request(`${origin}${p}`)).catch(() => false)),

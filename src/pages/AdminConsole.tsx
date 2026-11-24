@@ -137,7 +137,7 @@ export default function AdminConsole() {
           <p className="mt-2 text-[13.5px] leading-relaxed text-muted-foreground">
             {t(
               "Konsol Admin hanya untuk Super Admin dan Management.",
-              "The Admin Console is restricted to Super Admin and Management.",
+              "The Admin Console is for Super Admin and Management only.",
             )}
           </p>
         </div>
@@ -454,8 +454,8 @@ function StagesPanel({
         <h2 className="m-0 font-display text-[15px] font-bold">{t("Peraturan Peringkat Susulan", "Follow-up Stage Rules")}</h2>
         <p className="m-0 mt-1 text-[12.5px] text-muted-foreground">
           {t(
-            "Berapa hari selepas peringkat sebelumnya setiap susulan dijadualkan, dan pada jam berapa (waktu KL) ia perlu dibuat.",
-            "How many days after the previous stage each follow-up is scheduled, and at what KL hour it becomes due.",
+            "Berapa hari selepas peringkat sebelumnya setiap susulan dijadualkan, dan pada pukul berapa (waktu KL) ia perlu dibuat.",
+            "How many days after the previous stage each follow-up is sent, and at what time (KL time) it becomes due.",
           )}
         </p>
 
@@ -555,7 +555,7 @@ function StagesPanel({
           </span>
         </div>
         <p className="m-0 mt-1 text-[12.5px] text-muted-foreground">
-          {t("Jika lead baharu masuk sekarang, susulan akan dijadualkan seperti berikut:", "If a new lead arrives now, follow-ups are scheduled as follows:")}
+          {t("Jika lead baharu masuk sekarang, susulan akan dijadualkan begini:", "If a new lead comes in now, here's how the follow-ups will be scheduled:")}
         </p>
 
         <ol className="relative m-0 mt-4 flex list-none flex-col gap-0 p-0">
@@ -600,10 +600,12 @@ function UsersPanel({
   query: AdminQuery<AdminUser[]>;
 }) {
     const [search, setSearch] = useState("");
-  const [roleFilter, setRoleFilter] = useState<"all" | AdminUser["role"]>("all");
+  const [roleFilter, setRoleFilter] = useState<"all" | "pending" | AdminUser["role"]>("all");
   const [savingId, setSavingId] = useState<string | null>(null);
   const [saveError, setSaveError] = useState<string | null>(null);
   const users = query.data ?? [];
+
+  const pendingCount = users.filter((u) => u.status === "pending").length;
 
   const ROLE_LABEL: Record<AdminUser["role"], [string, string]> = {
     super_admin: ["Super Admin", "Super Admin"],
@@ -638,6 +640,7 @@ function UsersPanel({
 
   const q = search.trim().toLowerCase();
   const visible = users.filter((u) => {
+    if (roleFilter === "pending") return u.status === "pending";
     if (roleFilter !== "all" && u.role !== roleFilter) return false;
     if (!q) return true;
     return u.name.toLowerCase().includes(q) || u.email.toLowerCase().includes(q);
@@ -660,6 +663,21 @@ function UsersPanel({
 
         {/* Role summary chips */}
         <div className="mt-3 flex flex-wrap gap-2">
+          {pendingCount > 0 && (
+            <button
+              type="button"
+              onClick={() => setRoleFilter(roleFilter === "pending" ? "all" : "pending")}
+              aria-pressed={roleFilter === "pending"}
+              className={cn(
+                "rounded-full border px-2.5 py-1 text-[11.5px] font-semibold transition-colors",
+                roleFilter === "pending"
+                  ? "border-[var(--color-warning)] bg-[var(--color-warning)] text-[var(--color-on-primary)]"
+                  : "border-[var(--color-warning)] bg-[var(--color-warning-soft)] text-[var(--color-warning)] hover:brightness-95",
+              )}
+            >
+              {t("Menunggu", "Pending")} · {pendingCount}
+            </button>
+          )}
           {counts.map((c) => (
             <button
               key={c.role}
@@ -716,6 +734,11 @@ function UsersPanel({
                 <div className="min-w-0 flex-1">
                   <p className="m-0 flex items-center gap-1.5 truncate text-[13.5px] font-bold">
                     {u.name}
+                    {u.status === "pending" && (
+                      <span className="rounded bg-[var(--color-warning-soft)] px-1.5 py-0.5 text-[10px] font-bold text-[var(--color-warning)]">
+                        {t("Menunggu kelulusan", "Awaiting approval")}
+                      </span>
+                    )}
                     {isLastSuper && (
                       <span className="rounded bg-[var(--color-warning-soft)] px-1.5 py-0.5 text-[10px] font-bold text-[var(--color-warning)]">
                         {t("Admin terakhir", "Last admin")}
@@ -751,6 +774,16 @@ function UsersPanel({
                     <option value="management">Management</option>
                     <option value="super_admin">Super Admin</option>
                   </select>
+                )}
+                {u.status === "pending" && (
+                  <button
+                    type="button"
+                    disabled={busy}
+                    onClick={() => patchUser(u.id, { active: true })}
+                    className="rounded-lg bg-[var(--color-success)] px-2.5 py-1.5 text-[11.5px] font-bold text-[var(--color-on-primary)] hover:brightness-95 disabled:opacity-50"
+                  >
+                    {t("Luluskan", "Approve")}
+                  </button>
                 )}
                 <label className="flex items-center gap-1.5 text-[11.5px] font-semibold">
                   <input
@@ -852,8 +885,8 @@ function TransferPanel({
         <h2 className="m-0 font-display text-[15px] font-bold">{t("Pindah Pemilikan Lead", "Transfer Lead Ownership")}</h2>
         <p className="m-0 mt-1 text-[12.5px] text-muted-foreground">
           {t(
-            "Pindahkan semua lead terbuka milik seorang sales kepada sales lain. Rekod jejak audit akan disimpan.",
-            "Move all open leads owned by one sales rep to another. An audit trail record is kept.",
+            "Pindahkan semua lead terbuka milik seorang sales kepada sales lain. Perubahan ini disimpan dalam log audit.",
+            "Move all open leads from one sales rep to another. This change is saved in the audit log.",
           )}
         </p>
 
@@ -1050,7 +1083,7 @@ function ImportsPanel({ t, query }: { t: TFn; query: AdminQuery<AdminImportBatch
       <section className="rounded-[var(--radius-card)] border border-[var(--color-border)] bg-[var(--color-surface)] p-5">
         <h2 className="m-0 font-display text-[15px] font-bold">{t("Sejarah Import Lead", "Lead Import History")}</h2>
         <p className="m-0 mt-1 text-[12.5px] text-muted-foreground">
-          {t("Setiap import fail CSV/Excel direkodkan dengan kiraan berjaya dan gagal.", "Each CSV/Excel file import is recorded with success and failure counts.")}
+          {t("Setiap import fail CSV/Excel direkodkan dengan bilangan yang berjaya dan gagal.", "Every CSV/Excel import shows how many rows worked and how many failed.")}
         </p>
 
         {/* Status filter chips */}
@@ -1195,14 +1228,14 @@ function ImportsPanel({ t, query }: { t: TFn; query: AdminQuery<AdminImportBatch
               icon={FileSpreadsheet}
               compact
               title={all.length === 0 ? t("Tiada import lagi.", "No imports yet.") : t("Tiada import untuk penapis ini.", "No imports for this filter.")}
-              description={all.length === 0 ? t("Sejarah import akan muncul setelah fail lead diimport.", "Import history will appear once a lead file is imported.") : undefined}
+              description={all.length === 0 ? t("Sejarah import akan muncul selepas anda import fail lead.", "Import history will show here after you import a lead file.") : undefined}
             />
           )}
         </div>
 
         <p className="m-0 mt-4 flex items-center gap-1.5 text-[12px] text-muted-foreground">
           <Info className="h-3.5 w-3.5" />
-          {t("Butiran baris gagal dipaparkan per import. Klik 'Lihat butiran' untuk butiran lengkap.", "Failed-row details are shown per import. Click 'View details' for the full breakdown.")}
+          {t("Baris yang gagal disenaraikan untuk setiap import. Klik 'Lihat butiran' untuk lihatnya.", "Failed rows are listed for each import. Click 'View details' to see them.")}
         </p>
       </section>
     </div>

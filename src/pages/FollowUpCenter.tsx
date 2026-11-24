@@ -1,6 +1,5 @@
 ﻿import { useEffect, useMemo, useState } from "react";
 import {
-  CalendarClock,
   CheckCircle2,
   Clock,
   MessageCircle,
@@ -208,10 +207,6 @@ export default function FollowUpCenter() {
     () => active.filter((l) => new Date(l.scheduledAt).getTime() < klStartOfTodayMs()).sort((a, b) => new Date(a.scheduledAt).getTime() - new Date(b.scheduledAt).getTime()),
     [active],
   );
-  const upcomingList = useMemo(
-    () => active.filter((l) => new Date(l.scheduledAt).getTime() > Date.now()).sort((a, b) => new Date(a.scheduledAt).getTime() - new Date(b.scheduledAt).getTime()),
-    [active],
-  );
   const pausedList = useMemo(() => [...pausedRows].sort((a, b) => new Date(b.scheduledAt).getTime() - new Date(a.scheduledAt).getTime()), [pausedRows]);
   const reviewSet = useMemo(() => {
     const start = klStartOfTodayMs();
@@ -306,7 +301,19 @@ export default function FollowUpCenter() {
             {t("Pusat Susulan", "Follow-Up Center")}
           </h1>
           <p className="mt-1.5 text-[13px] text-muted-foreground">
-            {t("Setiap lead yang perlu disusul hari ini — mengikut waktu Kuala Lumpur.", "Every lead due for follow-up today — by Kuala Lumpur time.")}
+            {(() => {
+              const klDate = new Intl.DateTimeFormat("en-MY", {
+                weekday: "short",
+                day: "numeric",
+                month: "short",
+                year: "numeric",
+                timeZone: "Asia/Kuala_Lumpur",
+              }).format(new Date());
+              return t(
+                `${klDate} · Asia/Kuala_Lumpur · setiap susulan jatuh tempo, tertunggak dan dijeda di satu tempat`,
+                `${klDate} · Asia/Kuala_Lumpur · every due, overdue and paused follow-up in one place`,
+              );
+            })()}
           </p>
         </div>
       </header>
@@ -320,11 +327,10 @@ export default function FollowUpCenter() {
         </div>
       )}
 
-      <section className="grid grid-cols-2 gap-3 xl:grid-cols-4" aria-label={t("Ringkasan susulan", "Follow-up summary")}>
-        <MetricCard label={t("Tugas Hari Ini", "Today's Tasks")} icon={ListChecks} value={String(todayList.length)} note={t("Jatuh tempo hari ini", "Due today")} />
-        <MetricCard label={t("Tertunggak", "Overdue")} icon={AlertTriangle} value={String(overdueList.length)} note={t("Melebihi jadual", "Past their schedule")} />
-        <MetricCard label={t("Akan Datang", "Upcoming")} icon={CalendarClock} value={String(upcomingList.length)} note={t("Dijadualkan lagi", "Scheduled ahead")} />
-        <MetricCard label={t("Dijeda", "Paused")} icon={PauseCircle} value={String(pausedList.length)} note={t("Turutan dihentikan sementara", "Sequence temporarily stopped")} />
+      <section className="grid grid-cols-1 gap-3 sm:grid-cols-3" aria-label={t("Ringkasan susulan", "Follow-up summary")}>
+        <MetricCard label={t("Tertunggak Hari Ini", "Due today")} icon={ListChecks} value={String(todayList.length)} note={t("Peringkat FU dijadualkan hari ini (MYT)", "FU stage scheduled for today (MYT)")} />
+        <MetricCard label={t("Tertunggak", "Overdue")} icon={AlertTriangle} value={String(overdueList.length)} note={t("Melebihi jadual, masih belum dibalas", "Past schedule, still unanswered")} />
+        <MetricCard label={t("Dijeda", "Paused")} icon={PauseCircle} value={String(pausedList.length)} note={t("Turutan dijeda atau lead telah membalas", "Sequence paused or lead responded")} />
       </section>
 
       {queue.loading ? (
@@ -336,21 +342,23 @@ export default function FollowUpCenter() {
           <div className="grid min-w-0 grid-cols-1 gap-5 lg:grid-cols-[minmax(0,1fr)_340px]">
             <section className="min-w-0 overflow-hidden rounded-[var(--radius-panel)] border border-[var(--color-border)] bg-[var(--color-surface)]">
               <div className="px-4 pt-4">
-                <div className="flex flex-wrap items-center justify-between gap-2 border-b border-[var(--color-border)]" role="tablist">
-                  <button type="button" role="tab" aria-selected={tab === "today"} onClick={() => setTab("today")} className={cn("inline-flex items-center gap-2 border-b-2 px-3 pb-3 pt-1.5 text-[13.5px] font-semibold", tab === "today" ? "border-[var(--color-primary)] text-[var(--color-primary)]" : "border-transparent text-muted-foreground hover:text-foreground")}>
-                    {t("Hari Ini", "Today")}
-                    <span className="rounded-full bg-[var(--color-surface-muted)] px-2 py-0.5 text-[11px] font-bold">{shownToday.length}</span>
-                  </button>
-                  <button type="button" role="tab" aria-selected={tab === "overdue"} onClick={() => setTab("overdue")} className={cn("inline-flex items-center gap-2 border-b-2 px-3 pb-3 pt-1.5 text-[13.5px] font-semibold", tab === "overdue" ? "border-[var(--color-primary)] text-[var(--color-primary)]" : "border-transparent text-muted-foreground hover:text-foreground")}>
-                    {t("Tertunggak", "Overdue")}
-                    <span className="rounded-full bg-[var(--color-danger-soft)] px-2 py-0.5 text-[11px] font-bold text-[var(--color-danger)]">{shownOverdue.length}</span>
-                  </button>
-                  <button type="button" role="tab" aria-selected={tab === "paused"} onClick={() => setTab("paused")} className={cn("inline-flex items-center gap-2 border-b-2 px-3 pb-3 pt-1.5 text-[13.5px] font-semibold", tab === "paused" ? "border-[var(--color-primary)] text-[var(--color-primary)]" : "border-transparent text-muted-foreground hover:text-foreground")}>
-                    {t("Dijeda", "Paused")}
-                    <span className="rounded-full bg-[var(--color-neutral-soft)] px-2 py-0.5 text-[11px] font-bold">{pausedList.length}</span>
-                  </button>
+                <div className="flex flex-wrap items-center justify-between gap-3">
+                  <div className="inline-flex items-center gap-1 rounded-[var(--radius-control)] bg-[var(--color-surface-muted)] p-1" role="tablist" aria-label={t("Antrean susulan", "Follow-up queues")}>
+                    <button type="button" role="tab" aria-selected={tab === "today"} onClick={() => setTab("today")} className={cn("inline-flex items-center gap-1.5 rounded-[6px] px-2.5 py-1.5 text-[12.5px] font-medium", tab === "today" ? "bg-[var(--color-surface)] font-semibold text-foreground shadow-sm" : "text-muted-foreground hover:text-foreground")}>
+                      {t("Hari Ini", "Due")}
+                      <span className="rounded-full bg-[var(--color-neutral-soft)] px-1.5 py-0.5 text-[11px] font-bold tabular-nums">{shownToday.length}</span>
+                    </button>
+                    <button type="button" role="tab" aria-selected={tab === "overdue"} onClick={() => setTab("overdue")} className={cn("inline-flex items-center gap-1.5 rounded-[6px] px-2.5 py-1.5 text-[12.5px] font-medium", tab === "overdue" ? "bg-[var(--color-surface)] font-semibold text-foreground shadow-sm" : "text-muted-foreground hover:text-foreground")}>
+                      {t("Tertunggak", "Overdue")}
+                      <span className="rounded-full bg-[var(--color-neutral-soft)] px-1.5 py-0.5 text-[11px] font-bold tabular-nums">{shownOverdue.length}</span>
+                    </button>
+                    <button type="button" role="tab" aria-selected={tab === "paused"} onClick={() => setTab("paused")} className={cn("inline-flex items-center gap-1.5 rounded-[6px] px-2.5 py-1.5 text-[12.5px] font-medium", tab === "paused" ? "bg-[var(--color-surface)] font-semibold text-foreground shadow-sm" : "text-muted-foreground hover:text-foreground")}>
+                      {t("Dijeda", "Paused")}
+                      <span className="rounded-full bg-[var(--color-neutral-soft)] px-1.5 py-0.5 text-[11px] font-bold tabular-nums">{pausedList.length}</span>
+                    </button>
+                  </div>
                   {accessRole === "ADMIN" && (
-                    <label className="ml-auto flex items-center gap-1.5 pb-2 text-[12px] font-semibold text-muted-foreground">
+                    <label className="flex items-center gap-1.5 text-[12px] font-semibold text-muted-foreground">
                       <input type="checkbox" checked={reviewOnly} onChange={(e) => setReviewOnly(e.target.checked)} className="accent-[var(--color-primary)]" />
                       {t("Perlu tinjauan", "Needs review")} ({reviewCount})
                     </label>

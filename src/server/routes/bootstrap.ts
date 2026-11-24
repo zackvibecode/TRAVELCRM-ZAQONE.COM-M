@@ -63,10 +63,11 @@ bootstrapRouter.post("/super-admin", async (c) => {
     );
   }
 
-  // Promote to super_admin (sign-up defaults to the "sales" role).
+  // Promote to super_admin (sign-up defaults to the "sales" role and a
+  // "pending" approval status — activate it here).
   await db
     .update(schema.user)
-    .set({ role: "super_admin", emailVerified: true })
+    .set({ role: "super_admin", status: "active", emailVerified: true })
     .where(eq(schema.user.email, email));
 
   await db.insert(schema.auditLogs).values({

@@ -85,6 +85,7 @@ export default function TemplatePickerDialog({
   onClose,
   templates,
   lead,
+  onSent,
 }: {
   open: boolean;
   onClose: () => void;
@@ -92,6 +93,8 @@ export default function TemplatePickerDialog({
   templates: WaTemplate[];
   /** The lead the message is for — fill values plus the phone number. */
   lead: TemplateFillValues & { phone: string };
+  /** Called after the user opens WhatsApp with the filled message. */
+  onSent?: () => void;
 }) {
   const { t, lang } = useLang();
   const [query, setQuery] = useState("");
@@ -313,6 +316,7 @@ export default function TemplatePickerDialog({
                       href={waMeUrl(lead.phone, filled)}
                       target="_blank"
                       rel="noopener noreferrer"
+                      onClick={onSent}
                       className="inline-flex items-center gap-1.5 rounded-lg bg-[#25D366] px-3.5 py-2 text-[13px] font-bold text-white hover:opacity-90"
                     >
                       <ExternalLink className="h-3.5 w-3.5" />

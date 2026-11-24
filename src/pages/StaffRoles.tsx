@@ -86,14 +86,8 @@ const INITIAL_PERMISSIONS: Record<StaffRole, Record<string, boolean>> = {
   operations: { bookings: true, customers: false, billing: false, packages: true, trips: true, website: false, staff: false, mcp: false },
 };
 
-// Stub data — backend staff API menyusul pada task backend.
-const STUB_STAFF: StaffMember[] = [
-  { id: "usr_owner", name: "Zack (Owner)", initials: "ZO", email: "owner@zaqone.travel", role: "super_admin", status: "active", last: "Hari ini, 15:40", device: "Windows · Kuala Lumpur", joined: "Jan 2023", twofa: true, activity: 42 },
-  { id: "usr_mgr", name: "Farah (Management)", initials: "FM", email: "manager@zaqone.travel", role: "management", status: "active", last: "Hari ini, 11:02", device: "MacBook · Kuala Lumpur", joined: "Mar 2023", twofa: true, activity: 31 },
-  { id: "usr_sales", name: "Adib (Sales)", initials: "AS", email: "sales@zaqone.travel", role: "sales", status: "active", last: "Semalam, 18:25", device: "iPhone · Shah Alam", joined: "Jun 2023", twofa: true, activity: 18 },
-  { id: "usr_fin", name: "Melati (Finance)", initials: "MF", email: "finance@zaqone.travel", role: "finance", status: "active", last: "Semalam, 09:14", device: "Windows · Kuala Lumpur", joined: "Okt 2023", twofa: false, activity: 26 },
-  { id: "usr_ops", name: "Imran (Operations)", initials: "IO", email: "ops@zaqone.travel", role: "operations", status: "invited", last: "Belum pernah masuk", device: "—", joined: "Diundang 2 hari lalu", twofa: false, activity: 0 },
-];
+// Empty until the backend staff API is wired up.
+const STUB_STAFF: StaffMember[] = [];
 
 interface ActivityEntry {
   id: string;
@@ -105,13 +99,7 @@ interface ActivityEntry {
   ok: boolean;
 }
 
-const ACTIVITY: ActivityEntry[] = [
-  { id: "l1", who: "Zack (Owner)", action: { ms: "Mengubah izin peranan Jualan", en: "Changed Sales role permissions" }, target: "Billing & Payments", time: "Hari ini, 09.14", ip: "10.4.2.11", ok: true },
-  { id: "l2", who: "Melati (Finance)", action: { ms: "Verifikasi pembayaran", en: "Verified payment" }, target: "TRV-2291", time: "Hari ini, 09.02", ip: "10.4.2.37", ok: true },
-  { id: "l3", who: "Tidak dikenal", action: { ms: "Percobaan masuk gagal", en: "Failed sign-in attempt" }, target: "ops@zaqone.travel", time: "Hari ini, 08.47", ip: "103.28.11.5", ok: false },
-  { id: "l4", who: "Adib (Sales)", action: { ms: "Memindahkan lead ke Booking", en: "Moved lead to Booking" }, target: "Adi Nugroho", time: "Hari ini, 08.21", ip: "10.4.2.24", ok: true },
-  { id: "l5", who: "Farah (Management)", action: { ms: "Menerbitkan halaman", en: "Published a page" }, target: "Promo Langkawi 4D3N", time: "Semalam, 17.40", ip: "10.4.2.52", ok: true },
-];
+const ACTIVITY: ActivityEntry[] = [];
 
 export default function StaffRoles() {
   const { t } = useLang();
@@ -120,7 +108,7 @@ export default function StaffRoles() {
   const [tab, setTab] = useState<StaffTab>("team");
   const [query, setQuery] = useState("");
   const [roleFilter, setRoleFilter] = useState<StaffRole | "all">("all");
-  const [selectedId, setSelectedId] = useState("usr_owner");
+  const [selectedId, setSelectedId] = useState("");
   const [logFilter, setLogFilter] = useState<"all" | "ok" | "fail">("all");
   const [notice, setNotice] = useState("");
   const [inviteOpen, setInviteOpen] = useState(false);
@@ -455,7 +443,7 @@ export default function StaffRoles() {
         <DialogContent className="max-w-md">
           <DialogHeader>
             <DialogTitle>{t("Undang Staf Baru", "Invite New Staff")}</DialogTitle>
-            <DialogDescription>{t("Undangan dihantar melalui emel; staf memilih kata laluan sendiri.", "Invite is sent via email; the staff member chooses their own password.")}</DialogDescription>
+            <DialogDescription>{t("Undangan dihantar melalui email; staf pilih kata laluan sendiri.", "The invite is sent by email; the staff member picks their own password.")}</DialogDescription>
           </DialogHeader>
           <div className="space-y-3">
             <div className="space-y-1.5">

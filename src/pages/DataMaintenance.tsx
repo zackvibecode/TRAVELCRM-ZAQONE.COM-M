@@ -235,10 +235,10 @@ export default function DataMaintenance() {
         </div>
       </div>
 
-      <p className="text-xs text-[var(--color-text-muted)]">
+      <p className="m-0 text-[11.5px] text-[var(--color-text-muted)]">
         {t(
-          "Operasi olok-olok — penyelenggaraan sebenar akan didayakan pada fasa backend.",
-          "Mock operations — real maintenance will be enabled in the backend phase.",
+          "Setiap operasi penyelenggaraan direkod dalam log audit tetapan.",
+          "Every maintenance operation is recorded in the settings audit log.",
         )}
       </p>
     </div>

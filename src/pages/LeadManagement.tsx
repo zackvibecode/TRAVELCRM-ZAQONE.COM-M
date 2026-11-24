@@ -481,8 +481,8 @@ export default function LeadManagement() {
             </h2>
             <p className="mt-1.5 text-[12.5px] text-muted-foreground">
               {t(
-                "Fail akan dieksport mengikut penapis semasa.",
-                "The file will be exported following the current filters.",
+                "Fail akan dieksport berdasarkan penapis semasa.",
+                "The file will be exported based on your current filters.",
               )}
             </p>
             <div className="mt-4 grid grid-cols-2 gap-2.5" role="radiogroup" aria-label={t("Format fail", "File format")}>
@@ -502,7 +502,7 @@ export default function LeadManagement() {
                   <FileText className="h-4 w-4" /> CSV
                 </span>
                 <span className="text-[11.5px] text-muted-foreground">
-                  {t("Universal, ringan", "Universal, lightweight")}
+                  {t("Boleh guna di mana-mana, fail kecil", "Works everywhere, small file")}
                 </span>
               </button>
               <button
@@ -527,8 +527,8 @@ export default function LeadManagement() {
             </div>
             <p className="mt-3 text-[11.5px] leading-relaxed text-muted-foreground">
               {t(
-                "Nilai yang bermula dengan = + - @ dilindungi daripada formula injection.",
-                "Values starting with = + - @ are protected against formula injection.",
+                "Sel yang bermula dengan = + - @ dilindungi daripada formula berbahaya.",
+                "Cells starting with = + - @ are protected from harmful formulas.",
               )}
             </p>
             <div className="mt-4 flex justify-end gap-2">
@@ -648,7 +648,7 @@ export default function LeadManagement() {
               compact
               icon={Search}
               title={t("Tiada padanan", "No matches")}
-              description={t("Tukar kata kunci atau tukar penapis.", "Change the keyword or adjust the filters.")}
+              description={t("Cuba kata kunci lain atau tukar penapis.", "Try a different keyword or change the filters.")}
               action={
                 <button
                   type="button"
@@ -663,7 +663,7 @@ export default function LeadManagement() {
             <FollowupEmptyState
               icon={UsersRound}
               title={t("Tiada lead lagi", "No leads yet")}
-              description={t("Lead akan muncul setelah diimport.", "Leads will appear once imported.")}
+              description={t("Lead akan muncul di sini selepas anda import.", "Leads will show here after you import them.")}
             />
           )
         ) : (
