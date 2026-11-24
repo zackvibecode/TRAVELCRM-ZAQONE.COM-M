@@ -413,7 +413,78 @@ followupRouter.get("/leads", async (c) => {
     .offset(offset)
     .all();
 
-  return c.json({ success: true, data: rows, paging: { limit, offset, count: rows.length } });
+  // Total matching the same filters (for "select all" bulk flows) — one
+  // cheap count query kept separate from the page of rows.
+  const [totalRow] = await db
+    .select({ n: sql<number>`count(*)` })
+    .from(schema.leads)
+    .where(where);
+
+  return c.json({ success: true, data: rows, paging: { limit, offset, count: rows.length, total: Number(totalRow?.n ?? rows.length) } });
+});
+
+/**
+ * GET /api/followup/leads/all-ids — every visible lead id matching the same
+ * filters as GET /leads, capped at 5000. Powers the "select all" checkbox in
+ * the lead list so bulk actions can target more than the current page.
+ */
+followupRouter.get("/leads/all-ids", async (c) => {
+  const db = c.get("db");
+  const staff = c.get("staff");
+  const access = followupAccessRole(staff.role);
+  if (!access) {
+    return Response.json(
+      { error: "not_found", message: "Follow-up CRM not available for this role" },
+      { status: 404 },
+    );
+  }
+
+  const q = (c.req.query("q") ?? "").trim();
+  const status = (c.req.query("status") ?? "").trim();
+  const owner = (c.req.query("owner") ?? "").trim();
+  const stage = (c.req.query("stage") ?? "").trim();
+  const fu = (c.req.query("fu") ?? "").trim();
+  const state = (c.req.query("state") ?? "").trim();
+
+  const conditions = [];
+  if (access === "SALES") {
+    conditions.push(eq(schema.leads.ownerUserId, staff.id));
+  } else if (owner !== "") {
+    conditions.push(eq(schema.leads.ownerUserId, owner));
+  }
+  if (q !== "") {
+    const like = `%${q.toLowerCase()}%`;
+    conditions.push(
+      or(
+        likeLower(schema.leads.name, like),
+        likeLower(schema.leads.phone, like),
+        likeLower(schema.leads.phoneNormalized, like),
+        likeLower(schema.leads.destination, like),
+      )!,
+    );
+  }
+  if (status !== "") {
+    conditions.push(eq(schema.leads.followupStatus, status as "new" | "responded" | "won" | "lost" | "paused"));
+  }
+  if (stage !== "") {
+    conditions.push(eq(schema.leads.stage, stage as "new" | "contacted" | "qualified" | "quotation" | "won" | "lost"));
+  }
+  if (fu !== "") {
+    conditions.push(eq(schema.leads.followupStage, fu as "FU1" | "FU2" | "FU3"));
+  }
+  if (state !== "") {
+    conditions.push(eq(schema.leads.followupState, state as "active" | "paused" | "done" | "escalated"));
+  }
+
+  const ids = await db
+    .select({ id: schema.leads.id })
+    .from(schema.leads)
+    .where(conditions.length > 0 ? and(...conditions) : undefined)
+    .orderBy(desc(schema.leads.updatedAt))
+    .limit(5000)
+    .all();
+
+  return c.json({ success: true, data: ids.map((r) => r.id), count: ids.length });
 });
 
 /** Case-insensitive LIKE helper (SQLite lower() only handles ASCII). */
@@ -1978,6 +2049,85 @@ followupRouter.post("/leads/bulk", async (c) => {
       action,
       status: nextStatus,
     },
+  });
+});
+
+/**
+ * POST /api/followup/leads/bulk-delete — hard delete many leads at once.
+ * ADMIN (super_admin / management) only. Body: { ids: string[] } (max 2000).
+ * Deletes each lead plus its activities, follow-ups, followup activities and
+ * customer notes — the same cascades as DELETE /leads/:id. Foreign or missing
+ * ids are silently skipped (no existence leak), mirroring /leads/bulk.
+ */
+followupRouter.post("/leads/bulk-delete", async (c) => {
+  const db = c.get("db");
+  const staff = c.get("staff");
+  const access = followupAccessRole(staff.role);
+  if (access !== "ADMIN") {
+    return Response.json(
+      { error: "forbidden", message: "Only admins may bulk-delete leads" },
+      { status: 403 },
+    );
+  }
+
+  let body: { ids?: unknown };
+  try {
+    body = await c.req.json();
+  } catch {
+    return Response.json(
+      { error: "bad_request", message: "Invalid JSON body" },
+      { status: 400 },
+    );
+  }
+
+  const ids = Array.isArray(body.ids)
+    ? [...new Set(body.ids.filter((v): v is string => typeof v === "string" && v !== ""))]
+    : [];
+  if (ids.length === 0) {
+    return Response.json(
+      { error: "bad_request", message: "No lead ids supplied" },
+      { status: 400 },
+    );
+  }
+  if (ids.length > 2000) {
+    return Response.json(
+      { error: "bad_request", message: "Bulk delete is capped at 2000 leads per call" },
+      { status: 422 },
+    );
+  }
+
+  // Existing lead ids only — deletes run in set-based chunks per table.
+  const existing = await db
+    .select({ id: schema.leads.id })
+    .from(schema.leads)
+    .where(inArray(schema.leads.id, ids));
+  const found = existing.map((r) => r.id);
+  if (found.length === 0) {
+    return c.json({ success: true, data: { requested: ids.length, deleted: 0 } });
+  }
+
+  const chunk = 120; // D1 variable limit safety per statement
+  for (let i = 0; i < found.length; i += chunk) {
+    const part = found.slice(i, i + chunk);
+    await db.delete(schema.leadActivities).where(inArray(schema.leadActivities.leadId, part)).run();
+    await db.delete(schema.leadFollowUps).where(inArray(schema.leadFollowUps.leadId, part)).run();
+    await db.delete(schema.followupActivities).where(inArray(schema.followupActivities.leadId, part)).run();
+    await db.delete(schema.customerNotes).where(inArray(schema.customerNotes.leadId, part)).run();
+    await db.delete(schema.leads).where(inArray(schema.leads.id, part)).run();
+  }
+
+  await logAudit(db, {
+    actor: staff.id,
+    role: staff.role,
+    action: "leads_bulk_delete",
+    entityType: "leads",
+    entityId: found[0],
+    detail: `requested=${ids.length} deleted=${found.length}`,
+  });
+
+  return c.json({
+    success: true,
+    data: { requested: ids.length, deleted: found.length },
   });
 });
 

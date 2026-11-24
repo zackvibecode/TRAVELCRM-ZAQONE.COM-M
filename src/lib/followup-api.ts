@@ -71,7 +71,7 @@ export interface FollowupLead {
 
 export interface LeadListResponse {
   data: FollowupLead[];
-  paging: { limit: number; offset: number; count: number };
+  paging: { limit: number; offset: number; count: number; total?: number };
 }
 
 /** `byOwner` as the server serialises it — keyed by owner user id. */
@@ -306,6 +306,10 @@ export const followupApi = {
   leadFacets: (params: { owner?: string } = {}) =>
     apiFetch<Ok<LeadFacetsWire>>(`${BASE}/leads/facets${qs(params)}`).then((r) => normalizeFacets(r.data)),
 
+  /** GET /leads/all-ids — every visible lead id matching the filters (max 5000). */
+  leadAllIds: (params: { q?: string; status?: string; owner?: string; stage?: string; fu?: string; state?: string } = {}) =>
+    apiFetch<Ok<string[]> & { count: number }>(`${BASE}/leads/all-ids${qs(params)}`).then((r) => r.data),
+
   /** GET /report/fu — confirmed follow-ups completed per stage per staff. */
   reportFu: () => apiFetch<Ok<FuReportRow[]>>(`${BASE}/report/fu`).then((r) => r.data),
 
@@ -355,6 +359,13 @@ export const followupApi = {
     apiFetch<Ok<{ requested: number; updated: number; skipped: number; action: string; status: string | null }>>(`${BASE}/leads/bulk`, {
       method: "POST",
       body: JSON.stringify(body),
+    }).then((r) => r.data),
+
+  /** POST /leads/bulk-delete — hard delete many leads (ADMIN only). */
+  bulkDeleteLeads: (ids: string[]) =>
+    apiFetch<Ok<{ requested: number; deleted: number }>>(`${BASE}/leads/bulk-delete`, {
+      method: "POST",
+      body: JSON.stringify({ ids }),
     }).then((r) => r.data),
 
   /** ADMIN-only closure of an escalated lead. */

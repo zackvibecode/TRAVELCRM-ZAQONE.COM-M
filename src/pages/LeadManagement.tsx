@@ -172,6 +172,7 @@ export default function LeadManagement() {
     setOffset(0);
     setExtraRows([]);
     setSelected(new Set());
+    setAllMode(false);
   }, [filters]);
 
   // Facets are always fetched for the user's full visible scope (not narrowed
@@ -208,8 +209,13 @@ export default function LeadManagement() {
     [visible, accessRole, session],
   );
   const allSelected = selectable.length > 0 && selectable.every((l) => selected.has(l.id));
+  // Select-all scope: when "all matching" mode is on, the selection targets
+  // every visible lead matching the current filters (up to 5000), not just
+  // the rows rendered on this page.
+  const [allMode, setAllMode] = useState(false);
 
   function toggleRow(id: string) {
+    setAllMode(false);
     setSelected((current) => {
       const next = new Set(current);
       if (next.has(id)) next.delete(id);
@@ -219,11 +225,35 @@ export default function LeadManagement() {
   }
 
   function toggleAll() {
-    setSelected((current) =>
-      selectable.every((l) => current.has(l.id))
-        ? new Set()
-        : new Set(selectable.map((l) => l.id)),
-    );
+    if (allMode) {
+      // Collapse back to the current page selection.
+      setAllMode(false);
+      setSelected(new Set(selectable.map((l) => l.id)));
+      return;
+    }
+    if (allSelected) {
+      setSelected(new Set());
+      return;
+    }
+    setSelected(new Set(selectable.map((l) => l.id)));
+    // ADMIN gets the "all matching" extension beyond the visible 25 rows.
+    if (isAdmin) {
+      void followupApi
+        .leadAllIds({
+          ...(query ? { q: query } : {}),
+          ...(stageFilter !== "all" ? { stage: stageFilter } : {}),
+          ...(ownerFilter !== "all" ? { owner: ownerFilter } : {}),
+        })
+        .then((ids) => {
+          if (ids.length > selectable.length) {
+            setAllMode(true);
+            setSelected(new Set(ids));
+          }
+        })
+        .catch(() => {
+          // Fall back silently to page-scoped selection.
+        });
+    }
   }
 
   function clearAllFilters() {
@@ -271,15 +301,12 @@ export default function LeadManagement() {
     setBusy(true);
     try {
       if (pendingBulk.action === "delete") {
-        // Hard delete one by one — the API has no bulk delete endpoint.
+        // Set-based hard delete via the dedicated bulk-delete endpoint.
+        const ids = [...selected];
         let done = 0;
-        for (const id of selected) {
-          try {
-            await followupApi.deleteLead(id);
-            done++;
-          } catch {
-            // Skip leads this admin may not delete (e.g. role changed mid-run).
-          }
+        for (let i = 0; i < ids.length; i += 2000) {
+          const res = await followupApi.bulkDeleteLeads(ids.slice(i, i + 2000));
+          done += res.deleted;
         }
         setBulkResult({ updated: done, skipped: selected.size - done, label: bulkLabel(pendingBulk) });
       } else {
@@ -394,8 +421,18 @@ export default function LeadManagement() {
           aria-label={t("Tindakan massal", "Bulk actions")}
         >
           <span className="text-[12.5px] font-bold text-[var(--color-primary)] [font-variant-numeric:tabular-nums]">
-            {t(`${selected.size} lead dipilih`, `${selected.size} leads selected`)}
+            {allMode
+              ? t(
+                  `Semua ${selected.size} lead (seluruh penapis) dipilih`,
+                  `All ${selected.size} matching leads selected`,
+                )
+              : t(`${selected.size} lead dipilih`, `${selected.size} leads selected`)}
           </span>
+          {allMode && (
+            <span className="rounded-full bg-[var(--color-danger-soft)] px-2 py-0.5 text-[11px] font-bold text-[var(--color-danger)]">
+              {t("termasuk luar skrin", "beyond this page")}
+            </span>
+          )}
           <span className="h-4 w-px bg-[var(--color-primary)]/30" aria-hidden="true" />
           <label className="flex items-center gap-1.5 text-[12px] font-semibold text-[var(--color-primary)]">
             {t("Tukar status", "Change status")}
