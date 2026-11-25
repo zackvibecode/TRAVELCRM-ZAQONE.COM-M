@@ -15,6 +15,8 @@ import {
 import type { Booking } from "@/lib/types";
 import { cn, formatRinggit } from "@/lib/utils";
 import { useLang } from "@/lib/i18n";
+import { getSession } from "@/lib/auth";
+import { canWriteModule, usePermissionMatrix } from "@/lib/permission-store";
 import { useDashboardKpi } from "@/lib/useDashboardKpi";
 
 type Tone = "success" | "warning" | "info" | "danger" | "neutral";
@@ -212,6 +214,26 @@ export default function DashboardOverview() {
   const [tab, setTab] = useState<"departures" | "bookings">("departures");
   const [liveBookings, setLiveBookings] = useState<Booking[]>([]);
 
+  // Role-based visibility: panels respect the Staff Access permission matrix
+  // so a sales/finance/operations user only sees their own overview.
+  usePermissionMatrix();
+  const role = getSession()?.role;
+  const can = {
+    bookings: canWriteModule("bookings", role),
+    customers: canWriteModule("customers", role),
+    billing: canWriteModule("billing", role),
+    packages: canWriteModule("packages", role),
+    trips: canWriteModule("trips", role),
+  };
+  // KPI cards filtered by permission (leads/customers -> customers module).
+  const visibleKpis = KPIS.filter((k) =>
+    k.key === "totalLeads" || k.key === "totalCustomers"
+      ? can.customers
+      : k.key === "bookingCount"
+        ? can.bookings
+        : can.billing, // collected & outstanding
+  );
+
   useEffect(() => {
     let cancelled = false;
     (async () => {
@@ -289,6 +311,7 @@ export default function DashboardOverview() {
             <Download className="h-3.5 w-3.5" />
             Export
           </button>
+          {(can.bookings) && (
           <a
             href="/bookings"
               className="inline-flex items-center gap-1.5 rounded-[var(--radius-control)] bg-[var(--color-primary)] px-3.5 py-1.5 text-[12.5px] font-semibold text-[var(--color-on-primary)] no-underline hover:bg-[var(--color-primary-hover)]"
@@ -296,12 +319,13 @@ export default function DashboardOverview() {
             <Plus className="h-3.5 w-3.5" />
             {t("Tempahan Baharu", "New booking")}
           </a>
+          )}
         </div>
       </div>
 
       {/* KPIs */}
       <div className="grid grid-cols-2 gap-4 md:grid-cols-3 xl:grid-cols-5">
-        {KPIS.map((item) => {
+        {visibleKpis.map((item) => {
           const Icon = item.icon;
           const Trend = item.up ? TrendingUp : TrendingDown;
           return (
@@ -327,7 +351,8 @@ export default function DashboardOverview() {
         })}
       </div>
 
-      {/* Main grid */}
+      {/* Main grid — finance/revenue panels only for roles with billing or bookings */}
+      {(can.billing || can.bookings) && (
       <div className="grid min-w-0 grid-cols-1 gap-4 lg:grid-cols-[1.62fr_1fr]">
         <Panel className="min-w-0">
           <div className="flex flex-wrap items-center justify-between gap-3 border-b border-[var(--color-border)] px-5 py-3.5">
@@ -371,9 +396,11 @@ export default function DashboardOverview() {
           </div>
         </Panel>
       </div>
+      )}
 
       {/* Bottom grid */}
       <div className="grid min-w-0 grid-cols-1 gap-4 lg:grid-cols-[1.62fr_1fr]">
+        {(can.packages || can.bookings) && (
         <Panel>
           <PanelHead
             title="Top packages"
@@ -400,6 +427,7 @@ export default function DashboardOverview() {
             ))}
           </div>
         </Panel>
+        )}
 
         <Panel>
           <PanelHead title="Activity & notifications" aside={<span className="text-[11.5px] text-muted-foreground">4 new</span>} />
@@ -423,7 +451,8 @@ export default function DashboardOverview() {
         </Panel>
       </div>
 
-      {/* Records */}
+      {/* Records — departures/bookings only for roles with bookings or trips */}
+      {(can.bookings || can.trips) && (
       <Panel>
         <div className="flex flex-wrap items-center justify-between gap-3 border-b border-[var(--color-border)] px-5 py-3.5">
           <div className="inline-flex gap-0.5 rounded-[var(--radius-control)] bg-[var(--color-surface-muted)] p-[3px]">
@@ -512,6 +541,7 @@ export default function DashboardOverview() {
           </div>
         )}
       </Panel>
+      )}
     </div>
   );
 }

@@ -274,7 +274,8 @@ export default function AppShell() {
   const [pendingUsers, setPendingUsers] = useState(0);
   useEffect(() => {
     const role = session?.role;
-    if (role !== "super_admin" && role !== "management") {
+    // Pending-approval notifications belong to Staff Access (super_admin only).
+    if (role !== "super_admin") {
       setPendingUsers(0);
       return;
     }
@@ -630,7 +631,7 @@ export default function AppShell() {
             <button
               className="relative grid h-9 w-9 place-items-center rounded-[var(--radius-control)] border border-[var(--color-border)] text-[var(--color-text-secondary)] hover:bg-[var(--color-surface-muted)] hover:text-foreground focus-ring"
               aria-label={t("Pemberitahuan", "Notifications")}
-              onClick={() => navigate("/admin-console")}
+              onClick={() => navigate("/staff")}
             >
               <Bell className="h-4 w-4" />
               {pendingUsers > 0 ? (

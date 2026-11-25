@@ -379,6 +379,45 @@ export default function StaffRoles() {
       {/* Team tab */}
       {tab === "team" && (
         <div className="grid gap-5 lg:grid-cols-[minmax(0,1fr)_330px] items-start">
+          {/* Pending access requests — approve new sign-ups here. */}
+          {staff.filter((p) => p.status === "invited").length > 0 && (
+            <section className="overflow-hidden rounded-[var(--radius-panel)] border border-[var(--color-warning)]/40 bg-[var(--color-warning-soft)] lg:col-span-2">
+              <div className="flex flex-wrap items-center gap-2 border-b border-[var(--color-warning)]/30 px-5 py-3">
+                <Mail className="h-4 w-4 text-[var(--color-warning)]" />
+                <h2 className="flex-1 font-display text-base font-bold">
+                  {t("Permintaan Akses", "Access Requests")}
+                </h2>
+                <span className="rounded-full bg-[var(--color-warning)] px-2 py-0.5 text-[11px] font-bold text-[var(--color-on-primary)]">
+                  {staff.filter((p) => p.status === "invited").length}
+                </span>
+              </div>
+              <ul className="m-0 list-none p-0">
+                {staff.filter((p) => p.status === "invited").map((p) => (
+                  <li key={p.id} className="flex flex-wrap items-center gap-3 border-t border-[var(--color-warning)]/20 px-5 py-3 first:border-t-0">
+                    <span className="grid h-9 w-9 flex-none place-items-center rounded-full bg-white text-xs font-bold text-muted-foreground">{p.initials}</span>
+                    <span className="min-w-0 flex-1">
+                      <span className="block truncate text-[13.5px] font-semibold">{p.name}</span>
+                      <span className="block truncate text-[11.5px] text-muted-foreground">{p.email} · {t(ROLE_LABELS[p.role].ms, ROLE_LABELS[p.role].en)}</span>
+                    </span>
+                    <button
+                      onClick={() => { patchStaff(p.id, { status: "active" }); showNotice(t(`${p.name} diluluskan.`, `${p.name} approved.`)); }}
+                      className="inline-flex items-center gap-1.5 rounded-md bg-[var(--color-success)] px-3 py-1.5 text-xs font-bold text-white hover:brightness-95"
+                    >
+                      <Check className="h-3.5 w-3.5" />
+                      {t("Luluskan", "Approve")}
+                    </button>
+                    <button
+                      onClick={() => { patchStaff(p.id, { status: "suspended" }); showNotice(t(`${p.name} ditolak.`, `${p.name} rejected.`)); }}
+                      className="inline-flex items-center gap-1.5 rounded-md border px-3 py-1.5 text-xs font-semibold hover:bg-muted/50"
+                    >
+                      <X className="h-3.5 w-3.5" />
+                      {t("Tolak", "Reject")}
+                    </button>
+                  </li>
+                ))}
+              </ul>
+            </section>
+          )}
           <section className="overflow-hidden rounded-[var(--radius-panel)] border bg-[var(--color-surface)]">
             <div className="flex flex-wrap items-center gap-2 border-b p-4">
               <div className="flex min-w-0 flex-1 items-center gap-2 rounded-md border bg-muted/30 px-3 py-2">
