@@ -215,24 +215,63 @@ export interface WorkersAiChatOptions {
 /**
  * One-shot chat completion through the Cloudflare Workers AI binding.
  * Returns the assistant text. Throws when the binding is unavailable.
+ *
+ * Workers AI models return different shapes depending on the model family:
+ * - `{ response: string }` (classic completions)
+ * - `{ choices: [{ message: { content } }] }` (chat-completions style)
+ * - occasionally a nested object under `response`. Normalise all of them.
  */
 export async function workersAiChat(
   ai: Ai,
   options: WorkersAiChatOptions,
 ): Promise<string> {
   const model = options.model?.trim() || WORKERS_AI_DEFAULT_MODEL;
-  const result = (await ai.run(model, {
+  const result: unknown = await ai.run(model, {
     messages: [
       { role: "system", content: options.system },
       { role: "user", content: options.user },
     ],
     temperature: options.temperature ?? 0.3,
     max_tokens: options.maxTokens ?? 4000,
-  })) as { response?: string };
+  });
 
-  const text = (result?.response ?? "").trim();
+  const text = extractResponseText(result);
   if (!text) throw new Error("Workers AI returned an empty response");
   return text;
+}
+
+/** Pull the assistant text out of any known Workers AI response shape. */
+function extractResponseText(result: unknown): string {
+  if (typeof result === "string") return result.trim();
+
+  if (result && typeof result === "object") {
+    const obj = result as Record<string, unknown>;
+
+    // Chat-completions style: { choices: [{ message: { content } }] }
+    if (Array.isArray(obj.choices) && obj.choices.length) {
+      const first = obj.choices[0] as { message?: { content?: unknown } };
+      const content = first?.message?.content;
+      if (typeof content === "string") return content.trim();
+    }
+
+    // Classic style: { response: string } — or a nested object to dig into.
+    const response = obj.response;
+    if (typeof response === "string") return response.trim();
+    if (response && typeof response === "object") {
+      const nested = response as Record<string, unknown>;
+      if (typeof nested.content === "string") return nested.content.trim();
+      if (typeof nested.text === "string") return nested.text.trim();
+      if (typeof nested.response === "string") return nested.response.trim();
+    }
+
+    // Last resort: serialise so parseLooseJson can still fish the JSON out.
+    try {
+      return JSON.stringify(result);
+    } catch {
+      return "";
+    }
+  }
+  return "";
 }
 
 /**
