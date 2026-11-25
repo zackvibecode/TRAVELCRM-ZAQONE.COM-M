@@ -81,7 +81,19 @@ function isAllowedOrigin(origin: string): boolean {
     // Per-deployment preview URLs of the Pages project.
     /^https:\/\/[a-z0-9]+\.travelos-suite-web\.pages\.dev$/.test(origin) ||
     origin.startsWith("http://localhost:") ||
-    origin.startsWith("http://127.0.0.1:")
+    origin.startsWith("http://127.0.0.1:") ||
+    // MCP OAuth discovery: AI clients (ChatGPT, Claude, Cursor) run in
+    // browser/webview contexts that must be able to READ the public
+    // well-known metadata and POST /mcp/oauth/register|token. These
+    // endpoints carry no credentials and expose no user data, so a wide
+    // origin grant here is safe (mirrors how every public OAuth server
+    // e.g. Google/GitHub serves CORS on its discovery documents).
+    origin.startsWith("https://chatgpt.com") ||
+    origin.endsWith(".chatgpt.com") ||
+    origin.startsWith("https://claude.ai") ||
+    origin.endsWith(".claude.ai") ||
+    origin.endsWith(".cursor.sh") ||
+    origin.endsWith(".cursor.com")
   );
 }
 app.use(
@@ -90,7 +102,7 @@ app.use(
     origin: (origin) => (origin && isAllowedOrigin(origin) ? origin : null),
     allowHeaders: ["Content-Type", "Authorization", "Cookie"],
     allowMethods: ["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"],
-    exposeHeaders: ["set-auth-token"],
+    exposeHeaders: ["set-auth-token", "WWW-Authenticate"],
     credentials: true,
   }),
 );
@@ -172,21 +184,55 @@ app.route("/api/website", websiteRouter);
 app.route("/api/mcp-admin", mcpAdminRouter);
 // OAuth 2.1 authorization server for MCP (discovery + authorize + token).
 app.route("/mcp/oauth", mcpOauthRouter);
-// RFC 9728 discovery lives at the root well-known path (no /oauth prefix).
-app.get("/.well-known/oauth-protected-resource", (c) => {
+
+// ---- OAuth discovery (all spec-required locations) ------------------------
+// RFC 8414: authorization server metadata at the ROOT well-known path with
+// the full path appended when the issuer URL has one — plus the legacy
+// insertion form. RFC 9728: protected-resource metadata at root AND the
+// path-aware variant. ChatGPT/Claude probe these in different orders, so
+// every variant is served with the same JSON.
+const OAUTH_SCOPES = [
+  "customers:read",
+  "leads:read",
+  "bookings:read",
+  "departures:read",
+  "packages:read",
+];
+
+function protectedResourceDoc(c: { req: { url: string } }) {
   const base = new URL(c.req.url).origin;
-  return c.json({
+  return {
     resource: `${base}/mcp`,
     authorization_servers: [base],
-    scopes_supported: [
-      "customers:read",
-      "leads:read",
-      "bookings:read",
-      "departures:read",
-      "packages:read",
-    ],
-  });
-});
+    scopes_supported: OAUTH_SCOPES,
+  };
+}
+
+function authorizationServerDoc(c: { req: { url: string } }) {
+  const base = new URL(c.req.url).origin;
+  return {
+    issuer: base,
+    authorization_endpoint: `${base}/mcp/oauth/authorize`,
+    token_endpoint: `${base}/mcp/oauth/token`,
+    registration_endpoint: `${base}/mcp/oauth/register`,
+    revocation_endpoint: `${base}/mcp/oauth/revoke`,
+    response_types_supported: ["code"],
+    grant_types_supported: ["authorization_code", "refresh_token"],
+    code_challenge_methods_supported: ["S256"],
+    token_endpoint_auth_methods_supported: ["none"],
+    scopes_supported: OAUTH_SCOPES,
+  };
+}
+
+const wellKnown = (doc: (c: { req: { url: string } }) => unknown) =>
+  (c: { req: { url: string }; json: (v: unknown) => Response }) => c.json(doc(c));
+
+app.get("/.well-known/oauth-protected-resource", wellKnown(protectedResourceDoc));
+app.get("/.well-known/oauth-protected-resource/mcp", wellKnown(protectedResourceDoc));
+app.get("/.well-known/oauth-authorization-server", wellKnown(authorizationServerDoc));
+app.get("/.well-known/oauth-authorization-server/mcp", wellKnown(authorizationServerDoc));
+app.get("/mcp/.well-known/oauth-authorization-server", wellKnown(authorizationServerDoc));
+app.get("/mcp/.well-known/oauth-protected-resource", wellKnown(protectedResourceDoc));
 app.route("/mcp", mcpRouter);
 app.route("/api/ai", aiRouter);
 app.route("/api/ai-workers", aiWorkersRouter);
