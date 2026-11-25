@@ -87,8 +87,6 @@ const COLLAPSIBLE_GROUPS: NavItem[] = [
       { to: "/lead-import", label: "Import Lead", icon: FileSpreadsheet },
       { to: "/whatsapp-templates", label: "Templat WhatsApp", icon: MessageCircle },
       { to: "/leaderboard", label: "Dashboard & Peringkat", icon: Trophy },
-      { to: "/akses-kepemilikan", label: "Akses & Kepemilikan", icon: Lock },
-      { to: "/admin-console", label: "Konsol Admin", icon: Settings2 },
     ],
   },
   {
@@ -96,6 +94,7 @@ const COLLAPSIBLE_GROUPS: NavItem[] = [
     label: "AI & Integrasi",
     icon: Bot,
     children: [
+      { to: "/ai-assistant", label: "Tony — Pembantu AI", icon: Sparkles },
       { to: "/ai-workers", label: "AI Workers", icon: Cpu },
       { to: "/ai-tokens", label: "Token Akses AI", icon: KeyRound },
       { to: "/mcp-audit", label: "Log Audit MCP", icon: ScrollText },
@@ -117,6 +116,8 @@ const COLLAPSIBLE_GROUPS: NavItem[] = [
       { to: "/staff-audit", label: "Log Audit Staf", icon: ScrollText },
       { to: "/data-maintenance", label: "Penyelenggaraan Data", icon: Database },
       { to: "/settings-audit", label: "Log Audit Tetapan", icon: ScrollText },
+      { to: "/akses-kepemilikan", label: "Akses & Kepemilikan", icon: Lock },
+      { to: "/admin-console", label: "Konsol Admin", icon: Settings2 },
     ],
   },
 ];
@@ -141,6 +142,7 @@ function translateChildLabel(
     "/ai-tokens": ["Token Akses AI", "AI Access Tokens"],
     "/ai-workers": ["AI Workers", "AI Workers"],
     "/mcp-audit": ["Log Audit MCP", "MCP Audit Log"],
+    "/ai-assistant": ["Tony — Pembantu AI", "Tony — AI Assistant"],
     "/mesin-follow-up": ["Mesin Follow-Up", "Follow-Up Engine"],
     "/followups": ["Pusat Susulan", "Follow-Up Center"],
     "/lead-management": ["Pengurusan Lead", "Lead Management"],
@@ -382,12 +384,11 @@ export default function AppShell() {
       title: t("Platform", "Platform"),
       items: [
         { to: "/website", label: t("Pengurus Laman", "Website Manager"), icon: Globe },
-        { to: "/ai-assistant", label: t("Tony — Pembantu AI", "Tony — AI Assistant"), icon: Sparkles },
         {
           to: "/ai-tokens",
           label: t("AI & Integrasi", "AI & Integrations"),
           icon: Bot,
-          children: COLLAPSIBLE_GROUPS[0].children?.map((c) => ({
+          children: COLLAPSIBLE_GROUPS.find((g) => g.to === "/ai-tokens")?.children?.map((c) => ({
             ...c,
             label: translateChildLabel(c.to, t),
           })),
@@ -396,7 +397,7 @@ export default function AppShell() {
           to: "/settings",
           label: t("Tetapan", "Settings"),
           icon: Settings,
-          children: COLLAPSIBLE_GROUPS[1].children?.map((c) => ({
+          children: COLLAPSIBLE_GROUPS.find((g) => g.to === "/settings")?.children?.map((c) => ({
             ...c,
             label: translateChildLabel(c.to, t),
           })),
