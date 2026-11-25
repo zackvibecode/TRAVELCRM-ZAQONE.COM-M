@@ -61,6 +61,23 @@ settingsRouter.get(
   },
 );
 
+/**
+ * GET /settings/permissions — the Role Permission Matrix only.
+ *
+ * Readable by ANY signed-in staff: every role needs this matrix on the
+ * frontend so the sidebar/route guards reflect what the admin configured.
+ * It contains module booleans per role — nothing sensitive.
+ */
+settingsRouter.get("/permissions", requireStaffSession, async (c) => {
+  const db = c.get("db");
+  const row = await db
+    .select({ value: schema.appSettings.value })
+    .from(schema.appSettings)
+    .where(eq(schema.appSettings.key, "permissions"))
+    .limit(1);
+  return c.json({ success: true, permissions: row[0]?.value ?? null });
+});
+
 /** GET /settings/audit — settings change history (super admin only). */
 settingsRouter.get(
   "/audit",

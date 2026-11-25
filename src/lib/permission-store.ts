@@ -66,9 +66,13 @@ let loadPromise: Promise<PermissionMatrix | null> | null = null;
 /** Fetch the matrix once; subsequent calls reuse the in-flight promise. */
 function loadMatrix(): Promise<PermissionMatrix | null> {
   if (loadPromise) return loadPromise;
-  loadPromise = apiFetch<{ settings?: Record<string, unknown> }>("/settings")
+  // Dedicated endpoint readable by ALL roles (GET /settings itself is
+  // admin-only, which previously left non-admin users on default access).
+  loadPromise = apiFetch<{ permissions?: PermissionMatrix | null }>(
+    "/settings/permissions",
+  )
     .then((res) => {
-      const stored = res.settings?.permissions as PermissionMatrix | undefined;
+      const stored = res.permissions;
       cachedMatrix = stored && typeof stored === "object" ? stored : null;
       cacheLoaded = true;
       return cachedMatrix;
@@ -155,6 +159,7 @@ export function refreshPermissionMatrix(): Promise<PermissionMatrix | null> {
 const MODULE_WRITE_FALLBACK: Record<string, StaffRole[]> = {
   bookings: ["super_admin", "management", "sales", "operations"],
   customers: ["super_admin", "management", "sales"],
+  followup: ["super_admin", "management", "sales"],
   billing: ["super_admin", "management", "finance"],
   packages: ["super_admin", "management", "operations"],
   trips: ["super_admin", "management", "operations"],
