@@ -54,7 +54,10 @@ export function createAuth(db: DrizzleD1Database<typeof schema>, env: Env) {
       requireEmailVerification: false,
     },
     session: {
-      expiresIn: 60 * 60 * 24 * 7, // 7 days
+      // 30 days with daily refresh: as long as the user opens the app at
+      // least once a day (typical for the installed mobile/PWA app), the
+      // session slides forward and sign-in is effectively "stay logged in".
+      expiresIn: 60 * 60 * 24 * 30, // 30 days
       updateAge: 60 * 60 * 24, // refresh session daily
     },
     advanced: {

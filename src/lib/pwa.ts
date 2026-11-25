@@ -7,6 +7,7 @@
  * on the browser menu. iOS Safari has no such event — users install manually
  * via Share → Add to Home Screen (an instructions hint is shown there).
  */
+import { getStoredToken } from "@/lib/auth";
 
 export type InstallPrompt = {
   prompt: () => Promise<void>;
@@ -69,5 +70,21 @@ export function registerServiceWorker(): void {
   window.addEventListener("appinstalled", () => {
     deferredEvent = null;
     notify();
+  });
+
+  // Installed app "stay logged in": when the app is resumed, re-validate the
+  // session in the background. Better Auth's bearer token in localStorage
+  // survives app restarts, so this refresh only extends the sliding window —
+  // the user is never bounced to login just because the app was closed.
+  const refreshOnResume = () => {
+    if (getStoredToken() || document.cookie.includes("zaqone.session")) {
+      void import("@/lib/auth").then(({ fetchSession }) => fetchSession());
+    }
+  };
+  document.addEventListener("visibilitychange", () => {
+    if (document.visibilityState === "visible") refreshOnResume();
+  });
+  window.addEventListener("pageshow", (e) => {
+    if (e.persisted) refreshOnResume();
   });
 }
