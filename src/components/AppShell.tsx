@@ -344,7 +344,7 @@ export default function AppShell() {
         { to: "/lead-import", label: t("Import Lead", "Import Leads"), icon: FileSpreadsheet },
         { to: "/whatsapp-templates", label: t("Templat WhatsApp", "WhatsApp Templates"), icon: MessageCircle },
         { to: "/leaderboard", label: t("Dashboard & Peringkat", "Dashboard & Ranking"), icon: Trophy },
-        { to: "/sales-report", label: t("Report Sales", "Sales Report"), icon: BarChart3 },
+        { to: "/sales-report", label: t("Team Sales Share Report", "Team Sales Share Report"), icon: BarChart3 },
         { to: "/akses-kepemilikan", label: t("Akses & Kepemilikan", "Access & Ownership"), icon: Lock },
         { to: "/admin-console", label: t("Konsol Admin", "Admin Console"), icon: Settings2 },
       ],

@@ -1790,7 +1790,7 @@ export const salesTargets = sqliteTable(
     userId: text("user_id"),
     /** Which number this target measures. */
     metric: text("metric", {
-      enum: ["leads", "followups", "won", "bookings", "revenue"],
+      enum: ["customers", "packs"],
     }).notNull(),
     targetValue: integer("target_value").notNull().default(0),
     createdBy: text("created_by"),
@@ -1806,3 +1806,38 @@ export const salesTargets = sqliteTable(
 
 export type SalesTargetRow = typeof salesTargets.$inferSelect;
 export type NewSalesTargetRow = typeof salesTargets.$inferInsert;
+
+// ---------------------------------------------------------------------------
+// Share Report — entries submitted by sales themselves. One row per customer
+// shared: name, pack count, where the lead came from. Dashboard totals are
+// computed from this table (NOT from follow-up / bookings data).
+// ---------------------------------------------------------------------------
+
+export const shareReports = sqliteTable(
+  "share_reports",
+  {
+    id: text("id").primaryKey(),
+    /** Month key, YYYY-MM. */
+    month: text("month").notNull(),
+    /** Sales user who submitted this entry. */
+    userId: text("user_id").notNull(),
+    customerName: text("customer_name").notNull(),
+    packs: integer("packs").notNull().default(1),
+    /** Lead source label (from lead_sources list, free text allowed). */
+    source: text("source").notNull().default(""),
+    notes: text("notes"),
+    createdAt: text("created_at")
+      .notNull()
+      .default(sql`(datetime('now'))`),
+    updatedAt: text("updated_at")
+      .notNull()
+      .default(sql`(datetime('now'))`),
+  },
+  (table) => ({
+    monthIdx: index("share_reports_month_idx").on(table.month),
+    userMonthIdx: index("share_reports_user_month_idx").on(table.userId, table.month),
+  }),
+);
+
+export type ShareReportRow = typeof shareReports.$inferSelect;
+export type NewShareReportRow = typeof shareReports.$inferInsert;

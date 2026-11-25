@@ -35,7 +35,7 @@ import WebsiteContentEditor from "@/pages/WebsiteContentEditor";
 import AiAssistant from "@/pages/AiAssistant";
 import AiTokens from "@/pages/AiTokens";
 import AiWorkers from "@/pages/AiWorkers";
-import SalesReport from "@/pages/SalesReport";
+import ShareReport from "@/pages/ShareReport";
 import McpAuditLog from "@/pages/McpAuditLog";
 import StaffRoles from "@/pages/StaffRoles";
 import StaffAuditLog from "@/pages/StaffAuditLog";
@@ -73,7 +73,7 @@ export default function App() {
           <Route path="/mesin-follow-up" element={<RoleRoute path="/mesin-follow-up"><FollowUpEngine /></RoleRoute>} />
           <Route path="/akses-kepemilikan" element={<RoleRoute path="/akses-kepemilikan"><AccessOwnership /></RoleRoute>} />
           <Route path="/leaderboard" element={<RoleRoute path="/leaderboard"><SalesLeaderboard /></RoleRoute>} />
-          <Route path="/sales-report" element={<RoleRoute path="/sales-report"><SalesReport /></RoleRoute>} />
+          <Route path="/sales-report" element={<RoleRoute path="/sales-report"><ShareReport /></RoleRoute>} />
           <Route path="/whatsapp-templates" element={<RoleRoute path="/whatsapp-templates"><WhatsAppTemplates /></RoleRoute>} />
           <Route path="/admin-console" element={<RoleRoute path="/admin-console"><AdminConsole /></RoleRoute>} />
           <Route path="/customers" element={<RoleRoute path="/customers"><Customers /></RoleRoute>} />

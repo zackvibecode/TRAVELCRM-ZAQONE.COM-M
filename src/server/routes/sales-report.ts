@@ -386,13 +386,7 @@ salesReportRouter.post("/targets", requireRole(...WRITE_ROLES), async (c) => {
     return c.json({ success: false, error: "month must be YYYY-MM" }, 400);
   }
   const metric = body.metric;
-  if (
-    metric !== "leads" &&
-    metric !== "followups" &&
-    metric !== "won" &&
-    metric !== "bookings" &&
-    metric !== "revenue"
-  ) {
+  if (metric !== "customers" && metric !== "packs") {
     return c.json({ success: false, error: "invalid metric" }, 400);
   }
   const targetValue = Math.max(0, Math.round(Number(body.targetValue ?? 0)));
@@ -429,13 +423,7 @@ salesReportRouter.patch("/targets/:id", requireRole(...WRITE_ROLES), async (c) =
   if (!existing) return c.json({ success: false, error: "not_found" }, 404);
 
   const metric =
-    body.metric === "leads" ||
-    body.metric === "followups" ||
-    body.metric === "won" ||
-    body.metric === "bookings" ||
-    body.metric === "revenue"
-      ? body.metric
-      : existing.metric;
+    body.metric === "customers" || body.metric === "packs" ? body.metric : existing.metric;
   const targetValue =
     body.targetValue !== undefined
       ? Math.max(0, Math.round(Number(body.targetValue)))

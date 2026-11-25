@@ -1,16 +1,15 @@
 import { useMemo, useState } from "react";
 import {
   BarChart3,
-  BookOpenCheck,
+  Package,
+  Pencil,
   Plus,
   RefreshCw,
-  Smartphone,
   Target,
+  Trash2,
   TrendingDown,
   TrendingUp,
   UserRound,
-  Wallet,
-  Workflow,
 } from "lucide-react";
 import {
   CartesianGrid,
@@ -31,31 +30,32 @@ import {
   leadSourceApi,
   percentChange,
   salesReportApi,
+  shareReportApi,
   useLeadSources,
-  useSalesOverview,
   useSalesTargets,
+  useShareDashboard,
+  useShareEntries,
   type LeadSource,
   type SalesTarget,
+  type ShareEntry,
   type TargetMetric,
 } from "@/lib/sales-report-api";
 
 /**
- * Report Sales — monthly numbers, charts, Team Mission targets and the
- * lead-source CRUD list. Sales users see their own numbers only (server
- * enforced); management/super_admin can filter by rep or view the team and
- * manage targets + sources.
+ * Share Report — sales submit their own monthly entries (customer name,
+ * packs, lead source). Dashboard + Team Mission + Lead Sources live here.
+ * Separated from the follow-up module entirely.
  */
 
 const PANEL = "tv-panel";
 const BTN = "tv-btn disabled:opacity-55 disabled:cursor-not-allowed";
 const BTN_PRIMARY = `${BTN} tv-btn--primary`;
+const INPUT =
+  "w-full rounded-[var(--radius-control)] border border-[var(--color-border-strong)] bg-[var(--color-surface)] px-3 py-2 text-[13px] text-[var(--color-text)]";
 
 const METRIC_LABELS: Record<TargetMetric, { ms: string; en: string }> = {
-  leads: { ms: "Lead baru", en: "New leads" },
-  followups: { ms: "Follow-up siap", en: "Follow-ups done" },
-  won: { ms: "Lead won", en: "Leads won" },
-  bookings: { ms: "Booking", en: "Bookings" },
-  revenue: { ms: "Revenue (RM)", en: "Revenue (RM)" },
+  customers: { ms: "Customer", en: "Customers" },
+  packs: { ms: "Pack terjual", en: "Packs sold" },
 };
 
 const PIE_COLORS = [
@@ -89,12 +89,10 @@ interface StatCardProps {
   value: string;
   icon: typeof UserRound;
   change: number | null;
-  goodWhenUp?: boolean;
 }
 
-function StatCard({ label, value, icon: Icon, change, goodWhenUp = true }: StatCardProps) {
+function StatCard({ label, value, icon: Icon, change }: StatCardProps) {
   const up = (change ?? 0) >= 0;
-  const good = goodWhenUp ? up : !up;
   return (
     <div className={`${PANEL} flex flex-col gap-2 p-5`}>
       <div className="flex items-center justify-between">
@@ -105,7 +103,7 @@ function StatCard({ label, value, icon: Icon, change, goodWhenUp = true }: StatC
         {change !== null && (
           <span
             className={`inline-flex items-center gap-0.5 rounded-full px-2 py-0.5 text-[10.5px] font-bold ${
-              good
+              up
                 ? "bg-[var(--color-success-soft)] text-[var(--color-success)]"
                 : "bg-[var(--color-danger-soft)] text-[var(--color-danger)]"
             }`}
@@ -121,7 +119,7 @@ function StatCard({ label, value, icon: Icon, change, goodWhenUp = true }: StatC
   );
 }
 
-export default function SalesReport() {
+export default function ShareReport() {
   const { t, lang } = useLang();
   const session = getSession();
   const role: StaffRole | undefined = session?.role;
@@ -131,39 +129,37 @@ export default function SalesReport() {
   const [ownerFilter, setOwnerFilter] = useState("all");
 
   const owner = isAdmin ? ownerFilter : undefined;
-  const overview = useSalesOverview(month, owner);
+  const dashboard = useShareDashboard(month, owner);
+  const entries = useShareEntries(month, owner);
   const targets = useSalesTargets(month);
   const sources = useLeadSources();
 
   const sourceChartData = useMemo(
-    () =>
-      (overview.data?.sources ?? []).map((s) => ({
-        name: s.sourceName,
-        nilai: s.count,
-      })),
-    [overview.data],
+    () => (dashboard.data?.sources ?? []).map((s) => ({ name: s.source, nilai: s.count })),
+    [dashboard.data],
   );
 
-  const o = overview.data;
+  const d = dashboard.data;
+  const entryList = entries.data ?? [];
+
+  async function refreshAll() {
+    await Promise.all([dashboard.refetch(), entries.refetch(), targets.refetch()]);
+  }
+
   return (
     <div className="mx-auto flex w-full max-w-[1180px] flex-col gap-5">
-      {/* Page head with month + rep selector */}
       <div className="tvl-pagehead">
         <div className="min-w-0">
-          <h1 className="tvl-title">{t("Report Sales", "Sales Report")}</h1>
+          <h1 className="tvl-title">{t("Share Report", "Share Report")}</h1>
           <p className="tvl-subtitle">
             {t(
-              "Prestasi jualan bulanan — customer, pakej terjual, revenue, lead dan misi team.",
-              "Monthly sales performance — customers, packages sold, revenue, leads and team mission.",
+              "Laporan bulanan sales — isi customer, pack terjual dan sumber lead.",
+              "Monthly sales report — submit customers, packs sold and lead sources.",
             )}
           </p>
         </div>
         <div className="flex items-center gap-2">
-          <select
-            value={month}
-            onChange={(e) => setMonth(e.target.value)}
-            className="rounded-[var(--radius-control)] border border-[var(--color-border-strong)] bg-[var(--color-surface)] px-3 py-2 text-[13px] text-[var(--color-text)]"
-          >
+          <select value={month} onChange={(e) => setMonth(e.target.value)} className={INPUT}>
             {[0, 1, 2, 3, 4, 5].map((offset) => {
               const m = monthKey(-offset);
               return (
@@ -177,55 +173,36 @@ export default function SalesReport() {
             <select
               value={ownerFilter}
               onChange={(e) => setOwnerFilter(e.target.value)}
-              className="rounded-[var(--radius-control)] border border-[var(--color-border-strong)] bg-[var(--color-surface)] px-3 py-2 text-[13px] text-[var(--color-text)]"
+              className={INPUT}
             >
               <option value="all">{t("Seluruh team", "Whole team")}</option>
-              <option value="me">{t("Diri saya", "Myself")}</option>
             </select>
           )}
-          <button type="button" onClick={() => void overview.refetch()} className={BTN}>
+          <button type="button" onClick={() => void refreshAll()} className={BTN}>
             <RefreshCw className="h-4 w-4" />
           </button>
         </div>
       </div>
 
-      {overview.error && (
+      {dashboard.error && (
         <div className="rounded-[var(--radius-control)] border border-[var(--color-danger)] bg-[var(--color-danger-soft)] px-4 py-2.5 text-[13px] text-[var(--color-danger)]">
-          {overview.error}
+          {dashboard.error}
         </div>
       )}
 
       {/* Stat cards */}
-      <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-5">
+      <div className="grid gap-4 sm:grid-cols-2">
         <StatCard
           label={t("Customer", "Customers")}
-          value={String(o?.customers ?? 0)}
+          value={String(d?.customers ?? 0)}
           icon={UserRound}
-          change={o ? percentChange(o.customers, o.previous.customers) : null}
+          change={d ? percentChange(d.customers, d.previous.customers) : null}
         />
         <StatCard
-          label={t("Pakej terjual", "Packages sold")}
-          value={String(o?.bookings ?? 0)}
-          icon={BookOpenCheck}
-          change={o ? percentChange(o.bookings, o.previous.bookings) : null}
-        />
-        <StatCard
-          label={t("Revenue (RM)", "Revenue (RM)")}
-          value={(o?.revenue ?? 0).toLocaleString()}
-          icon={Wallet}
-          change={o ? percentChange(o.revenue, o.previous.revenue) : null}
-        />
-        <StatCard
-          label={t("Lead baru", "New leads")}
-          value={String(o?.newLeads ?? 0)}
-          icon={Workflow}
-          change={o ? percentChange(o.newLeads, o.previous.newLeads) : null}
-        />
-        <StatCard
-          label={t("Follow-up siap", "Follow-ups done")}
-          value={String(o?.followups ?? 0)}
-          icon={Smartphone}
-          change={o ? percentChange(o.followups, o.previous.followups) : null}
+          label={t("Pack terjual", "Packs sold")}
+          value={String(d?.packs ?? 0)}
+          icon={Package}
+          change={d ? percentChange(d.packs, d.previous.packs) : null}
         />
       </div>
 
@@ -237,7 +214,7 @@ export default function SalesReport() {
           </h2>
           <div className="h-[260px]">
             <ResponsiveContainer width="100%" height="100%">
-              <LineChart data={o?.daily ?? []}>
+              <LineChart data={d?.daily ?? []}>
                 <CartesianGrid strokeDasharray="3 3" stroke="var(--color-border)" />
                 <XAxis
                   dataKey="day"
@@ -250,16 +227,16 @@ export default function SalesReport() {
                 <Legend />
                 <Line
                   type="monotone"
-                  dataKey="leads"
-                  name={t("Lead baru", "New leads")}
+                  dataKey="entries"
+                  name={t("Customer di-share", "Customers shared")}
                   stroke="#6366f1"
                   strokeWidth={2}
                   dot={false}
                 />
                 <Line
                   type="monotone"
-                  dataKey="followups"
-                  name={t("Follow-up", "Follow-ups")}
+                  dataKey="packs"
+                  name={t("Pack", "Packs")}
                   stroke="#22c55e"
                   strokeWidth={2}
                   dot={false}
@@ -271,11 +248,11 @@ export default function SalesReport() {
 
         <div className={`${PANEL} p-5`}>
           <h2 className="mb-3 text-[14px] font-bold text-[var(--color-text)]">
-            {t("Lead daripada mana", "Where leads come from")}
+            {t("Share daripada mana", "Where shares come from")}
           </h2>
           {sourceChartData.length === 0 ? (
             <div className="grid h-[260px] place-items-center text-[13px] text-[var(--color-text-secondary)]">
-              {t("Tiada lead bulan ini.", "No leads this month.")}
+              {t("Tiada share bulan ini.", "No shares this month.")}
             </div>
           ) : (
             <div className="h-[260px]">
@@ -302,78 +279,296 @@ export default function SalesReport() {
         </div>
       </div>
 
+      <EntriesCard
+        month={month}
+        entries={entryList}
+        sources={sources.data ?? []}
+        isAdmin={isAdmin}
+        onChanged={() => void refreshAll()}
+      />
+
       <TeamMissionCard
         month={month}
         targets={targets.data?.targets ?? []}
-        overview={o}
+        dashboard={d}
         isAdmin={isAdmin}
-        onChanged={() => {
-          void targets.refetch();
-          void overview.refetch();
-        }}
+        onChanged={() => void refreshAll()}
       />
 
       <LeadSourcesCard
         isAdmin={isAdmin}
         sources={sources.data ?? []}
-        counts={o?.sources ?? []}
         onChanged={() => void sources.refetch()}
       />
     </div>
   );
 }
 
-/** Actual value for a metric from the overview payload. */
-function actualForMetric(
-  metric: TargetMetric,
-  o: { newLeads: number; followups: number; wonLeads: number; bookings: number; revenue: number } | null,
-): number {
-  if (!o) return 0;
-  switch (metric) {
-    case "leads":
-      return o.newLeads;
-    case "followups":
-      return o.followups;
-    case "won":
-      return o.wonLeads;
-    case "bookings":
-      return o.bookings;
-    case "revenue":
-      return o.revenue;
-  }
-}
-
-/** Team Mission — monthly targets with progress bars. */
-function TeamMissionCard(props: {
+/** Share Report entries — the form sales fill in + the monthly list. */
+function EntriesCard(props: {
   month: string;
-  targets: SalesTarget[];
-  overview: { newLeads: number; followups: number; wonLeads: number; bookings: number; revenue: number } | null;
+  entries: ShareEntry[];
+  sources: LeadSource[];
   isAdmin: boolean;
   onChanged: () => void;
 }) {
   const { t } = useLang();
-  const { month, targets, overview, isAdmin, onChanged } = props;
+  const { month, entries, sources, isAdmin, onChanged } = props;
 
   const [dialogOpen, setDialogOpen] = useState(false);
-  const [editing, setEditing] = useState<SalesTarget | null>(null);
-  const [formMonth, setFormMonth] = useState(month);
-  const [formMetric, setFormMetric] = useState<TargetMetric>("leads");
-  const [formValue, setFormValue] = useState("30");
+  const [editing, setEditing] = useState<ShareEntry | null>(null);
+  const [customerName, setCustomerName] = useState("");
+  const [packs, setPacks] = useState("1");
+  const [source, setSource] = useState("");
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   function openCreate() {
     setEditing(null);
-    setFormMonth(month);
-    setFormMetric("leads");
-    setFormValue("30");
+    setCustomerName("");
+    setPacks("1");
+    setSource("");
+    setError(null);
+    setDialogOpen(true);
+  }
+
+  function openEdit(entry: ShareEntry) {
+    setEditing(entry);
+    setCustomerName(entry.customerName);
+    setPacks(String(entry.packs));
+    setSource(entry.source);
+    setError(null);
+    setDialogOpen(true);
+  }
+
+  async function save() {
+    if (!customerName.trim()) {
+      setError(t("Nama customer diperlukan", "Customer name is required"));
+      return;
+    }
+    setSaving(true);
+    setError(null);
+    try {
+      if (editing) {
+        await shareReportApi.updateEntry(editing.id, {
+          customerName: customerName.trim(),
+          packs: Number(packs),
+          source,
+        });
+      } else {
+        await shareReportApi.createEntry({
+          month,
+          customerName: customerName.trim(),
+          packs: Number(packs),
+          source,
+        });
+      }
+      setDialogOpen(false);
+      onChanged();
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "Gagal menyimpan");
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  async function remove(entry: ShareEntry) {
+    if (!window.confirm(t(`Padam share "${entry.customerName}"?`, `Delete share "${entry.customerName}"?`))) {
+      return;
+    }
+    try {
+      await shareReportApi.deleteEntry(entry.id);
+      onChanged();
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "Gagal memadam");
+    }
+  }
+
+  return (
+    <div className={`${PANEL} flex flex-col gap-4 p-5`}>
+      <div className="flex items-center justify-between gap-3">
+        <h2 className="flex items-center gap-2 text-[14px] font-bold text-[var(--color-text)]">
+          <BarChart3 className="h-4 w-4 text-[var(--color-primary)]" />
+          {t("Senarai Share", "Share List")}
+        </h2>
+        <button type="button" onClick={openCreate} className={BTN_PRIMARY}>
+          <Plus className="h-4 w-4" />
+          {t("Isi Share Report", "Submit Share Report")}
+        </button>
+      </div>
+
+      {error && (
+        <div className="rounded-[var(--radius-control)] border border-[var(--color-danger)] bg-[var(--color-danger-soft)] px-3 py-2 text-[12.5px] text-[var(--color-danger)]">
+          {error}
+        </div>
+      )}
+
+      {entries.length === 0 ? (
+        <p className="text-[13px] text-[var(--color-text-secondary)]">
+          {t(
+            "Belum ada share report bulan ini. Tekan \"Isi Share Report\" untuk mula.",
+            "No share reports this month yet. Click \"Submit Share Report\" to start.",
+          )}
+        </p>
+      ) : (
+        <div className="overflow-x-auto">
+          <table className="w-full text-left text-[13px]">
+            <thead>
+              <tr className="border-b border-[var(--color-border)] text-[11px] uppercase tracking-wide text-[var(--color-text-secondary)]">
+                <th className="py-2 pr-3 font-semibold">{t("Nama Customer", "Customer Name")}</th>
+                <th className="py-2 pr-3 font-semibold">{t("Pack", "Packs")}</th>
+                <th className="py-2 pr-3 font-semibold">{t("Sumber Lead", "Lead Source")}</th>
+                {isAdmin && <th className="py-2 pr-3 font-semibold">{t("Sales", "Sales")}</th>}
+                <th className="py-2 pr-3 font-semibold">{t("Tarikh", "Date")}</th>
+                <th className="py-2 font-semibold" />
+              </tr>
+            </thead>
+            <tbody>
+              {entries.map((entry) => (
+                <tr key={entry.id} className="border-b border-[var(--color-border)] last:border-b-0">
+                  <td className="py-2.5 pr-3 font-semibold text-[var(--color-text)]">
+                    {entry.customerName}
+                  </td>
+                  <td className="py-2.5 pr-3 text-[var(--color-text)]">{entry.packs}</td>
+                  <td className="py-2.5 pr-3 text-[var(--color-text-secondary)]">
+                    {entry.source || "—"}
+                  </td>
+                  {isAdmin && (
+                    <td className="py-2.5 pr-3 text-[var(--color-text-secondary)]">
+                      {entry.userName}
+                    </td>
+                  )}
+                  <td className="py-2.5 pr-3 text-[12px] text-[var(--color-text-secondary)]">
+                    {entry.createdAt.slice(0, 10)}
+                  </td>
+                  <td className="py-2.5">
+                    <span className="flex items-center gap-2">
+                      <button
+                        type="button"
+                        onClick={() => openEdit(entry)}
+                        className="text-[var(--color-primary)] hover:underline"
+                        title={t("Edit", "Edit")}
+                      >
+                        <Pencil className="h-3.5 w-3.5" />
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => void remove(entry)}
+                        className="text-[var(--color-danger)] hover:underline"
+                        title={t("Padam", "Delete")}
+                      >
+                        <Trash2 className="h-3.5 w-3.5" />
+                      </button>
+                    </span>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      )}
+
+      {dialogOpen && (
+        <div className="fixed inset-0 z-50 grid place-items-center bg-black/40 p-4">
+          <div className={`${PANEL} w-full max-w-[420px] p-5`}>
+            <h3 className="mb-4 text-[15px] font-bold text-[var(--color-text)]">
+              {editing ? t("Edit Share", "Edit Share") : t("Isi Share Report", "Submit Share Report")}
+            </h3>
+            <div className="flex flex-col gap-3">
+              <label className="text-[12.5px] font-semibold text-[var(--color-text-secondary)]">
+                {t("Nama Customer", "Customer Name")}
+                <input
+                  value={customerName}
+                  onChange={(e) => setCustomerName(e.target.value)}
+                  placeholder={t("cth. Ahmad bin Ali", "e.g. Ahmad bin Ali")}
+                  className={`mt-1 ${INPUT}`}
+                />
+              </label>
+              <label className="text-[12.5px] font-semibold text-[var(--color-text-secondary)]">
+                {t("Berapa pack", "How many packs")}
+                <input
+                  type="number"
+                  min="1"
+                  value={packs}
+                  onChange={(e) => setPacks(e.target.value)}
+                  className={`mt-1 ${INPUT}`}
+                />
+              </label>
+              <label className="text-[12.5px] font-semibold text-[var(--color-text-secondary)]">
+                {t("Share daripada mana (sumber lead)", "Where the lead came from")}
+                <select value={source} onChange={(e) => setSource(e.target.value)} className={`mt-1 ${INPUT}`}>
+                  <option value="">{t("— Pilih sumber —", "— Choose source —")}</option>
+                  {sources
+                    .filter((s) => s.active)
+                    .map((s) => (
+                      <option key={s.id} value={s.name}>
+                        {s.name}
+                      </option>
+                    ))}
+                </select>
+              </label>
+            </div>
+            <div className="mt-4 flex gap-2">
+              <button
+                type="button"
+                disabled={saving}
+                onClick={() => void save()}
+                className={`${BTN_PRIMARY} flex-1 justify-center`}
+              >
+                {t("Simpan", "Save")}
+              </button>
+              <button
+                type="button"
+                onClick={() => setDialogOpen(false)}
+                className={`${BTN} flex-1 justify-center`}
+              >
+                {t("Batal", "Cancel")}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
+/** Actual value for a metric from the share dashboard. */
+function actualForMetric(
+  metric: TargetMetric,
+  d: { customers: number; packs: number } | null,
+): number {
+  if (!d) return 0;
+  return metric === "customers" ? d.customers : d.packs;
+}
+
+/** Team Mission — monthly share targets with progress bars. */
+function TeamMissionCard(props: {
+  month: string;
+  targets: SalesTarget[];
+  dashboard: { customers: number; packs: number } | null;
+  isAdmin: boolean;
+  onChanged: () => void;
+}) {
+  const { t } = useLang();
+  const { month, targets, dashboard, isAdmin, onChanged } = props;
+
+  const [dialogOpen, setDialogOpen] = useState(false);
+  const [editing, setEditing] = useState<SalesTarget | null>(null);
+  const [formMetric, setFormMetric] = useState<TargetMetric>("customers");
+  const [formValue, setFormValue] = useState("10");
+  const [saving, setSaving] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  function openCreate() {
+    setEditing(null);
+    setFormMetric("customers");
+    setFormValue("10");
     setError(null);
     setDialogOpen(true);
   }
 
   function openEdit(target: SalesTarget) {
     setEditing(target);
-    setFormMonth(target.month);
     setFormMetric(target.metric);
     setFormValue(String(target.targetValue));
     setError(null);
@@ -391,8 +586,8 @@ function TeamMissionCard(props: {
         });
       } else {
         await salesReportApi.createTarget({
-          month: formMonth,
-          userId: null, // team-wide mission
+          month,
+          userId: null,
           metric: formMetric,
           targetValue: Number(formValue),
         });
@@ -407,9 +602,7 @@ function TeamMissionCard(props: {
   }
 
   async function remove(target: SalesTarget) {
-    if (!window.confirm(t(`Padam sasaran ${METRIC_LABELS[target.metric].ms}?`, `Delete ${METRIC_LABELS[target.metric].en} target?`))) {
-      return;
-    }
+    if (!window.confirm(t("Padam sasaran ini?", "Delete this target?"))) return;
     try {
       await salesReportApi.deleteTarget(target.id);
       onChanged();
@@ -441,15 +634,12 @@ function TeamMissionCard(props: {
 
       {targets.length === 0 ? (
         <p className="text-[13px] text-[var(--color-text-secondary)]">
-          {t(
-            "Belum ada sasaran untuk bulan ini.",
-            "No targets set for this month yet.",
-          )}
+          {t("Belum ada sasaran untuk bulan ini.", "No targets set for this month yet.")}
         </p>
       ) : (
         <div className="flex flex-col gap-3">
           {targets.map((target) => {
-            const actual = actualForMetric(target.metric, overview);
+            const actual = actualForMetric(target.metric, dashboard);
             const pct =
               target.targetValue > 0
                 ? Math.min(100, Math.round((actual / target.targetValue) * 100))
@@ -462,9 +652,7 @@ function TeamMissionCard(props: {
                     {t(METRIC_LABELS[target.metric].ms, METRIC_LABELS[target.metric].en)}
                   </span>
                   <span className="flex items-center gap-2 text-[12px] text-[var(--color-text-secondary)]">
-                    {target.metric === "revenue"
-                      ? `${actual.toLocaleString()} / ${target.targetValue.toLocaleString()}`
-                      : `${actual} / ${target.targetValue}`}
+                    {actual} / {target.targetValue}
                     {done && (
                       <span className="rounded-full bg-[var(--color-success-soft)] px-2 py-0.5 text-[10px] font-bold text-[var(--color-success)]">
                         {t("CAPAI", "DONE")}
@@ -509,31 +697,12 @@ function TeamMissionCard(props: {
               {editing ? t("Edit Sasaran", "Edit Target") : t("Sasaran Baru", "New Target")}
             </h3>
             <div className="flex flex-col gap-3">
-              {!editing && (
-                <label className="text-[12.5px] font-semibold text-[var(--color-text-secondary)]">
-                  {t("Bulan", "Month")}
-                  <select
-                    value={formMonth}
-                    onChange={(e) => setFormMonth(e.target.value)}
-                    className="mt-1 w-full rounded-[var(--radius-control)] border border-[var(--color-border-strong)] bg-[var(--color-surface)] px-3 py-2 text-[13px]"
-                  >
-                    {[0, 1, 2, 3].map((offset) => {
-                      const m = monthKey(offset);
-                      return (
-                        <option key={m} value={m}>
-                          {monthLabel(m, "ms")}
-                        </option>
-                      );
-                    })}
-                  </select>
-                </label>
-              )}
               <label className="text-[12.5px] font-semibold text-[var(--color-text-secondary)]">
                 {t("Metrik", "Metric")}
                 <select
                   value={formMetric}
                   onChange={(e) => setFormMetric(e.target.value as TargetMetric)}
-                  className="mt-1 w-full rounded-[var(--radius-control)] border border-[var(--color-border-strong)] bg-[var(--color-surface)] px-3 py-2 text-[13px]"
+                  className={`mt-1 ${INPUT}`}
                 >
                   {(Object.keys(METRIC_LABELS) as TargetMetric[]).map((m) => (
                     <option key={m} value={m}>
@@ -549,7 +718,7 @@ function TeamMissionCard(props: {
                   min="0"
                   value={formValue}
                   onChange={(e) => setFormValue(e.target.value)}
-                  className="mt-1 w-full rounded-[var(--radius-control)] border border-[var(--color-border-strong)] bg-[var(--color-surface)] px-3 py-2 text-[13px]"
+                  className={`mt-1 ${INPUT}`}
                 />
               </label>
             </div>
@@ -562,7 +731,11 @@ function TeamMissionCard(props: {
               >
                 {t("Simpan", "Save")}
               </button>
-              <button type="button" onClick={() => setDialogOpen(false)} className={`${BTN} flex-1 justify-center`}>
+              <button
+                type="button"
+                onClick={() => setDialogOpen(false)}
+                className={`${BTN} flex-1 justify-center`}
+              >
                 {t("Batal", "Cancel")}
               </button>
             </div>
@@ -577,11 +750,10 @@ function TeamMissionCard(props: {
 function LeadSourcesCard(props: {
   isAdmin: boolean;
   sources: LeadSource[];
-  counts: Array<{ sourceId: string | null; sourceName: string; count: number }>;
   onChanged: () => void;
 }) {
   const { t } = useLang();
-  const { isAdmin, sources, counts, onChanged } = props;
+  const { isAdmin, sources, onChanged } = props;
 
   const [dialogOpen, setDialogOpen] = useState(false);
   const [editing, setEditing] = useState<LeadSource | null>(null);
@@ -589,9 +761,6 @@ function LeadSourcesCard(props: {
   const [formDesc, setFormDesc] = useState("");
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
-
-  const countFor = (source: LeadSource) =>
-    counts.find((c) => c.sourceId === source.id || c.sourceName === source.name)?.count ?? 0;
 
   function openCreate() {
     setEditing(null);
@@ -659,8 +828,8 @@ function LeadSourcesCard(props: {
           </h2>
           <p className="mt-0.5 text-[11.5px] text-[var(--color-text-secondary)]">
             {t(
-              "Senarai ini jadi pilihan dropdown semasa tambah lead baru.",
-              "This list becomes the dropdown when adding a new lead.",
+              "Jadi pilihan \"share daripada mana\" dalam borang share report.",
+              "Becomes the lead-source dropdown in the share report form.",
             )}
           </p>
         </div>
@@ -706,9 +875,6 @@ function LeadSourcesCard(props: {
                   </div>
                 )}
               </div>
-              <span className="shrink-0 text-[12px] font-bold text-[var(--color-text-secondary)]">
-                {countFor(source)} {t("lead", "lead(s)")}
-              </span>
               {isAdmin && (
                 <>
                   <button
@@ -745,7 +911,7 @@ function LeadSourcesCard(props: {
                   value={formName}
                   onChange={(e) => setFormName(e.target.value)}
                   placeholder={t("cth. Facebook, TikTok, Walk-in", "e.g. Facebook, TikTok, Walk-in")}
-                  className="mt-1 w-full rounded-[var(--radius-control)] border border-[var(--color-border-strong)] bg-[var(--color-surface)] px-3 py-2 text-[13px]"
+                  className={`mt-1 ${INPUT}`}
                 />
               </label>
               <label className="text-[12.5px] font-semibold text-[var(--color-text-secondary)]">
@@ -754,7 +920,7 @@ function LeadSourcesCard(props: {
                   value={formDesc}
                   onChange={(e) => setFormDesc(e.target.value)}
                   rows={2}
-                  className="mt-1 w-full rounded-[var(--radius-control)] border border-[var(--color-border-strong)] bg-[var(--color-surface)] px-3 py-2 text-[13px]"
+                  className={`mt-1 ${INPUT}`}
                 />
               </label>
             </div>
@@ -767,7 +933,11 @@ function LeadSourcesCard(props: {
               >
                 {t("Simpan", "Save")}
               </button>
-              <button type="button" onClick={() => setDialogOpen(false)} className={`${BTN} flex-1 justify-center`}>
+              <button
+                type="button"
+                onClick={() => setDialogOpen(false)}
+                className={`${BTN} flex-1 justify-center`}
+              >
                 {t("Batal", "Cancel")}
               </button>
             </div>
