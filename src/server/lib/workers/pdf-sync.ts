@@ -70,7 +70,7 @@ export async function extractDraftFromPdf(ai: Ai, pdfText: string): Promise<PdfP
     user: `Brochure text:\n${clipped}`,
     model: WORKERS_AI_DEFAULT_MODEL,
     temperature: 0.1,
-    maxTokens: 4000,
+    maxTokens: 8000,
   });
 
   return sanitiseDraft(parseLooseJson<PdfPackageDraft>(raw));

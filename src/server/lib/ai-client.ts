@@ -235,6 +235,37 @@ export async function workersAiChat(
   return text;
 }
 
+/**
+ * Extract the first balanced JSON value ({...} or [...]) from text.
+ * Counts nesting depth and respects string literals, so prose containing
+ * braces after the JSON (or before it) cannot break the extraction.
+ */
+function extractBalancedJson(text: string): string | null {
+  const start = text.search(/[[{]/);
+  if (start < 0) return null;
+  const open = text[start];
+  const close = open === "{" ? "}" : "]";
+  let depth = 0;
+  let inString = false;
+  let escaped = false;
+  for (let i = start; i < text.length; i++) {
+    const ch = text[i];
+    if (inString) {
+      if (escaped) escaped = false;
+      else if (ch === "\\") escaped = true;
+      else if (ch === '"') inString = false;
+      continue;
+    }
+    if (ch === '"') inString = true;
+    else if (ch === open) depth++;
+    else if (ch === close) {
+      depth--;
+      if (depth === 0) return text.slice(start, i + 1);
+    }
+  }
+  return null;
+}
+
 /** Parse a loose JSON object out of an LLM reply (same leniency as structuredJson). */
 export function parseLooseJson<T>(raw: string): T {
   const cleaned = raw
@@ -245,11 +276,17 @@ export function parseLooseJson<T>(raw: string): T {
   try {
     return JSON.parse(cleaned) as T;
   } catch {
-    const start = cleaned.search(/[[{]/);
-    const end = Math.max(cleaned.lastIndexOf("}"), cleaned.lastIndexOf("]"));
-    if (start >= 0 && end > start) {
-      return JSON.parse(cleaned.slice(start, end + 1)) as T;
+    // The model wrapped the JSON in prose — pull out the first balanced value.
+    const candidate = extractBalancedJson(cleaned);
+    if (candidate) {
+      try {
+        return JSON.parse(candidate) as T;
+      } catch {
+        // fall through
+      }
     }
-    throw new Error("AI response was not valid JSON");
+    throw new Error(
+      "AI response was not valid JSON — sila cuba muat naik PDF sekali lagi",
+    );
   }
 }
