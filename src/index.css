@@ -106,6 +106,12 @@
 
   html {
     font-family: var(--font-body);
+    /*
+     * Default 80% zoom-out (per owner request): the UI renders at 0.8x so
+     * more content fits on screen. zoom is supported in all modern browsers
+     * and, unlike font-size tricks, scales layout + rem consistently.
+     */
+    zoom: 0.8;
   }
 
   body {
