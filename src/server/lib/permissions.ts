@@ -106,6 +106,7 @@ export type PermissionMatrix = Record<
 const MODULE_WRITE_ACTION: Record<string, PermissionAction> = {
   bookings: "bookings:write",
   customers: "customers:write",
+  followup: "leads:write",
   billing: "invoices:write",
   packages: "packages:write",
   trips: "trips:write",
@@ -117,6 +118,7 @@ const MODULE_WRITE_ACTION: Record<string, PermissionAction> = {
 const MODULE_READ_ACTION: Record<string, PermissionAction> = {
   bookings: "bookings:read",
   customers: "customers:read",
+  followup: "leads:read",
   billing: "invoices:read",
   packages: "packages:read",
   trips: "trips:read",

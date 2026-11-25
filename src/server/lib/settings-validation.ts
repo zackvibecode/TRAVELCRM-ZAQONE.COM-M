@@ -159,7 +159,7 @@ export function validateAi(value: Record<string, unknown>): ValidationResult {
  * Access so an admin can never lock themselves out of this page.
  */
 const PERMISSION_ROLES = ["super_admin", "management", "sales", "finance", "operations"];
-const PERMISSION_MODULES = ["bookings", "customers", "billing", "packages", "trips", "website", "staff", "mcp"];
+const PERMISSION_MODULES = ["bookings", "customers", "followup", "billing", "packages", "trips", "website", "staff", "mcp"];
 
 export function validatePermissions(value: Record<string, unknown>): ValidationResult {
   const errors: Record<string, string> = {};
