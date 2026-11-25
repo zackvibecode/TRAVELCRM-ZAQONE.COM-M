@@ -1107,14 +1107,38 @@ mcpRouter.post("/", async (c) => {
   return c.json(rpcError(id, -32601, `Method not found: ${method}`));
 });
 
-/** GET /mcp — handshake info / health for the endpoint. */
-mcpRouter.get("/", (c) => {
-  return c.json({
-    name: SERVER_INFO.name,
-    version: SERVER_INFO.version,
-    protocolVersion: PROTOCOL_VERSION,
-    transport: "JSON-RPC 2.0 over HTTP POST",
-  });
+/** GET /mcp — handshake info (with a valid token) / 401 challenge without. */
+mcpRouter.get("/", async (c) => {
+  // MCP auth spec: an unauthenticated GET must challenge with 401 +
+  // WWW-Authenticate so clients (ChatGPT, Claude) recognize this as an
+  // OAuth-protected resource. Returning 200 unauthenticated made ChatGPT
+  // treat /mcp as unprotected and abort discovery with "Couldn't discover
+  // OAuth settings". The POST handler below carries the real JSON-RPC logic.
+  const db = c.get("db");
+  const token = await verifyTokenForMcp(db, c.req.header("Authorization"));
+  if (token) {
+    return c.json({
+      name: SERVER_INFO.name,
+      version: SERVER_INFO.version,
+      protocolVersion: PROTOCOL_VERSION,
+      transport: "JSON-RPC 2.0 over HTTP POST",
+    });
+  }
+  const origin = new URL(c.req.url).origin;
+  return c.json(
+    {
+      jsonrpc: "2.0",
+      id: null,
+      error: {
+        code: -32001,
+        message: "Unauthorized: MCP requires a bearer token (OAuth 2.1)",
+      },
+    },
+    401,
+    {
+      "WWW-Authenticate": `Bearer resource_metadata="${origin}/.well-known/oauth-protected-resource"`,
+    },
+  );
 });
 
 /** Local verify helper — accepts static MCP tokens OR OAuth 2.1 access tokens.

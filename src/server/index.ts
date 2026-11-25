@@ -233,6 +233,13 @@ app.get("/.well-known/oauth-authorization-server", wellKnown(authorizationServer
 app.get("/.well-known/oauth-authorization-server/mcp", wellKnown(authorizationServerDoc));
 app.get("/mcp/.well-known/oauth-authorization-server", wellKnown(authorizationServerDoc));
 app.get("/mcp/.well-known/oauth-protected-resource", wellKnown(protectedResourceDoc));
+// OpenID Connect discovery: ChatGPT (and many OAuth toolkits) probe
+// /.well-known/openid-configuration — at the issuer root AND under the
+// server URL path — before falling back to oauth-authorization-server.
+// Without these the SPA catch-all served HTML here and discovery failed.
+app.get("/.well-known/openid-configuration", wellKnown(authorizationServerDoc));
+app.get("/.well-known/openid-configuration/mcp", wellKnown(authorizationServerDoc));
+app.get("/mcp/.well-known/openid-configuration", wellKnown(authorizationServerDoc));
 app.route("/mcp", mcpRouter);
 app.route("/api/ai", aiRouter);
 app.route("/api/ai-workers", aiWorkersRouter);
