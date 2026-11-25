@@ -9,11 +9,13 @@ import {
   KeyRound,
   Loader2,
   Mail,
+  Pencil,
   Pause,
   Play,
   Save,
   Search,
   ShieldCheck,
+  Trash2,
   UserPlus,
   Users,
   X,
@@ -21,6 +23,7 @@ import {
 import { cn } from "@/lib/utils";
 import { useLang } from "@/lib/i18n";
 import { apiFetch } from "@/lib/api";
+import { getSession } from "@/lib/auth";
 import { refreshPermissionMatrix } from "@/lib/permission-store";
 import {
   Dialog,
@@ -151,6 +154,13 @@ export default function StaffRoles() {
   const [inviteOpen, setInviteOpen] = useState(false);
   const [invite, setInvite] = useState({ email: "", role: "sales" as StaffRole });
   const [inviteError, setInviteError] = useState("");
+  // Inline edit + delete confirmation for the selected staff member.
+  const [editOpen, setEditOpen] = useState(false);
+  const [edit, setEdit] = useState({ name: "", email: "", role: "sales" as StaffRole });
+  const [editError, setEditError] = useState("");
+  const [deleteArm, setDeleteArm] = useState(false); // two-step delete confirmation
+  const [busy, setBusy] = useState(false);
+  const myUserId = getSession()?.userId ?? "";
 
   function showNotice(message: string) {
     setNotice(message);
@@ -291,6 +301,57 @@ export default function StaffRoles() {
       .catch((err) => {
         setInviteError(err instanceof Error ? err.message : String(err));
       });
+  }
+
+  // Save inline edit (name / role / status) via PATCH /staff/:id.
+  function saveEdit() {
+    if (!selected) return;
+    const name = edit.name.trim();
+    if (!name) {
+      setEditError(t("Nama wajib diisi", "Name is required"));
+      return;
+    }
+    // Guard: cannot demote the last super admin (mirrors backend rule).
+    const isLastSuper =
+      selected.role === "super_admin" &&
+      edit.role !== "super_admin" &&
+      staff.filter((p) => p.role === "super_admin").length <= 1;
+    if (isLastSuper) {
+      setEditError(t("Tak boleh turunkan Super Admin terakhir", "Cannot demote the last super admin"));
+      return;
+    }
+    setBusy(true);
+    apiFetch(`/staff/${selected.id}`, {
+      method: "PATCH",
+      body: JSON.stringify({ name, role: edit.role }),
+    })
+      .then(() => {
+        loadStaff();
+        setEditOpen(false);
+        setEditError("");
+        showNotice(t(`${name} dikemaskini.`, `${name} updated.`));
+      })
+      .catch((err) => setEditError(err instanceof Error ? err.message : String(err)))
+      .finally(() => setBusy(false));
+  }
+
+  // Delete the selected staff member via DELETE /staff/:id.
+  function removeStaff() {
+    if (!selected) return;
+    if (selected.id === myUserId) {
+      showNotice(t("Tak boleh padam akaun sendiri.", "You cannot delete your own account."));
+      return;
+    }
+    setBusy(true);
+    apiFetch(`/staff/${selected.id}`, { method: "DELETE" })
+      .then(() => {
+        loadStaff();
+        setSelectedId("");
+        setDeleteArm(false);
+        showNotice(t(`${selected.name} dipadam.`, `${selected.name} deleted.`));
+      })
+      .catch((err) => showNotice(err instanceof Error ? err.message : String(err)))
+      .finally(() => setBusy(false));
   }
 
   const visible = useMemo(
@@ -448,7 +509,7 @@ export default function StaffRoles() {
                 {visible.map((p) => (
                   <li key={p.id} className="border-b last:border-0">
                     <button
-                      onClick={() => setSelectedId(p.id)}
+                      onClick={() => { setSelectedId(p.id); setDeleteArm(false); setEditOpen(false); }}
                       className={cn("flex w-full items-center gap-3 px-4 py-3 text-left transition-colors hover:bg-muted/30", selected?.id === p.id && "bg-primary/5")}
                     >
                       <span className={cn("grid h-9 w-9 flex-none place-items-center rounded-full text-xs font-bold", selected?.id === p.id ? "bg-white text-primary" : "bg-muted text-muted-foreground")}>{p.initials}</span>
@@ -524,6 +585,45 @@ export default function StaffRoles() {
                     <KeyRound className="h-3.5 w-3.5" />
                     {t("Atur Ulang Sandi", "Reset Password")}
                   </button>
+                  <button
+                    onClick={() => {
+                      setEdit({ name: selected.name, email: selected.email, role: selected.role });
+                      setEditError("");
+                      setEditOpen(true);
+                    }}
+                    className="inline-flex items-center gap-1 rounded-md border px-2 py-1.5 text-xs font-semibold hover:bg-muted/50"
+                  >
+                    <Pencil className="h-3.5 w-3.5" />
+                    {t("Sunting", "Edit")}
+                  </button>
+                  {selected.id !== myUserId && (
+                    deleteArm ? (
+                      <span className="inline-flex items-center gap-1.5">
+                        <button
+                          onClick={removeStaff}
+                          disabled={busy}
+                          className="inline-flex items-center gap-1 rounded-md bg-red-600 px-2 py-1.5 text-xs font-bold text-white hover:bg-red-700 disabled:opacity-50"
+                        >
+                          <Trash2 className="h-3.5 w-3.5" />
+                          {t("Pasti Padam", "Confirm Delete")}
+                        </button>
+                        <button
+                          onClick={() => setDeleteArm(false)}
+                          className="rounded-md border px-2 py-1.5 text-xs font-semibold hover:bg-muted/50"
+                        >
+                          {t("Batal", "Cancel")}
+                        </button>
+                      </span>
+                    ) : (
+                      <button
+                        onClick={() => setDeleteArm(true)}
+                        className="inline-flex items-center gap-1 rounded-md border border-red-200 px-2 py-1.5 text-xs font-semibold text-red-600 hover:bg-red-50"
+                      >
+                        <Trash2 className="h-3.5 w-3.5" />
+                        {t("Padam", "Delete")}
+                      </button>
+                    )
+                  )}
                 </div>
               </div>
             </aside>
@@ -644,6 +744,50 @@ export default function StaffRoles() {
           </div>
         </section>
       )}
+
+      {/* Edit staff dialog */}
+      <Dialog open={editOpen} onOpenChange={(open) => { if (!open) { setEditOpen(false); setEditError(""); } }}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle>{t("Sunting Staf", "Edit Staff")}</DialogTitle>
+            <DialogDescription>{edit.email}</DialogDescription>
+          </DialogHeader>
+          <div className="space-y-3">
+            <div className="space-y-1.5">
+              <label htmlFor="sa-edit-name" className="text-[12.5px] font-semibold text-muted-foreground">{t("Nama", "Name")}</label>
+              <input
+                id="sa-edit-name"
+                value={edit.name}
+                onChange={(e) => { setEdit((c) => ({ ...c, name: e.target.value })); setEditError(""); }}
+                placeholder={t("Nama penuh", "Full name")}
+                className={cn("h-9 w-full rounded-md border border-input bg-transparent px-3 text-sm shadow-sm focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring", editError && "border-red-400")}
+              />
+            </div>
+            <div className="space-y-1.5">
+              <label htmlFor="sa-edit-role" className="text-[12.5px] font-semibold text-muted-foreground">{t("Peran", "Role")}</label>
+              <select id="sa-edit-role" value={edit.role} onChange={(e) => setEdit((c) => ({ ...c, role: e.target.value as StaffRole }))} className="h-9 w-full rounded-md border border-input bg-white px-3 text-sm shadow-sm">
+                {ROLES.map((r) => <option key={r} value={r}>{t(ROLE_LABELS[r].ms, ROLE_LABELS[r].en)}</option>)}
+              </select>
+            </div>
+            <div className="flex flex-col gap-1.5">
+              <p className="text-[11px] font-bold uppercase tracking-wide text-muted-foreground">{t("Modul akan terbuka", "Modules to open")}</p>
+              <div className="flex flex-wrap gap-1.5">
+                {MODULES.filter((m) => permissions[edit.role]?.[m.id]).map((m) => (
+                  <span key={m.id} className="rounded-full border bg-muted px-2 py-0.5 text-[11px] font-semibold text-muted-foreground">{t(m.ms, m.en)}</span>
+                ))}
+              </div>
+            </div>
+            {editError && <p className="flex items-center gap-1 text-xs font-medium text-red-600"><AlertCircle className="h-3.5 w-3.5" />{editError}</p>}
+          </div>
+          <DialogFooter>
+            <button onClick={() => { setEditOpen(false); setEditError(""); }} className="rounded-md px-3 py-2 text-sm font-semibold text-muted-foreground hover:text-foreground">{t("Batal", "Cancel")}</button>
+            <button onClick={saveEdit} disabled={busy} className="inline-flex items-center gap-1.5 rounded-md bg-primary px-3 py-2 text-sm font-semibold text-white hover:bg-primary/90 disabled:opacity-50">
+              {busy ? <Loader2 className="h-4 w-4 animate-spin" /> : <Save className="h-4 w-4" />}
+              {busy ? t("Menyimpan…", "Saving…") : t("Simpan", "Save")}
+            </button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
 
       {/* Invite dialog */}
       <Dialog open={inviteOpen} onOpenChange={setInviteOpen}>
