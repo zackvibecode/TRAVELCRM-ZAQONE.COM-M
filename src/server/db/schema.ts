@@ -1841,3 +1841,86 @@ export const shareReports = sqliteTable(
 
 export type ShareReportRow = typeof shareReports.$inferSelect;
 export type NewShareReportRow = typeof shareReports.$inferInsert;
+
+// ---------------------------------------------------------------------------
+// MCP OAuth 2.1 — lets AI clients (Claude, Cursor, ...) connect to /mcp via
+// the standard authorization-code + PKCE flow instead of static tokens.
+// ---------------------------------------------------------------------------
+
+export const mcpOauthClients = sqliteTable(
+  "mcp_oauth_clients",
+  {
+    id: text("id").primaryKey(),
+    clientId: text("client_id").notNull().unique(),
+    /** Hashed secret; null for public (PKCE-only) clients. */
+    clientSecretHash: text("client_secret_hash"),
+    name: text("name").notNull(),
+    /** JSON array of allowed redirect URIs (exact match). */
+    redirectUris: text("redirect_uris", { mode: "json" })
+      .$type<string[]>()
+      .notNull()
+      .default([]),
+    status: text("status", { enum: ["active", "revoked"] })
+      .notNull()
+      .default("active"),
+    createdBy: text("created_by"),
+    createdAt: text("created_at")
+      .notNull()
+      .default(sql`(datetime('now'))`),
+  },
+  (table) => ({
+    clientIdx: index("mcp_oauth_clients_client_idx").on(table.clientId),
+  }),
+);
+
+export const mcpOauthCodes = sqliteTable(
+  "mcp_oauth_codes",
+  {
+    id: text("id").primaryKey(),
+    codeHash: text("code_hash").notNull().unique(),
+    clientId: text("client_id").notNull(),
+    userId: text("user_id").notNull(),
+    redirectUri: text("redirect_uri").notNull(),
+    scope: text("scope").notNull().default(""),
+    codeChallenge: text("code_challenge"),
+    codeChallengeMethod: text("code_challenge_method"),
+    expiresAt: text("expires_at").notNull(),
+    usedAt: text("used_at"),
+    createdAt: text("created_at")
+      .notNull()
+      .default(sql`(datetime('now'))`),
+  },
+  (table) => ({
+    clientIdx: index("mcp_oauth_codes_client_idx").on(table.clientId),
+  }),
+);
+
+export const mcpOauthTokens = sqliteTable(
+  "mcp_oauth_tokens",
+  {
+    id: text("id").primaryKey(),
+    /** access | refresh */
+    kind: text("kind", { enum: ["access", "refresh"] }).notNull().default("access"),
+    tokenHash: text("token_hash").notNull().unique(),
+    clientId: text("client_id").notNull(),
+    userId: text("user_id").notNull(),
+    scope: text("scope").notNull().default(""),
+    status: text("status", { enum: ["active", "revoked"] })
+      .notNull()
+      .default("active"),
+    /** For refresh tokens: the access-token id that issued them. */
+    parentId: text("parent_id"),
+    createdAt: text("created_at")
+      .notNull()
+      .default(sql`(datetime('now'))`),
+    expiresAt: text("expires_at").notNull(),
+  },
+  (table) => ({
+    hashIdx: index("mcp_oauth_tokens_hash_idx").on(table.tokenHash),
+    userClientIdx: index("mcp_oauth_tokens_user_client_idx").on(table.userId, table.clientId),
+  }),
+);
+
+export type McpOauthClientRow = typeof mcpOauthClients.$inferSelect;
+export type McpOauthCodeRow = typeof mcpOauthCodes.$inferSelect;
+export type McpOauthTokenRow = typeof mcpOauthTokens.$inferSelect;

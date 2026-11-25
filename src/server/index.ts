@@ -25,6 +25,7 @@ import alertsRouter from "./routes/alerts";
 import websiteRouter from "./routes/website";
 import mcpAdminRouter from "./routes/mcp-admin";
 import mcpRouter from "./routes/mcp";
+import mcpOauthRouter from "./routes/mcp-oauth";
 import authRouter, { apiAuthRouter } from "./routes/auth";
 import staffRouter from "./routes/staff";
 import staffAuditRouter from "./routes/staff-audit";
@@ -169,6 +170,23 @@ app.route("/api/reports", reportsRouter);
 app.route("/api/alerts", alertsRouter);
 app.route("/api/website", websiteRouter);
 app.route("/api/mcp-admin", mcpAdminRouter);
+// OAuth 2.1 authorization server for MCP (discovery + authorize + token).
+app.route("/mcp/oauth", mcpOauthRouter);
+// RFC 9728 discovery lives at the root well-known path (no /oauth prefix).
+app.get("/.well-known/oauth-protected-resource", (c) => {
+  const base = new URL(c.req.url).origin;
+  return c.json({
+    resource: `${base}/mcp`,
+    authorization_servers: [base],
+    scopes_supported: [
+      "customers:read",
+      "leads:read",
+      "bookings:read",
+      "departures:read",
+      "packages:read",
+    ],
+  });
+});
 app.route("/mcp", mcpRouter);
 app.route("/api/ai", aiRouter);
 app.route("/api/ai-workers", aiWorkersRouter);

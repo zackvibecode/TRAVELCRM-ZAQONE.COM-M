@@ -1,5 +1,5 @@
 import { Hono } from "hono";
-import { sql } from "drizzle-orm";
+import { eq, sql } from "drizzle-orm";
 import type { DrizzleD1Database } from "drizzle-orm/d1";
 import * as schema from "../db/schema";
 import { auditMcpCall } from "../middleware/mcp-auth";
@@ -330,14 +330,15 @@ mcpRouter.post("/", async (c) => {
   // Handshake: validate token via mcpAuth semantics without requiring a scope.
   const token = await verifyTokenForMcp(db, c.req.header("Authorization"));
   if (!token) {
-    return c.json(rpcError(id, -32001, "Unauthorized: invalid or expired MCP token"), 401);
+    // MCP auth spec: 401 with a resource metadata hint so OAuth clients
+    // can discover the authorization server and start the flow.
+    const origin = new URL(c.req.url).origin;
+    return c.json(rpcError(id, -32001, "Unauthorized: invalid or expired MCP token"), 401, {
+      "WWW-Authenticate": `Bearer resource_metadata="${origin}/.well-known/oauth-protected-resource"`,
+    });
   }
 
-  const tokenScopes = Array.isArray(token.scopes)
-    ? token.scopes
-    : typeof token.scopes === "string"
-      ? JSON.parse(token.scopes)
-      : [];
+  const tokenScopes = token.scopes;
   const has = (scope: string) => tokenScopes.includes(scope) || tokenScopes.includes("*");
 
   // Per-token rate limit (fixed 1-minute window, D1-backed).
@@ -1116,13 +1117,65 @@ mcpRouter.get("/", (c) => {
   });
 });
 
-/** Local verify helper reusing the mcp-admin verifier (no scope requirement). */
+/** Local verify helper — accepts static MCP tokens OR OAuth 2.1 access tokens.
+ * Returns a unified shape so the rest of the handler works unchanged. */
 async function verifyTokenForMcp(
   db: DrizzleD1Database<typeof schema>,
   authHeader: string | undefined,
-): Promise<schema.McpTokenRow | null> {
+): Promise<{
+  id: string;
+  role: schema.McpTokenRow["role"];
+  scopes: string[];
+} | null> {
   const { verifyBearerToken } = await import("../routes/mcp-admin");
-  return verifyBearerToken(db, authHeader);
+
+  // 1) Legacy static bearer token (mcp_tokens).
+  const staticToken = await verifyBearerToken(db, authHeader);
+  if (staticToken) {
+    const scopes = Array.isArray(staticToken.scopes)
+      ? staticToken.scopes
+      : typeof staticToken.scopes === "string"
+        ? JSON.parse(staticToken.scopes)
+        : [];
+    return { id: staticToken.id, role: staticToken.role, scopes };
+  }
+
+  // 2) OAuth 2.1 access token (mcp_oauth_tokens, prefix zat_).
+  if (authHeader?.startsWith("Bearer ")) {
+    const secret = authHeader.slice(7);
+    if (secret.startsWith("zat_")) {
+      const { sha256Hex } = await import("./mcp-oauth");
+      const [row] = await db
+        .select()
+        .from(schema.mcpOauthTokens)
+        .where(eq(schema.mcpOauthTokens.tokenHash, await sha256Hex(secret)))
+        .limit(1);
+      if (
+        row &&
+        row.kind === "access" &&
+        row.status === "active" &&
+        row.expiresAt >= new Date().toISOString()
+      ) {
+        // Role is taken from the user who approved the OAuth client.
+        const [user] = await db
+          .select({ role: schema.user.role })
+          .from(schema.user)
+          .where(eq(schema.user.id, row.userId))
+          .limit(1);
+        await db
+          .update(schema.mcpOauthTokens)
+          .set({ createdAt: sql`(datetime('now'))` })
+          .where(eq(schema.mcpOauthTokens.id, row.id))
+          .catch(() => undefined);
+        return {
+          id: `oauth:${row.id}`,
+          role: user?.role ?? "sales",
+          scopes: row.scope ? row.scope.split(" ") : [],
+        };
+      }
+    }
+  }
+  return null;
 }
 
 /**
