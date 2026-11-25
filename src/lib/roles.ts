@@ -18,6 +18,7 @@ export const ROUTE_ROLES: Record<string, StaffRole[]> = {
   "/mesin-follow-up": ["super_admin", "management", "sales"],
   "/akses-kepemilikan": ["super_admin", "management", "sales"],
   "/leaderboard": ["super_admin", "management", "sales"],
+  "/sales-report": ["super_admin", "management", "sales"],
   "/whatsapp-templates": ["super_admin", "management", "sales"],
   "/admin-console": ["super_admin", "management"],
   "/billing": ["super_admin", "management", "finance"],

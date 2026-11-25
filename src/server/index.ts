@@ -36,6 +36,7 @@ import bootstrapRouter from "./routes/bootstrap";
 import publicEnquiryRouter from "./routes/public-enquiry";
 import aiRouter from "./routes/ai";
 import aiWorkersRouter, { runAiWorkersCron } from "./routes/ai-workers";
+import salesReportRouter from "./routes/sales-report";
 import turnstileRouter from "./routes/turnstile";
 import { releaseExpiredHolds } from "./lib/seat-availability";
 import { runScheduledContent } from "./lib/scheduled-content";
@@ -170,6 +171,7 @@ app.route("/api/mcp-admin", mcpAdminRouter);
 app.route("/mcp", mcpRouter);
 app.route("/api/ai", aiRouter);
 app.route("/api/ai-workers", aiWorkersRouter);
+app.route("/api/sales-report", salesReportRouter);
 
 // Global error handler: log the real error + stack so a 500 is never a
 // silent mystery. Returns a JSON body the client can surface.

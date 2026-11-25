@@ -1773,3 +1773,36 @@ export const aiWorkerRuns = sqliteTable(
 
 export type AiWorkerRunRow = typeof aiWorkerRuns.$inferSelect;
 export type NewAiWorkerRunRow = typeof aiWorkerRuns.$inferInsert;
+
+// ---------------------------------------------------------------------------
+// Sales Report — monthly targets ("Team Mission"). One row per metric per
+// month; user_id NULL means the target applies to the whole sales team.
+// Progress is computed in the sales-report router from leads/activities.
+// ---------------------------------------------------------------------------
+
+export const salesTargets = sqliteTable(
+  "sales_targets",
+  {
+    id: text("id").primaryKey(),
+    /** Month key, YYYY-MM. */
+    month: text("month").notNull(),
+    /** Owning sales user id; NULL = team-wide target. */
+    userId: text("user_id"),
+    /** Which number this target measures. */
+    metric: text("metric", {
+      enum: ["leads", "followups", "won", "bookings", "revenue"],
+    }).notNull(),
+    targetValue: integer("target_value").notNull().default(0),
+    createdBy: text("created_by"),
+    createdAt: text("created_at")
+      .notNull()
+      .default(sql`(datetime('now'))`),
+  },
+  (table) => ({
+    monthIdx: index("sales_targets_month_idx").on(table.month),
+    userMonthIdx: index("sales_targets_user_month_idx").on(table.userId, table.month),
+  }),
+);
+
+export type SalesTargetRow = typeof salesTargets.$inferSelect;
+export type NewSalesTargetRow = typeof salesTargets.$inferInsert;
