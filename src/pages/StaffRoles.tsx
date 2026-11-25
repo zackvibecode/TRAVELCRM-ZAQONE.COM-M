@@ -21,6 +21,7 @@ import {
 import { cn } from "@/lib/utils";
 import { useLang } from "@/lib/i18n";
 import { apiFetch } from "@/lib/api";
+import { refreshPermissionMatrix } from "@/lib/permission-store";
 import {
   Dialog,
   DialogContent,
@@ -92,6 +93,35 @@ const INITIAL_PERMISSIONS: Record<StaffRole, Record<string, boolean>> = {
 // Empty until the backend staff API is wired up.
 const STUB_STAFF: StaffMember[] = [];
 
+/** Map a D1 `user` row (from GET /staff) onto the UI's StaffMember shape. */
+function toStaffMember(row: {
+  id: string;
+  name?: string;
+  email?: string;
+  role?: string;
+  status?: string;
+  emailVerified?: boolean;
+  createdAt?: string;
+}): StaffMember {
+  const name = row.name ?? row.email ?? "Staf";
+  const role = (row.role ?? "sales") as StaffRole;
+  const status: StaffStatus =
+    row.status === "suspended" ? "suspended" : row.status === "active" ? "active" : "invited";
+  return {
+    id: row.id,
+    name,
+    initials: name.split(/\s+/).filter(Boolean).slice(0, 2).map((p) => p[0]!.toUpperCase()).join(""),
+    email: row.email ?? "",
+    role,
+    status,
+    last: "—",
+    device: "—",
+    joined: row.createdAt ? row.createdAt.slice(0, 10) : "—",
+    twofa: false,
+    activity: 0,
+  };
+}
+
 interface ActivityEntry {
   id: string;
   who: string;
@@ -126,6 +156,33 @@ export default function StaffRoles() {
     setNotice(message);
     window.setTimeout(() => setNotice(""), 4000);
   }
+
+  // Load staff from D1 so the team list reflects real users (and their roles).
+  const [staffLoading, setStaffLoading] = useState(true);
+  function loadStaff() {
+    setStaffLoading(true);
+    apiFetch<{ staff?: Array<Record<string, unknown>> }>("/staff")
+      .then((res) => {
+        const rows = (res.staff ?? []) as Array<{
+          id: string;
+          name?: string;
+          email?: string;
+          role?: string;
+          status?: string;
+          emailVerified?: boolean;
+          createdAt?: string;
+        }>;
+        setStaff(rows.map(toStaffMember));
+      })
+      .catch(() => {
+        // Server unreachable — leave current list (may be empty).
+      })
+      .finally(() => setStaffLoading(false));
+  }
+  useEffect(() => {
+    loadStaff();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   // Load the saved permission matrix once on mount; fall back to defaults.
   useEffect(() => {
@@ -172,6 +229,8 @@ export default function StaffRoles() {
       });
       setSavedPermissions(permissions);
       showNotice(t("Matriks izin disimpan.", "Permission matrix saved."));
+      // Refresh the frontend matrix cache so sidebar/route guards update live.
+      void refreshPermissionMatrix();
     } catch (err) {
       showNotice(
         err instanceof Error ? err.message : t("Gagal simpan izin.", "Failed to save permissions."),
@@ -183,6 +242,19 @@ export default function StaffRoles() {
 
   function patchStaff(id: string, patch: Partial<StaffMember>) {
     setStaff((current) => current.map((p) => (p.id === id ? { ...p, ...patch } : p)));
+
+    // Persist role/status changes to the backend (best-effort; local state is
+    // already optimistic). Skip synthetic invite ids (s-…).
+    if (id.startsWith("s-")) return;
+    const body: Record<string, unknown> = {};
+    if (patch.role) body.role = patch.role;
+    if (patch.status === "active") body.status = "active";
+    if (patch.status === "suspended") body.status = "suspended";
+    if (Object.keys(body).length > 0) {
+      apiFetch(`/staff/${id}`, { method: "PATCH", body: JSON.stringify(body) })
+        .then(() => loadStaff())
+        .catch((err) => showNotice(err instanceof Error ? err.message : String(err)));
+    }
   }
 
   function submitInvite() {
@@ -200,28 +272,25 @@ export default function StaffRoles() {
       return;
     }
     const name = email.split("@")[0].replace(/[._-]+/g, " ").replace(/\b\w/g, (c) => c.toUpperCase());
-    const person: StaffMember = {
-      id: `s-${Date.now()}`,
-      name,
-      initials: name.split(" ").slice(0, 2).map((p) => p[0].toUpperCase()).join(""),
-      email,
-      role: invite.role,
-      status: "invited",
-      last: t("Belum pernah masuk", "Never signed in"),
-      device: "—",
-      joined: t("Diundang baru saja", "Invited just now"),
-      twofa: false,
-      activity: 0,
-    };
-    setStaff((current) => [person, ...current]);
-    setSelectedId(person.id);
-    setTab("team");
-    setQuery("");
-    setRoleFilter("all");
-    setInvite({ email: "", role: "sales" });
-    setInviteError("");
-    setInviteOpen(false);
-    showNotice(t(`Undangan dikirim ke ${email} sebagai ${ROLE_LABELS[invite.role].en}`, `Invite sent to ${email} as ${ROLE_LABELS[invite.role].en}`));
+    // Create the user server-side (status: active, role set by admin) and
+    // reload the list so the new staff member appears with a real id.
+    apiFetch<{ success: boolean; staff?: Record<string, unknown> }>("/staff", {
+      method: "POST",
+      body: JSON.stringify({ name, email: email.toLowerCase(), role: invite.role }),
+    })
+      .then(() => {
+        loadStaff();
+        setTab("team");
+        setQuery("");
+        setRoleFilter("all");
+        setInvite({ email: "", role: "sales" });
+        setInviteError("");
+        setInviteOpen(false);
+        showNotice(t(`Staf ${email} ditambah sebagai ${ROLE_LABELS[invite.role].en}`, `Staff ${email} added as ${ROLE_LABELS[invite.role].en}`));
+      })
+      .catch((err) => {
+        setInviteError(err instanceof Error ? err.message : String(err));
+      });
   }
 
   const visible = useMemo(
@@ -324,7 +393,12 @@ export default function StaffRoles() {
                 </select>
               </label>
             </div>
-            {visible.length === 0 ? (
+            {staffLoading ? (
+              <div className="flex items-center justify-center gap-2 px-5 py-12 text-muted-foreground">
+                <Loader2 className="h-4 w-4 animate-spin" />
+                <span className="text-[13px]">{t("Memuatkan staf…", "Loading staff…")}</span>
+              </div>
+            ) : visible.length === 0 ? (
               <div className="px-5 py-12 text-center">
                 <p className="font-semibold">{t("Tiada staf sepadan", "No matching staff")}</p>
                 <p className="mt-1.5 text-[13px] text-muted-foreground">{t("Ubah kata kunci atau peran.", "Change the keyword or role filter.")}</p>

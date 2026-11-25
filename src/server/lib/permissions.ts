@@ -92,6 +92,76 @@ export function canPerform(
   return PERMISSIONS[action]?.includes(role) ?? false;
 }
 
+/**
+ * The Staff Access "Role Permission Matrix" shape as stored in app_settings
+ * under the key `permissions`: `{ [role]: { [moduleId]: boolean } }`.
+ * Modules mirror the coarse CRM modules (bookings, packages, trips, ...).
+ */
+export type PermissionMatrix = Record<
+  string,
+  Record<string, boolean> | undefined
+>;
+
+/** Map a module id from the permission matrix onto its fine-grained action. */
+const MODULE_WRITE_ACTION: Record<string, PermissionAction> = {
+  bookings: "bookings:write",
+  customers: "customers:write",
+  billing: "invoices:write",
+  packages: "packages:write",
+  trips: "trips:write",
+  website: "website:write",
+  staff: "staff:manage",
+  mcp: "mcp:manage",
+};
+
+const MODULE_READ_ACTION: Record<string, PermissionAction> = {
+  bookings: "bookings:read",
+  customers: "customers:read",
+  billing: "invoices:read",
+  packages: "packages:read",
+  trips: "trips:read",
+  website: "website:read",
+  staff: "staff:manage",
+  mcp: "mcp:manage",
+};
+
+/**
+ * Resolve whether `role` may perform `action`, preferring the admin-configured
+ * matrix (from app_settings) and falling back to the hardcoded PERMISSIONS.
+ *
+ * The matrix only carries coarse module booleans, so we map an action to the
+ * module that owns it and treat that module's boolean as the source of truth.
+ * If the matrix has no entry for the owning module, we fall back to the static
+ * PERMISSIONS map so behaviour never breaks when a module is unconfigured.
+ */
+export function canPerformWithMatrix(
+  role: AuthRole | undefined,
+  action: PermissionAction,
+  matrix: PermissionMatrix | null | undefined,
+): boolean {
+  if (!role) return false;
+
+  // super_admin always passes (defence in depth — matrix can't lock them out).
+  if (role === "super_admin") return true;
+
+  if (matrix && typeof matrix === "object") {
+    const row = matrix[role];
+    if (row && typeof row === "object") {
+      // Prefer the write module first, then the read module.
+      for (const map of [MODULE_WRITE_ACTION, MODULE_READ_ACTION]) {
+        for (const [moduleId, mappedAction] of Object.entries(map)) {
+          if (mappedAction === action && typeof row[moduleId] === "boolean") {
+            return row[moduleId] as boolean;
+          }
+        }
+      }
+    }
+  }
+
+  // Fall back to the static matrix.
+  return canPerform(role, action);
+}
+
 export function permissionsFor(role: AuthRole): PermissionAction[] {
   return (Object.keys(PERMISSIONS) as PermissionAction[]).filter((a) =>
     PERMISSIONS[a].includes(role),

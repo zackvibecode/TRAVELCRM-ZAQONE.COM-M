@@ -11,6 +11,8 @@ import { Link } from "react-router-dom";
 import type { TravelPackage } from "@/lib/types";
 import { cn } from "@/lib/utils";
 import { useLang } from "@/lib/i18n";
+import { getSession } from "@/lib/auth";
+import { canWriteModule, usePermissionMatrix } from "@/lib/permission-store";
 import CreatePackageDialog from "@/components/CreatePackageDialog";
 
 type TFn = (ms: string, en: string) => string;
@@ -115,6 +117,10 @@ export default function PackageCatalog() {
   const [createOpen, setCreateOpen] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
 
+  // Gate the "New Package" button on the admin permission matrix (packages module).
+  usePermissionMatrix();
+  const canCreate = canWriteModule("packages", getSession()?.role);
+
   // Live packages from D1 (falls back to mock inside the loader).
   const loadList = () => {
     (async () => {
@@ -196,7 +202,8 @@ export default function PackageCatalog() {
         <button
           type="button"
           onClick={() => { setEditingId(null); setCreateOpen(true); }}
-          className="inline-flex h-9 flex-none cursor-pointer items-center gap-1.5 rounded-[var(--radius-control)] bg-[var(--color-primary)] px-3.5 text-[12.5px] font-semibold text-[var(--color-on-primary)] transition-opacity duration-150 hover:opacity-90 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--color-focus-ring)]"
+          disabled={!canCreate}
+          className="inline-flex h-9 flex-none cursor-pointer items-center gap-1.5 rounded-[var(--radius-control)] bg-[var(--color-primary)] px-3.5 text-[12.5px] font-semibold text-[var(--color-on-primary)] transition-opacity duration-150 hover:opacity-90 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[var(--color-focus-ring)] disabled:cursor-not-allowed disabled:opacity-50"
         >
           <Plus className="h-3.5 w-3.5" aria-hidden="true" />
           {t("Tambah Pakej", "New Package")}

@@ -1,4 +1,5 @@
 import type { StaffRole } from "@/lib/auth";
+import { canAccessWithMatrix } from "@/lib/permission-store";
 
 /**
  * Central access map. Every protected route declares the roles allowed to
@@ -51,7 +52,9 @@ export function canAccess(path: string, role: StaffRole | undefined): boolean {
   if (!role) return false;
   const allowed = ROUTE_ROLES[path];
   if (!allowed) return true;
-  return allowed === ALL_ROLES || allowed.includes(role);
+  const fallback = allowed === ALL_ROLES || allowed.includes(role);
+  // Honour the admin-configured matrix when it has been loaded.
+  return canAccessWithMatrix(path, role, fallback);
 }
 
 export function allowedRolesLabel(path: string): StaffRole[] {

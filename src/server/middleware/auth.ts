@@ -1,7 +1,13 @@
 import type { Context, MiddlewareHandler, Next } from "hono";
 import { getAuth } from "../lib/auth-context";
 import type { AuthEnv, StaffIdentity } from "../lib/auth-context";
-import { canPerform, type PermissionAction } from "../lib/permissions";
+import {
+  canPerformWithMatrix,
+  type PermissionAction,
+  type PermissionMatrix,
+} from "../lib/permissions";
+import * as schema from "../db/schema";
+import { eq } from "drizzle-orm";
 
 /**
  * The Better Auth bearer plugin only rewrites `Authorization: Bearer` into a
@@ -163,21 +169,39 @@ export function requireRole(...allowed: Role[]): MiddlewareHandler {
 
 /**
  * Fine-grained permission enforcement (after requireStaffSession/requireRole).
- * Checks the central PERMISSIONS matrix for `resource:action`.
+ * Checks the admin-configured permission matrix (app_settings `permissions`)
+ * first, falling back to the central PERMISSIONS matrix for `resource:action`.
  */
 export function requirePermission(action: PermissionAction): MiddlewareHandler {
   return async (c, next) => {
-    const staff = (c as unknown as Context<AuthEnv>).get("staff") as
-      | StaffIdentity
-      | undefined;
+    const ctx = c as unknown as Context<AuthEnv>;
+    const staff = ctx.get("staff") as StaffIdentity | undefined;
     const role =
       staff?.role ??
-      ((c.get("userRole") as Role | undefined) ?? undefined);
+      ((ctx.get("userRole") as Role | undefined) ?? undefined);
 
     if (!role) {
       return c.json({ error: "unauthorized" }, 401);
     }
-    if (!canPerform(role, action)) {
+
+    // Load the admin-configured matrix (LRU-ish: one query per request max).
+    // The settings routes already gated this write behind super_admin, so a
+    // missing/empty row simply means "use defaults".
+    let matrix: PermissionMatrix | null = null;
+    try {
+      const db = ctx.get("db");
+      const row = await db
+        .select({ value: schema.appSettings.value })
+        .from(schema.appSettings)
+        .where(eq(schema.appSettings.key, "permissions"))
+        .limit(1);
+      matrix = (row[0]?.value as PermissionMatrix | null) ?? null;
+    } catch {
+      // DB read failed — fall through to static matrix only.
+      matrix = null;
+    }
+
+    if (!canPerformWithMatrix(role, action, matrix)) {
       return c.json(
         {
           error: "forbidden",

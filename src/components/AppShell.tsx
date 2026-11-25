@@ -45,6 +45,7 @@ import { useLang, type Lang } from "@/lib/i18n";
 import { AiAssistantFab } from "@/pages/AiAssistant";
 import { getSession, logout, type StaffRole } from "@/lib/auth";
 import { canAccess } from "@/lib/roles";
+import { usePermissionMatrix } from "@/lib/permission-store";
 import { useBranding } from "@/lib/useBranding";
 import { followupApi } from "@/lib/followup-api";
 
@@ -229,6 +230,13 @@ export default function AppShell() {
   const [openGroups, setOpenGroups] = useState<Record<string, boolean>>({});
   const { pathname: navPathname } = useLocation();
 
+  // Reset scroll to the top whenever the route changes, so navigating via the
+  // sidebar (or any link) never leaves the window stuck at a previous scroll
+  // position.
+  useEffect(() => {
+    window.scrollTo({ top: 0, left: 0, behavior: "instant" as ScrollBehavior });
+  }, [navPathname]);
+
   // Auto-expand the collapsible groups when the user is already inside one
   // of their pages, so the current location is never hidden.
   useEffect(() => {
@@ -254,6 +262,9 @@ export default function AppShell() {
   const branding = useBranding();
   const navigate = useNavigate();
   const session = getSession();
+  // Load the admin permission matrix so the sidebar reflects Staff Access
+  // settings (and re-renders once it arrives).
+  usePermissionMatrix();
 
   // Global search / command palette state.
   const [searchOpen, setSearchOpen] = useState(false);
