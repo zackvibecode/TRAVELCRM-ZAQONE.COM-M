@@ -1,6 +1,6 @@
 ﻿import { useState } from "react";
 import { useLocation, useNavigate, Link } from "react-router-dom";
-import { Languages, Lock, LogIn, Mail, Eye, EyeOff, type LucideIcon } from "lucide-react";
+import { Languages, Lock, LogIn, Mail, Eye, EyeOff, ShieldCheck, type LucideIcon } from "lucide-react";
 import { useLang } from "@/lib/i18n";
 import { login, verifyTurnstile } from "@/lib/auth";
 import TurnstileWidget, { getTurnstileSiteKey } from "@/components/TurnstileWidget";
@@ -162,6 +162,15 @@ export default function LoginPage() {
               onToken={setTurnstileToken}
               resetKey={turnstileReset}
             />
+            {!getTurnstileSiteKey() && (
+              <p className="au-sub" style={{ display: "flex", alignItems: "center", gap: 6 }}>
+                <ShieldCheck size={13} style={{ flex: "none" }} />
+                {t(
+                  "Keselamatan Cloudflare Turnstile belum diaktifkan — aktifkan di dashboard Cloudflare.",
+                  "Cloudflare Turnstile security is not active yet — enable it in the Cloudflare dashboard.",
+                )}
+              </p>
+            )}
 
             <div className="flex items-center justify-between">
               <Link to="/forgot-password" className="au-link">
