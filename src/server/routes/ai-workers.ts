@@ -293,16 +293,87 @@ aiWorkersRouter.post("/runs/:id/apply", async (c) => {
   const result = run.result as unknown as {
     draft?: Record<string, unknown>;
     matchedPackageId?: string | null;
+    draftItinerary?: Array<Record<string, unknown>>;
   };
   const draft = result?.draft;
-  const packageId = result?.matchedPackageId;
-  if (!draft || !packageId) {
+  if (!draft) {
     await db
       .update(schema.aiWorkerRuns)
-      .set({ status: "failed", summary: "Run tiada draft/pakej — tidak boleh diaplikasi" })
+      .set({ status: "failed", summary: "Run tiada draft — tidak boleh diaplikasi" })
       .where(eq(schema.aiWorkerRuns.id, id));
-    return c.json({ success: false, error: "run has no draft or matched package" }, 409);
+    return c.json({ success: false, error: "run has no draft" }, 409);
   }
+
+  const staff = c.get("staff");
+  const now = new Date().toISOString();
+
+  // ---- Case 1: no matching package → CREATE a new package from the draft ----
+  if (!result?.matchedPackageId) {
+    const name = typeof draft.name === "string" && draft.name.trim() ? draft.name.trim() : null;
+    const destination =
+      typeof draft.destination === "string" && draft.destination.trim() && draft.destination.trim() !== "-"
+        ? draft.destination.trim()
+        : null;
+    if (!name || !destination) {
+      return c.json(
+        { success: false, error: "draft missing name or destination" },
+        409,
+      );
+    }
+    const itinerary = Array.isArray(result?.draftItinerary)
+      ? result.draftItinerary
+      : Array.isArray(draft.itinerary)
+        ? (draft.itinerary as Array<Record<string, unknown>>)
+        : [];
+    const newId = crypto.randomUUID();
+    await db.run(sql`
+      INSERT INTO packages (
+        id, name, destination, duration_days, description, highlights, itinerary,
+        inclusions, exclusions, adult_price, child_price, infant_price, images,
+        publish_status, created_at, updated_at
+      )
+      VALUES (
+        ${newId}, ${name}, ${destination},
+        ${Number(draft.durationDays) || itinerary.length || 0},
+        ${typeof draft.description === "string" ? draft.description : null},
+        ${JSON.stringify(Array.isArray(draft.highlights) ? draft.highlights : [])},
+        ${JSON.stringify([])},
+        ${JSON.stringify(Array.isArray(draft.inclusions) ? draft.inclusions : [])},
+        ${JSON.stringify(Array.isArray(draft.exclusions) ? draft.exclusions : [])},
+        ${Number(draft.adultPrice) || 0}, ${Number(draft.childPrice) || 0}, ${Number(draft.infantPrice) || 0},
+        ${JSON.stringify([])},
+        'published', ${now}, ${now}
+      )
+    `);
+    // Day-by-day itinerary rows (same table the AI assistant writes to).
+    for (const [index, day] of itinerary.entries()) {
+      const d = (day ?? {}) as Record<string, unknown>;
+      await db.run(sql`
+        INSERT INTO package_itinerary_items (id, package_id, day_number, title, description, meal_included, sort_order, created_at)
+        VALUES (
+          ${crypto.randomUUID()}, ${newId}, ${Number(d.dayNumber) || index + 1},
+          ${typeof d.title === "string" ? d.title : null},
+          ${typeof d.description === "string" ? d.description : null},
+          ${JSON.stringify(Array.isArray(d.mealIncluded) ? d.mealIncluded : [])},
+          ${index + 1}, ${now}
+        )
+      `);
+    }
+    await db
+      .update(schema.aiWorkerRuns)
+      .set({
+        status: "done",
+        packageId: newId,
+        appliedAt: sql`datetime('now')`,
+        staffId: staff?.id ?? run.staffId,
+        summary: `Pakej baru "${name}" dicipta dari PDF (${itinerary.length} hari) — live di website`,
+      })
+      .where(eq(schema.aiWorkerRuns.id, id));
+    return c.json({ success: true, created: true, packageId: newId, name });
+  }
+
+  // ---- Case 2: matched package → apply the approved diff ----
+  const packageId = result.matchedPackageId;
 
   // Whitelist the fields a PDF apply may change. Only non-empty values are
   // written (the draft already respects this) — prices included, because the
@@ -338,7 +409,6 @@ aiWorkersRouter.post("/runs/:id/apply", async (c) => {
     .set(updates)
     .where(eq(schema.packages.id, packageId));
 
-  const staff = c.get("staff");
   await db
     .update(schema.aiWorkerRuns)
     .set({ status: "done", appliedAt: sql`datetime('now')`, staffId: staff?.id ?? run.staffId })

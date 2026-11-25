@@ -398,6 +398,8 @@ function PendingReviewCard(props: {
   };
   const diff = result.diff ?? [];
   const matched = Boolean(result.matchedPackageId);
+  const draftName = typeof result.draft?.name === "string" ? result.draft.name : null;
+  const canApply = matched ? diff.length > 0 : Boolean(draftName);
 
   return (
     <div className={`${PANEL} flex flex-col gap-3 p-5`}>
@@ -424,40 +426,51 @@ function PendingReviewCard(props: {
         )}
       </div>
 
-      {diff.length === 0 ? (
+      {matched ? (
+        diff.length === 0 ? (
+          <p className="text-[12.5px] text-[var(--color-text-secondary)]">
+            {t(
+              "Tiada perbezaan dikenal pasti dengan pakej sedia ada.",
+              "No differences detected against the existing package.",
+            )}
+          </p>
+        ) : (
+          <div className="overflow-hidden rounded-[var(--radius-control)] border border-[var(--color-border)]">
+            {diff.map((d) => (
+              <div
+                key={d.field}
+                className="grid grid-cols-[110px_1fr_1fr] gap-2 border-b border-[var(--color-border)] px-3 py-2 text-[12px] last:border-b-0"
+              >
+                <span className="font-semibold text-[var(--color-text-secondary)]">{d.field}</span>
+                <span className="break-words text-[var(--color-text-secondary)] line-through decoration-[var(--color-danger)]">
+                  {String(d.oldValue ?? "—").slice(0, 160)}
+                </span>
+                <span className="break-words font-medium text-[var(--color-text)]">
+                  {String(d.newValue ?? "—").slice(0, 160)}
+                </span>
+              </div>
+            ))}
+          </div>
+        )
+      ) : (
         <p className="text-[12.5px] text-[var(--color-text-secondary)]">
           {t(
-            "Tiada perbezaan dikenal pasti dengan pakej sedia ada.",
-            "No differences detected against the existing package.",
+            "Tiada pakej sedia ada sepadan. Klik Terapkan untuk cipta pakej baru terus dari PDF — ia akan terus live di website.",
+            "No existing package matched. Click Apply to create a new package straight from the PDF — it goes live on the website immediately.",
           )}
         </p>
-      ) : (
-        <div className="overflow-hidden rounded-[var(--radius-control)] border border-[var(--color-border)]">
-          {diff.map((d) => (
-            <div
-              key={d.field}
-              className="grid grid-cols-[110px_1fr_1fr] gap-2 border-b border-[var(--color-border)] px-3 py-2 text-[12px] last:border-b-0"
-            >
-              <span className="font-semibold text-[var(--color-text-secondary)]">{d.field}</span>
-              <span className="break-words text-[var(--color-text-secondary)] line-through decoration-[var(--color-danger)]">
-                {String(d.oldValue ?? "—").slice(0, 160)}
-              </span>
-              <span className="break-words font-medium text-[var(--color-text)]">
-                {String(d.newValue ?? "—").slice(0, 160)}
-              </span>
-            </div>
-          ))}
-        </div>
       )}
 
       <div className="flex gap-2">
         <button
           type="button"
-          disabled={busy || !matched || diff.length === 0}
+          disabled={busy || !canApply}
           onClick={onApply}
           className={`${BTN_PRIMARY} flex-1 justify-center`}
         >
-          {t("Terapkan Perubahan", "Apply Changes")}
+          {matched
+            ? t("Terapkan Perubahan", "Apply Changes")
+            : t("Cipta Pakej Baru", "Create New Package")}
         </button>
         <button
           type="button"
