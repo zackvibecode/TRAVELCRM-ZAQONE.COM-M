@@ -78,6 +78,7 @@ const MODULES = [
   { id: "bookings", ms: "Tempahan", en: "Bookings" },
   { id: "customers", ms: "Pelanggan & Lead", en: "Customer & Lead" },
   { id: "followup", ms: "Follow-Up & Lead Pipeline", en: "Follow-Up & Lead Pipeline" },
+  { id: "share_report", ms: "Team Sales Share Report", en: "Team Sales Share Report" },
   { id: "billing", ms: "Billing & Pembayaran", en: "Billing & Payments" },
   { id: "packages", ms: "Pakej", en: "Packages" },
   { id: "trips", ms: "Trip & Kerusi", en: "Trips & Seats" },
@@ -87,11 +88,11 @@ const MODULES = [
 ];
 
 const INITIAL_PERMISSIONS: Record<StaffRole, Record<string, boolean>> = {
-  super_admin: { bookings: true, customers: true, followup: true, billing: true, packages: true, trips: true, website: true, staff: true, mcp: true },
-  management: { bookings: true, customers: true, followup: true, billing: true, packages: true, trips: true, website: true, staff: false, mcp: false },
-  sales: { bookings: true, customers: true, followup: true, billing: false, packages: true, trips: false, website: false, staff: false, mcp: false },
-  finance: { bookings: true, customers: false, followup: false, billing: true, packages: false, trips: false, website: false, staff: false, mcp: false },
-  operations: { bookings: true, customers: false, followup: false, billing: false, packages: true, trips: true, website: false, staff: false, mcp: false },
+  super_admin: { bookings: true, customers: true, followup: true, share_report: true, billing: true, packages: true, trips: true, website: true, staff: true, mcp: true },
+  management: { bookings: true, customers: true, followup: true, share_report: true, billing: true, packages: true, trips: true, website: true, staff: false, mcp: false },
+  sales: { bookings: true, customers: true, followup: true, share_report: true, billing: false, packages: true, trips: false, website: false, staff: false, mcp: false },
+  finance: { bookings: true, customers: false, followup: false, share_report: false, billing: true, packages: false, trips: false, website: false, staff: false, mcp: false },
+  operations: { bookings: true, customers: false, followup: false, share_report: false, billing: false, packages: true, trips: true, website: false, staff: false, mcp: false },
 };
 
 // Empty until the backend staff API is wired up.

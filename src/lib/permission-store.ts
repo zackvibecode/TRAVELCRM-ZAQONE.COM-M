@@ -30,7 +30,7 @@ const ROUTE_TO_MODULE: Record<string, string> = {
   "/mesin-follow-up": "followup",
   "/akses-kepemilikan": "followup",
   "/leaderboard": "followup",
-  "/sales-report": "followup",
+  "/sales-report": "share_report",
   "/whatsapp-templates": "followup",
   "/admin-console": "staff",
   "/billing": "billing",
