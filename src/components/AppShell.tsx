@@ -39,6 +39,7 @@ import {
   Settings2,
   Workflow,
   Lock,
+  Smartphone,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useLang, type Lang } from "@/lib/i18n";
@@ -48,6 +49,7 @@ import { canAccess } from "@/lib/roles";
 import { usePermissionMatrix } from "@/lib/permission-store";
 import { useBranding } from "@/lib/useBranding";
 import { followupApi } from "@/lib/followup-api";
+import { getInstallPrompt, onInstallAvailability, isStandalone, type InstallPrompt } from "@/lib/pwa";
 
 const ROLE_BADGE: Record<StaffRole, { ms: string; en: string }> = {
   super_admin: { ms: "Super Admin", en: "Super Admin" },
@@ -296,6 +298,16 @@ export default function AppShell() {
     await logout();
     navigate("/login", { replace: true });
   };
+
+  // PWA install: show "Install App" when the browser allows it.
+  const [install, setInstall] = useState<InstallPrompt | null>(getInstallPrompt());
+  useEffect(() => {
+    const off = onInstallAvailability((available) => {
+      setInstall(available ? getInstallPrompt() : null);
+    });
+    return off;
+  }, []);
+  const [iosHint, setIosHint] = useState(false);
 
   // Susunan navigasi ikut shell prototaip DesainPakeAI: Overview / Operations
   // / Platform. Semua rute sedia ada dikekalkan supaya tak ada functionality
@@ -678,6 +690,29 @@ export default function AppShell() {
                         {session?.email ?? ""}
                       </div>
                     </div>
+                    {install && !isStandalone() && (
+                      <button
+                        onClick={() => {
+                          if (install.isIos) {
+                            setIosHint((v) => !v);
+                            return;
+                          }
+                          void install.prompt().then(() => setIosHint(false));
+                        }}
+                        className="mt-1 flex w-full items-center gap-2 rounded-lg px-3 py-2 text-sm text-[var(--color-primary)] hover:bg-[var(--color-primary-soft)]"
+                      >
+                        <Smartphone className="h-4 w-4" />
+                        {t("Pasang App", "Install App")}
+                      </button>
+                    )}
+                    {iosHint && (
+                      <p className="rounded-lg bg-[var(--color-surface-muted)] px-3 py-2 text-[11.5px] leading-relaxed text-muted-foreground">
+                        {t(
+                          "iOS: tekan butang Share (kotak dengan anak panah atas) → pilih \u201cAdd to Home Screen\u201d.",
+                          "iOS: tap the Share button (box with the up arrow) \u2192 choose \u201cAdd to Home Screen\u201d.",
+                        )}
+                      </p>
+                    )}
                     <button
                       onClick={handleSignOut}
                       className="mt-1 flex w-full items-center gap-2 rounded-lg px-3 py-2 text-sm text-[var(--color-danger)] hover:bg-[var(--color-danger-soft)]"
