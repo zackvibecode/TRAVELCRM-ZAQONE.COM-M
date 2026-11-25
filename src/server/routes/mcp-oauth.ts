@@ -215,18 +215,74 @@ oauthRouter.get("/authorize", async (c) => {
     return fail("invalid_scope", "no valid scopes requested");
   }
 
-  // Resolve the CRM session; the user must be signed in to approve.
+  // Resolve the CRM session; the user must be signed in to approve. The
+  // authorize popup is a THIRD-PARTY context (opened by ChatGPT/Claude), so
+  // the CRM session cookie is often not sent there. Redirecting to the SPA
+  // leaves the user stuck on a blank/stale page — instead this endpoint is
+  // SELF-CONTAINED: it renders its own sign-in + approve page (same-origin,
+  // first-party cookie) and issues the code directly on submit.
   const session = await auth.api.getSession({ headers: c.req.raw.headers });
   const user = session?.user as
     | { id: string; name: string; email: string; status?: string }
     | undefined;
+
   if (!user || user.status !== "active") {
-    // Not signed in — point the user at the CRM login, preserving the full
-    // authorize URL so the flow resumes right after sign-in.
-    const loginUrl = new URL("https://travelcrm.zaqone.com/");
-    loginUrl.searchParams.set("mcp_authorize", c.req.url);
-    return c.redirect(loginUrl.toString(), 302);
+    // Not signed in: render the minimal sign-in page (GET, no JS deps).
+    const pageUrl = c.req.url;
+    const html = `<!doctype html>
+<html lang="ms"><head><meta charset="utf-8"/>
+<meta name="viewport" content="width=device-width,initial-scale=1"/>
+<title>Sign in — MCP Authorization</title>
+<style>
+  body{font-family:Inter,system-ui,sans-serif;background:#f4f8ff;display:grid;place-items:center;min-height:100vh;margin:0}
+  .card{background:#fff;border:1px solid #e2eaf7;border-radius:16px;padding:32px;width:min(380px,90vw);box-shadow:0 8px 24px rgba(17,26,44,.08)}
+  h1{font-size:18px;margin:0 0 4px;color:#111a2c}
+  p.sub{font-size:13px;color:#66738a;margin:0 0 18px}
+  label{display:block;font-size:12px;font-weight:600;color:#3f4a5f;margin:12px 0 4px}
+  input{width:100%;box-sizing:border-box;padding:10px 12px;border:1px solid #cbd9ee;border-radius:8px;font-size:14px}
+  button{width:100%;margin-top:18px;padding:11px;background:#2563eb;color:#fff;border:0;border-radius:8px;font-size:14px;font-weight:600;cursor:pointer}
+  button:disabled{opacity:.6;cursor:wait}
+  .err{display:none;background:#fdecec;color:#b3261e;border:1px solid #f5c6c6;border-radius:8px;padding:8px 12px;font-size:13px;margin-bottom:12px}
+</style></head>
+<body><div class="card">
+  <h1>Sign in to approve access</h1>
+  <p class="sub">Sign in to your CRM account to connect this AI client.</p>
+  <div class="err" id="err"></div>
+  <form id="f">
+    <label for="email">Email</label>
+    <input id="email" name="email" type="email" required autocomplete="email"/>
+    <label for="password">Password</label>
+    <input id="password" name="password" type="password" required autocomplete="current-password"/>
+    <button type="submit" id="go">Sign in &amp; continue</button>
+  </form>
+</div>
+<script>
+const F = document.getElementById('f'), E = document.getElementById('err'), B = document.getElementById('go');
+F.addEventListener('submit', async (ev) => {
+  ev.preventDefault();
+  B.disabled = true; E.style.display = 'none';
+  const email = document.getElementById('email').value.trim();
+  const password = document.getElementById('password').value;
+  try {
+    // Sign in server-side (same-origin) so the session cookie is set here.
+    const si = await fetch('/auth/sign-in/email', {
+      method: 'POST', headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify({ email, password })
+    });
+    if (!si.ok) { throw new Error((await si.json().catch(() => ({}))).message || 'Invalid email or password'); }
+    // Session established — reload the authorize URL to continue the flow.
+    window.location.replace(${JSON.stringify(pageUrl)});
+  } catch (e) {
+    E.textContent = e.message || 'Sign-in failed';
+    E.style.display = 'block';
+    B.disabled = false;
   }
+});
+</script>
+</body></html>`;
+    return c.newResponse(html, 200, { "Content-Type": "text/html; charset=utf-8" });
+  }
+
 
   const code = randomToken("code");
   const expiresAt = new Date(Date.now() + CODE_TTL_S * 1000).toISOString();
