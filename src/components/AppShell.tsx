@@ -77,6 +77,21 @@ type NavItem = {
  */
 const COLLAPSIBLE_GROUPS: NavItem[] = [
   {
+    to: "/mesin-follow-up",
+    label: "Susulan (Follow-Up)",
+    icon: Workflow,
+    children: [
+      { to: "/mesin-follow-up", label: "Mesin Follow-Up", icon: Workflow },
+      { to: "/followups", label: "Pusat Susulan", icon: ListChecks },
+      { to: "/lead-management", label: "Pengurusan Lead", icon: UserCircle2 },
+      { to: "/lead-import", label: "Import Lead", icon: FileSpreadsheet },
+      { to: "/whatsapp-templates", label: "Templat WhatsApp", icon: MessageCircle },
+      { to: "/leaderboard", label: "Dashboard & Peringkat", icon: Trophy },
+      { to: "/akses-kepemilikan", label: "Akses & Kepemilikan", icon: Lock },
+      { to: "/admin-console", label: "Konsol Admin", icon: Settings2 },
+    ],
+  },
+  {
     to: "/ai-tokens",
     label: "AI & Integrasi",
     icon: Bot,
@@ -126,6 +141,14 @@ function translateChildLabel(
     "/ai-tokens": ["Token Akses AI", "AI Access Tokens"],
     "/ai-workers": ["AI Workers", "AI Workers"],
     "/mcp-audit": ["Log Audit MCP", "MCP Audit Log"],
+    "/mesin-follow-up": ["Mesin Follow-Up", "Follow-Up Engine"],
+    "/followups": ["Pusat Susulan", "Follow-Up Center"],
+    "/lead-management": ["Pengurusan Lead", "Lead Management"],
+    "/lead-import": ["Import Lead", "Import Leads"],
+    "/whatsapp-templates": ["Templat WhatsApp", "WhatsApp Templates"],
+    "/leaderboard": ["Dashboard & Peringkat", "Dashboard & Ranking"],
+    "/akses-kepemilikan": ["Akses & Kepemilikan", "Access & Ownership"],
+    "/admin-console": ["Konsol Admin", "Admin Console"],
   };
   const entry = map[to];
   return entry ? t(entry[0], entry[1]) : to;
@@ -338,14 +361,15 @@ export default function AppShell() {
     {
       title: t("Susulan", "Follow-Up"),
       items: [
-        { to: "/mesin-follow-up", label: t("Mesin Follow-Up", "Follow-Up Engine"), icon: Workflow },
-        { to: "/followups", label: t("Pusat Susulan", "Follow-Up Center"), icon: ListChecks },
-        { to: "/lead-management", label: t("Pengurusan Lead", "Lead Management"), icon: UserCircle2 },
-        { to: "/lead-import", label: t("Import Lead", "Import Leads"), icon: FileSpreadsheet },
-        { to: "/whatsapp-templates", label: t("Templat WhatsApp", "WhatsApp Templates"), icon: MessageCircle },
-        { to: "/leaderboard", label: t("Dashboard & Peringkat", "Dashboard & Ranking"), icon: Trophy },
-        { to: "/akses-kepemilikan", label: t("Akses & Kepemilikan", "Access & Ownership"), icon: Lock },
-        { to: "/admin-console", label: t("Konsol Admin", "Admin Console"), icon: Settings2 },
+        {
+          to: "/mesin-follow-up",
+          label: t("Susulan (Follow-Up)", "Follow-Up"),
+          icon: Workflow,
+          children: COLLAPSIBLE_GROUPS[0].children?.map((c) => ({
+            ...c,
+            label: translateChildLabel(c.to, t),
+          })),
+        },
       ],
     },
     {
