@@ -124,9 +124,14 @@ export default function FollowUpEngine() {
   interface StaffFuCount { userId: string; name: string; fu1: number; fu2: number; fu3: number; }
   // FU1/FU2/FU3 = follow-ups COMPLETED (confirmed WhatsApp actions), not
   // leads waiting at a stage — each number is work the staff has done.
+  // Sales only ever see their own numbers (the backend already scopes the
+  // rows; this also hides other staff from the UI entirely).
+  const isAdmin = session?.role === "super_admin" || session?.role === "management";
   const report = useMemo<StaffFuCount[]>(() => {
     const map = new Map<string, StaffFuCount>();
+    const myId = session?.userId;
     for (const row of reportQuery.data ?? []) {
+      if (!isAdmin && row.userId !== myId) continue; // sales: own data only
       const e = map.get(row.userId) ?? { userId: row.userId, name: row.name, fu1: 0, fu2: 0, fu3: 0 };
       if (row.stage === "FU1") e.fu1 += row.count;
       else if (row.stage === "FU2") e.fu2 += row.count;
@@ -136,7 +141,7 @@ export default function FollowUpEngine() {
     return [...map.values()].sort(
       (a, b) => (b.fu1 + b.fu2 + b.fu3) - (a.fu1 + a.fu2 + a.fu3),
     );
-  }, [reportQuery.data]);
+  }, [reportQuery.data, isAdmin, session?.userId]);
 
   const visible = useMemo(
     () =>
@@ -294,10 +299,10 @@ export default function FollowUpEngine() {
         ))}
       </div>
 
-      {/* Per-staff FU1/FU2/FU3 report */}
+      {/* Per-staff FU1/FU2/FU3 report — admins see the team, sales see themselves */}
       <Card>
         <CardHead
-          title={t("Report pasukan", "Team report")}
+          title={isAdmin ? t("Report pasukan", "Team report") : t("Prestasi saya", "My performance")}
           aside={<span className="text-[11.5px] text-muted-foreground">{t("Follow-up dh dibuat (disahkan)", "Follow-ups completed (confirmed)")}</span>}
         />
         <div className="grid grid-cols-1 gap-4 p-5 sm:grid-cols-3">
