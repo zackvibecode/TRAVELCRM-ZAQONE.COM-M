@@ -152,6 +152,38 @@ export function validateAi(value: Record<string, unknown>): ValidationResult {
   return { valid: Object.keys(errors).length === 0, errors };
 }
 
+/**
+ * Validate a `permissions` payload — the Staff Access "Role Permission
+ * Matrix". Shape: { [role]: { [moduleId]: boolean } }. Every role must carry
+ * every module id as a boolean, and super_admin must always keep Staff
+ * Access so an admin can never lock themselves out of this page.
+ */
+const PERMISSION_ROLES = ["super_admin", "management", "sales", "finance", "operations"];
+const PERMISSION_MODULES = ["bookings", "customers", "billing", "packages", "trips", "website", "staff", "mcp"];
+
+export function validatePermissions(value: Record<string, unknown>): ValidationResult {
+  const errors: Record<string, string> = {};
+  for (const role of PERMISSION_ROLES) {
+    const row = value[role];
+    if (row === undefined || typeof row !== "object" || row === null || Array.isArray(row)) {
+      errors[role] = `${role} must be an object of module booleans`;
+      continue;
+    }
+    const rowRecord = row as Record<string, unknown>;
+    for (const moduleId of PERMISSION_MODULES) {
+      if (typeof rowRecord[moduleId] !== "boolean") {
+        errors[`${role}.${moduleId}`] = `${role}.${moduleId} must be a boolean`;
+      }
+    }
+  }
+  // Lockout guard: super_admin must keep access to Staff Access itself.
+  const superRow = value.super_admin as Record<string, unknown> | undefined;
+  if (superRow && superRow.staff !== true) {
+    errors["super_admin.staff"] = "super_admin must keep Staff Access";
+  }
+  return { valid: Object.keys(errors).length === 0, errors };
+}
+
 const VALIDATORS: Record<
   string,
   (v: Record<string, unknown>) => ValidationResult
@@ -163,6 +195,7 @@ const VALIDATORS: Record<
   security: validateSecurity,
   terms: validateTerms,
   ai: validateAi,
+  permissions: validatePermissions,
 };
 
 export function validateSettingPayload(

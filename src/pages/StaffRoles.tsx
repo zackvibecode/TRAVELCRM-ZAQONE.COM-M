@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import {
   Activity,
   AlertCircle,
@@ -7,9 +7,11 @@ import {
   CheckCircle2,
   Download,
   KeyRound,
+  Loader2,
   Mail,
   Pause,
   Play,
+  Save,
   Search,
   ShieldCheck,
   UserPlus,
@@ -18,6 +20,7 @@ import {
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useLang } from "@/lib/i18n";
+import { apiFetch } from "@/lib/api";
 import {
   Dialog,
   DialogContent,
@@ -105,6 +108,10 @@ export default function StaffRoles() {
   const { t } = useLang();
   const [staff, setStaff] = useState<StaffMember[]>(STUB_STAFF);
   const [permissions, setPermissions] = useState(INITIAL_PERMISSIONS);
+  /** Server-saved copy — used to detect unsaved changes and reset. */
+  const [savedPermissions, setSavedPermissions] = useState(INITIAL_PERMISSIONS);
+  const [permLoading, setPermLoading] = useState(true);
+  const [permSaving, setPermSaving] = useState(false);
   const [tab, setTab] = useState<StaffTab>("team");
   const [query, setQuery] = useState("");
   const [roleFilter, setRoleFilter] = useState<StaffRole | "all">("all");
@@ -118,6 +125,60 @@ export default function StaffRoles() {
   function showNotice(message: string) {
     setNotice(message);
     window.setTimeout(() => setNotice(""), 4000);
+  }
+
+  // Load the saved permission matrix once on mount; fall back to defaults.
+  useEffect(() => {
+    let cancelled = false;
+    setPermLoading(true);
+    apiFetch<{ settings?: Record<string, unknown> }>("/settings")
+      .then((res) => {
+        if (cancelled) return;
+        const stored = res.settings?.permissions as
+          | Record<StaffRole, Record<string, boolean>>
+          | undefined;
+        if (stored && typeof stored === "object") {
+          // Merge over defaults so newly added modules always have a value.
+          const merged = { ...INITIAL_PERMISSIONS };
+          for (const role of Object.keys(merged) as StaffRole[]) {
+            merged[role] = { ...merged[role], ...(stored[role] ?? {}) };
+          }
+          setPermissions(merged);
+          setSavedPermissions(merged);
+        }
+      })
+      .catch(() => {
+        // Server unreachable — keep defaults; Save will retry the PUT.
+      })
+      .finally(() => {
+        if (!cancelled) setPermLoading(false);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
+  const permDirty = useMemo(
+    () => JSON.stringify(permissions) !== JSON.stringify(savedPermissions),
+    [permissions, savedPermissions],
+  );
+
+  async function savePermissions() {
+    setPermSaving(true);
+    try {
+      await apiFetch("/settings/permissions", {
+        method: "PUT",
+        body: JSON.stringify(permissions),
+      });
+      setSavedPermissions(permissions);
+      showNotice(t("Matriks izin disimpan.", "Permission matrix saved."));
+    } catch (err) {
+      showNotice(
+        err instanceof Error ? err.message : t("Gagal simpan izin.", "Failed to save permissions."),
+      );
+    } finally {
+      setPermSaving(false);
+    }
   }
 
   function patchStaff(id: string, patch: Partial<StaffMember>) {
@@ -360,9 +421,43 @@ export default function StaffRoles() {
       {/* Roles tab */}
       {tab === "roles" && (
         <section className="overflow-hidden rounded-[var(--radius-panel)] border bg-[var(--color-surface)]">
-          <div className="border-b px-5 py-4">
-            <h2 className="font-display text-base font-bold">{t("Matriks Izin Peran", "Role Permission Matrix")}</h2>
-            <p className="mt-1 text-[13px] text-muted-foreground">{t("Tandakan modul yang boleh dibuka oleh setiap peran.", "Tick the modules each role is allowed to open.")}</p>
+          <div className="flex flex-wrap items-center justify-between gap-3 border-b px-5 py-4">
+            <div className="min-w-0">
+              <h2 className="font-display text-base font-bold">{t("Matriks Izin Peran", "Role Permission Matrix")}</h2>
+              <p className="mt-1 text-[13px] text-muted-foreground">{t("Tandakan modul yang boleh dibuka oleh setiap peran, kemudian simpan.", "Tick the modules each role is allowed to open, then save.")}</p>
+            </div>
+            <div className="flex flex-none items-center gap-2">
+              {permLoading ? (
+                <span className="inline-flex items-center gap-1.5 text-[12px] text-muted-foreground">
+                  <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                  {t("Memuatkan…", "Loading…")}
+                </span>
+              ) : (
+                <>
+                  {permDirty && (
+                    <span className="rounded-full bg-amber-50 px-2 py-0.5 text-[11px] font-semibold text-amber-700">
+                      {t("Belum disimpan", "Unsaved changes")}
+                    </span>
+                  )}
+                  <button
+                    onClick={() => setPermissions(savedPermissions)}
+                    disabled={!permDirty || permSaving}
+                    className="inline-flex items-center gap-1.5 rounded-md border px-3 py-2 text-[13px] font-semibold hover:bg-muted/50 disabled:cursor-not-allowed disabled:opacity-50"
+                  >
+                    <X className="h-4 w-4" />
+                    {t("Batalkan", "Discard")}
+                  </button>
+                  <button
+                    onClick={savePermissions}
+                    disabled={!permDirty || permSaving}
+                    className="inline-flex items-center gap-1.5 rounded-md bg-primary px-3 py-2 text-[13px] font-semibold text-white hover:bg-primary/90 disabled:cursor-not-allowed disabled:opacity-50"
+                  >
+                    {permSaving ? <Loader2 className="h-4 w-4 animate-spin" /> : <Save className="h-4 w-4" />}
+                    {permSaving ? t("Menyimpan…", "Saving…") : t("Simpan Izin", "Save Permissions")}
+                  </button>
+                </>
+              )}
+            </div>
           </div>
           <div className="overflow-x-auto">
             <table className="w-full text-sm">
@@ -386,7 +481,6 @@ export default function StaffRoles() {
                           onChange={(e) => {
                             const checked = e.target.checked;
                             setPermissions((cur) => ({ ...cur, [r]: { ...cur[r], [m.id]: checked } }));
-                            showNotice(t(`${ROLE_LABELS[r].en}: akses ${m.en} ${checked ? "diaktifkan" : "dimatikan"}`, `${ROLE_LABELS[r].en}: ${m.en} access ${checked ? "enabled" : "disabled"}`));
                           }}
                           className="h-4 w-4 accent-[var(--color-primary)]"
                         />
