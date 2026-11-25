@@ -351,7 +351,7 @@ export default function AppShell() {
     {
       title: t("Team Sales", "Team Sales"),
       items: [
-        { to: "/sales-report", label: t("Share Report", "Share Report"), icon: BarChart3 },
+        { to: "/sales-report", label: t("Report Monthly", "Monthly Report"), icon: BarChart3 },
       ],
     },
     {

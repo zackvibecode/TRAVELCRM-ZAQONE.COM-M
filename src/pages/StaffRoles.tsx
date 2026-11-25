@@ -78,7 +78,7 @@ const MODULES = [
   { id: "bookings", ms: "Tempahan", en: "Bookings" },
   { id: "customers", ms: "Pelanggan & Lead", en: "Customer & Lead" },
   { id: "followup", ms: "Follow-Up & Lead Pipeline", en: "Follow-Up & Lead Pipeline" },
-  { id: "share_report", ms: "Team Sales Share Report", en: "Team Sales Share Report" },
+  { id: "share_report", ms: "Report Monthly (Team Sales)", en: "Monthly Report (Team Sales)" },
   { id: "billing", ms: "Billing & Pembayaran", en: "Billing & Payments" },
   { id: "packages", ms: "Pakej", en: "Packages" },
   { id: "trips", ms: "Trip & Kerusi", en: "Trips & Seats" },
