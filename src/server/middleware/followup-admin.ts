@@ -13,6 +13,7 @@ export interface FollowupAdminEnv {
   Bindings: { DB: D1Database };
   Variables: {
     db: DrizzleD1Database<typeof schema>;
+    auth: import("../lib/auth").Auth;
     staff: StaffIdentity;
     userRole: StaffIdentity["role"];
   };

@@ -13,7 +13,7 @@ export type AuthRole =
 
 export type Env = {
   DB: D1Database;
-  DOCUMENTS: R2Bucket;
+  DOCUMENTS?: R2Bucket;
   BETTER_AUTH_SECRET?: string;
 };
 

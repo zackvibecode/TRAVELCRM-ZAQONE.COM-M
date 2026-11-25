@@ -1728,3 +1728,48 @@ export const aiMessages = sqliteTable(
 
 export type AiConversationRow = typeof aiConversations.$inferSelect;
 export type AiMessageRow = typeof aiMessages.$inferSelect;
+
+// ---------------------------------------------------------------------------
+// AI Workers — background automation runs (package enrichment, supplier PDF
+// sync, price & margin checks). Each run is recorded so the AI Workers page
+// can display results, diffs and history. PDF-sync runs stay `pending_review`
+// until an admin applies or rejects the proposed diff.
+// ---------------------------------------------------------------------------
+
+export const aiWorkerRuns = sqliteTable(
+  "ai_worker_runs",
+  {
+    id: text("id").primaryKey(),
+    /** Which worker produced this run: enrich | pdf_sync | price_check */
+    worker: text("worker", {
+      enum: ["enrich", "pdf_sync", "price_check"],
+    }).notNull(),
+    /** running | done | failed | pending_review */
+    status: text("status", {
+      enum: ["running", "done", "failed", "pending_review"],
+    }).notNull(),
+    /** One-sentence human summary shown in the feed. */
+    summary: text("summary").notNull().default(""),
+    /** Worker-specific payload: enriched package list, diff proposal, margin report. */
+    result: text("result", { mode: "json" }).$type<Record<string, unknown>>(),
+    /** Optional package focus (e.g. the PDF-sync target package). */
+    packageId: text("package_id"),
+    /** Staff who triggered the run manually (null for cron runs). */
+    staffId: text("staff_id"),
+    /** Set when an admin applies a pending_review diff. */
+    appliedAt: text("applied_at"),
+    createdAt: text("created_at")
+      .notNull()
+      .default(sql`(datetime('now'))`),
+  },
+  (table) => ({
+    workerCreatedIdx: index("ai_worker_runs_worker_created_idx").on(
+      table.worker,
+      table.createdAt,
+    ),
+    statusIdx: index("ai_worker_runs_status_idx").on(table.status),
+  }),
+);
+
+export type AiWorkerRunRow = typeof aiWorkerRuns.$inferSelect;
+export type NewAiWorkerRunRow = typeof aiWorkerRuns.$inferInsert;

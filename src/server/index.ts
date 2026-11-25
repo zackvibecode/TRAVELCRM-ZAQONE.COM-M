@@ -35,6 +35,7 @@ import maintenanceRouter from "./routes/data-maintenance";
 import bootstrapRouter from "./routes/bootstrap";
 import publicEnquiryRouter from "./routes/public-enquiry";
 import aiRouter from "./routes/ai";
+import aiWorkersRouter, { runAiWorkersCron } from "./routes/ai-workers";
 import turnstileRouter from "./routes/turnstile";
 import { releaseExpiredHolds } from "./lib/seat-availability";
 import { runScheduledContent } from "./lib/scheduled-content";
@@ -45,6 +46,8 @@ export type Env = {
   DB: D1Database;
   DOCUMENTS: R2Bucket;
   ASSETS?: Fetcher;
+  /** Cloudflare Workers AI binding (see wrangler.jsonc). */
+  AI?: Ai;
   BETTER_AUTH_SECRET?: string;
   TURNSTILE_SECRET_KEY?: string;
   TURNSTILE_HOSTNAMES?: string;
@@ -166,6 +169,7 @@ app.route("/api/website", websiteRouter);
 app.route("/api/mcp-admin", mcpAdminRouter);
 app.route("/mcp", mcpRouter);
 app.route("/api/ai", aiRouter);
+app.route("/api/ai-workers", aiWorkersRouter);
 
 // Global error handler: log the real error + stack so a 500 is never a
 // silent mystery. Returns a JSON body the client can surface.
@@ -220,4 +224,8 @@ export async function scheduled(
   console.log(
     `[followup-auto-pause] scanned ${autoPause.scanned}, paused ${autoPause.paused}`,
   );
+
+  // AI Workers: package enrichment (daily) + price check (weekly), each with
+  // its own time guard so the 5-minute cron only fires them once per slot.
+  await runAiWorkersCron(db, env.AI, new Date());
 }

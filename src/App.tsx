@@ -34,6 +34,7 @@ import WebsiteManager from "@/pages/WebsiteManager";
 import WebsiteContentEditor from "@/pages/WebsiteContentEditor";
 import AiAssistant from "@/pages/AiAssistant";
 import AiTokens from "@/pages/AiTokens";
+import AiWorkers from "@/pages/AiWorkers";
 import McpAuditLog from "@/pages/McpAuditLog";
 import StaffRoles from "@/pages/StaffRoles";
 import StaffAuditLog from "@/pages/StaffAuditLog";
@@ -79,6 +80,7 @@ export default function App() {
           <Route path="/website" element={<RoleRoute path="/website"><WebsiteManager /></RoleRoute>} />
           <Route path="/website/editor" element={<RoleRoute path="/website"><WebsiteContentEditor /></RoleRoute>} />
           <Route path="/ai-assistant" element={<RoleRoute path="/ai-assistant"><AiAssistant /></RoleRoute>} />
+          <Route path="/ai-workers" element={<RoleRoute path="/ai-workers"><AiWorkers /></RoleRoute>} />
           <Route path="/ai-tokens" element={<RoleRoute path="/ai-tokens"><AiTokens /></RoleRoute>} />
           <Route path="/mcp-audit" element={<RoleRoute path="/mcp-audit"><McpAuditLog /></RoleRoute>} />
           <Route path="/staff" element={<RoleRoute path="/staff"><StaffRoles /></RoleRoute>} />

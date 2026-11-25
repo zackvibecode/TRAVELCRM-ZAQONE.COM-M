@@ -191,3 +191,65 @@ export async function structuredJson<T>(
     throw new Error("AI response was not valid JSON");
   }
 }
+
+// ---------------------------------------------------------------------------
+// Cloudflare Workers AI adapter — used by the background AI workers (package
+// enrichment, PDF sync, price checks). Workers AI needs no API key: the
+// binding runs models directly inside the Worker. When the OpenAI-compatible
+// provider is configured (Settings > AI), it takes precedence; Workers AI is
+// the always-available fallback so workers never stall on a missing key.
+// ---------------------------------------------------------------------------
+
+/** Default Workers AI model: strong instruction following, fast, cheap. */
+export const WORKERS_AI_DEFAULT_MODEL = "@cf/meta/llama-3.3-70b-instruct-fp8-fast";
+
+export interface WorkersAiChatOptions {
+  system: string;
+  user: string;
+  /** Override the model (default WORKERS_AI_DEFAULT_MODEL). */
+  model?: string;
+  temperature?: number;
+  maxTokens?: number;
+}
+
+/**
+ * One-shot chat completion through the Cloudflare Workers AI binding.
+ * Returns the assistant text. Throws when the binding is unavailable.
+ */
+export async function workersAiChat(
+  ai: Ai,
+  options: WorkersAiChatOptions,
+): Promise<string> {
+  const model = options.model?.trim() || WORKERS_AI_DEFAULT_MODEL;
+  const result = (await ai.run(model, {
+    messages: [
+      { role: "system", content: options.system },
+      { role: "user", content: options.user },
+    ],
+    temperature: options.temperature ?? 0.3,
+    max_tokens: options.maxTokens ?? 4000,
+  })) as { response?: string };
+
+  const text = (result?.response ?? "").trim();
+  if (!text) throw new Error("Workers AI returned an empty response");
+  return text;
+}
+
+/** Parse a loose JSON object out of an LLM reply (same leniency as structuredJson). */
+export function parseLooseJson<T>(raw: string): T {
+  const cleaned = raw
+    .trim()
+    .replace(/^```(?:json)?\s*/i, "")
+    .replace(/```\s*$/i, "")
+    .trim();
+  try {
+    return JSON.parse(cleaned) as T;
+  } catch {
+    const start = cleaned.search(/[[{]/);
+    const end = Math.max(cleaned.lastIndexOf("}"), cleaned.lastIndexOf("]"));
+    if (start >= 0 && end > start) {
+      return JSON.parse(cleaned.slice(start, end + 1)) as T;
+    }
+    throw new Error("AI response was not valid JSON");
+  }
+}

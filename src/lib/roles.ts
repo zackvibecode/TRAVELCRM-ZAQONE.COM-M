@@ -25,6 +25,7 @@ export const ROUTE_ROLES: Record<string, StaffRole[]> = {
   "/website": ["super_admin", "management"],
   "/ai-tokens": ["super_admin", "management"],
   "/ai-assistant": ["super_admin", "management"],
+  "/ai-workers": ["super_admin", "management"],
   "/mcp-audit": ["super_admin", "management"],
   "/staff": ["super_admin"],
   "/staff-audit": ["super_admin", "management"],

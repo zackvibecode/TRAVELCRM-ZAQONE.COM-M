@@ -40,6 +40,7 @@ import {
   Workflow,
   Lock,
   Smartphone,
+  Cpu,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useLang, type Lang } from "@/lib/i18n";
@@ -79,6 +80,7 @@ const COLLAPSIBLE_GROUPS: NavItem[] = [
     label: "AI & Integrasi",
     icon: Bot,
     children: [
+      { to: "/ai-workers", label: "AI Workers", icon: Cpu },
       { to: "/ai-tokens", label: "Token Akses AI", icon: KeyRound },
       { to: "/mcp-audit", label: "Log Audit MCP", icon: ScrollText },
     ],
@@ -121,6 +123,7 @@ function translateChildLabel(
     "/data-maintenance": ["Penyelenggaraan Data", "Data Maintenance"],
     "/settings-audit": ["Log Audit Tetapan", "Settings Audit Log"],
     "/ai-tokens": ["Token Akses AI", "AI Access Tokens"],
+    "/ai-workers": ["AI Workers", "AI Workers"],
     "/mcp-audit": ["Log Audit MCP", "MCP Audit Log"],
   };
   const entry = map[to];
