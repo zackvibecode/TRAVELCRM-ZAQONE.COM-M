@@ -71,7 +71,24 @@ turnstileRouter.post("/", async (c) => {
     typeof result.hostname !== "string" ||
     !allowedHostnames.has(result.hostname)
   ) {
-    return c.json({ success: false, error: "challenge_failed" }, 403);
+    // Diagnostic detail so the real reason is visible in `wrangler tail`.
+    // Never includes the token or secret.
+    let reason = "challenge_failed";
+    if (result.success !== true) reason = "siteverify_rejected";
+    else if (result.action !== expectedAction) reason = "action_mismatch";
+    else if (typeof result.hostname !== "string") reason = "hostname_missing";
+    else if (!allowedHostnames.has(result.hostname)) reason = "hostname_not_allowed";
+    console.log(
+      JSON.stringify({
+        msg: "turnstile_failed",
+        reason,
+        expectedAction,
+        gotAction: result.action,
+        gotHostname: result.hostname,
+        allowed: [...allowedHostnames],
+      }),
+    );
+    return c.json({ success: false, error: "challenge_failed", reason }, 403);
   }
 
   return c.json({ success: true });
