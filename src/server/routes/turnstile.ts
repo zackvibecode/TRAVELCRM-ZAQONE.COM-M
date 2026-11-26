@@ -58,7 +58,17 @@ turnstileRouter.post("/", async (c) => {
         ...(clientIp ? { remoteip: clientIp.split(",")[0]!.trim() } : {}),
       }),
     });
-    if (!res.ok) throw new Error(`siteverify ${res.status}`);
+    if (!res.ok) {
+      const txt = await res.text().catch(() => "");
+      console.log(
+        JSON.stringify({
+          msg: "turnstile_siteverify_http_error",
+          status: res.status,
+          body: txt.slice(0, 200),
+        }),
+      );
+      throw new Error(`siteverify ${res.status}`);
+    }
     result = (await res.json()) as typeof result;
   } catch {
     // Network error / non-2xx / non-JSON — fail closed.
