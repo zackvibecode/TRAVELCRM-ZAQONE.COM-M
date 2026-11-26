@@ -46,6 +46,7 @@ turnstileRouter.post("/", async (c) => {
     success?: boolean;
     action?: string;
     hostname?: string;
+    "error-codes"?: string[];
   };
   try {
     const res = await fetch(SITEVERIFY_URL, {
@@ -58,20 +59,24 @@ turnstileRouter.post("/", async (c) => {
         ...(clientIp ? { remoteip: clientIp.split(",")[0]!.trim() } : {}),
       }),
     });
-    if (!res.ok) {
-      const txt = await res.text().catch(() => "");
+    // siteverify normally returns 200 even for "invalid" tokens; a non-2xx
+    // here means the request itself is malformed (most commonly a wrong secret).
+    const json = (await res.json().catch(() => ({}))) as typeof result;
+    result = json;
+    if (!res.ok || json.success !== true) {
+      const codes = json["error-codes"] ?? [];
       console.log(
-        JSON.stringify({
-          msg: "turnstile_siteverify_http_error",
-          status: res.status,
-          body: txt.slice(0, 200),
-        }),
+        JSON.stringify({ msg: "turnstile_verify_failed", status: res.status, codes }),
       );
-      throw new Error(`siteverify ${res.status}`);
+      // Misconfigured secret: fail OPEN so a config mistake never locks the
+      // whole team out of the CRM. Genuinely bad tokens still fail below.
+      const configErrors = ["invalid-input-secret", "missing-input-secret", "bad-request"];
+      if (configErrors.some((c) => codes.includes(c))) {
+        return c.json({ success: true, warning: "turnstile_misconfigured" });
+      }
     }
-    result = (await res.json()) as typeof result;
   } catch {
-    // Network error / non-2xx / non-JSON — fail closed.
+    // Network error / non-JSON — fail closed.
     return c.json({ success: false, error: "siteverify_failed" }, 502);
   }
 
