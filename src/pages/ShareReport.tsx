@@ -1,6 +1,7 @@
 ﻿import { useMemo, useState } from "react";
 import {
   BarChart3,
+  Banknote,
   Download,
   Package,
   Pencil,
@@ -75,6 +76,14 @@ function monthLabel(month: string, lang: string): string {
   });
 }
 
+/** Format a MYR amount, e.g. 12450.5 → "RM 12,450.50". */
+function formatRM(amount: number): string {
+  return `RM ${amount.toLocaleString("en-MY", {
+    minimumFractionDigits: 2,
+    maximumFractionDigits: 2,
+  })}`;
+}
+
 interface StatCardProps {
   label: string;
   value: string;
@@ -142,6 +151,7 @@ export default function ShareReport() {
       t("Nama Customer", "Customer Name"),
       t("Pack", "Packs"),
       t("Sumber Lead", "Lead Source"),
+      t("Total Invoice", "Total Invoice"),
       ...(isAdmin ? [t("Sales", "Sales")] : []),
       t("Tarikh", "Date"),
     ];
@@ -151,6 +161,7 @@ export default function ShareReport() {
         esc(e.customerName),
         esc(e.packs),
         esc(e.source || "-"),
+        esc(e.invoiceTotal.toFixed(2)),
         ...(isAdmin ? [esc(e.userName)] : []),
         esc(e.createdAt.slice(0, 10)),
       ].join(","),
@@ -158,12 +169,14 @@ export default function ShareReport() {
     // Totals row at the bottom.
     const totalCustomers = entryList.length;
     const totalPacks = entryList.reduce((sum, e) => sum + e.packs, 0);
+    const totalInvoice = entryList.reduce((sum, e) => sum + e.invoiceTotal, 0);
     rows.push("");
     rows.push(
       [
         esc(t("JUMLAH", "TOTAL")),
         esc(totalPacks),
         esc(""),
+        esc(totalInvoice.toFixed(2)),
         ...(isAdmin ? [esc("")] : []),
         esc(`${totalCustomers} ${t("customer", "customer(s)")}`),
       ].join(","),
@@ -248,6 +261,25 @@ export default function ShareReport() {
           icon={Package}
           change={d ? percentChange(d.packs, d.previous.packs) : null}
         />
+      </div>
+
+      {/* Total Invoice summary */}
+      <div className={`${PANEL} flex flex-col gap-2 p-5`}>
+        <div className="flex items-center justify-between">
+          <span className="flex items-center gap-2 text-[12px] font-semibold text-[var(--color-text-secondary)]">
+            <Banknote className="h-4 w-4" />
+            {t("Total Invoice", "Total Invoice")}
+          </span>
+          <span className="inline-flex items-center gap-0.5 rounded-full bg-[var(--color-success-soft)] px-2 py-0.5 text-[10.5px] font-bold text-[var(--color-success)]">
+            {d ? percentChange(d.invoiceTotal, d.previous.invoiceTotal) ?? 0 : 0}%
+          </span>
+        </div>
+        <div className="text-[24px] font-black leading-none text-[var(--color-text)]">
+          {formatRM(d?.invoiceTotal ?? 0)}
+        </div>
+        <p className="text-[11.5px] text-[var(--color-text-secondary)]">
+          {t("Jumlah nilai invoice bulan ini", "Total invoiced value this month")}
+        </p>
       </div>
 
       {/* Charts */}
@@ -355,6 +387,7 @@ function EntriesCard(props: {
   const [editing, setEditing] = useState<ShareEntry | null>(null);
   const [customerName, setCustomerName] = useState("");
   const [packs, setPacks] = useState("1");
+  const [invoiceTotal, setInvoiceTotal] = useState("");
   const [source, setSource] = useState("");
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -363,6 +396,7 @@ function EntriesCard(props: {
     setEditing(null);
     setCustomerName("");
     setPacks("1");
+    setInvoiceTotal("");
     setSource("");
     setError(null);
     setDialogOpen(true);
@@ -372,6 +406,9 @@ function EntriesCard(props: {
     setEditing(entry);
     setCustomerName(entry.customerName);
     setPacks(String(entry.packs));
+    setInvoiceTotal(
+      entry.invoiceTotal > 0 ? String(entry.invoiceTotal) : "",
+    );
     setSource(entry.source);
     setError(null);
     setDialogOpen(true);
@@ -382,6 +419,11 @@ function EntriesCard(props: {
       setError(t("Nama customer diperlukan", "Customer name is required"));
       return;
     }
+    const amount = Number(invoiceTotal.replace(/,/g, ""));
+    if (invoiceTotal.trim() !== "" && (!Number.isFinite(amount) || amount < 0)) {
+      setError(t("Total invoice tidak sah", "Invalid invoice total"));
+      return;
+    }
     setSaving(true);
     setError(null);
     try {
@@ -390,6 +432,7 @@ function EntriesCard(props: {
           customerName: customerName.trim(),
           packs: Number(packs),
           source,
+          invoiceTotal: amount,
         });
       } else {
         await shareReportApi.createEntry({
@@ -397,6 +440,7 @@ function EntriesCard(props: {
           customerName: customerName.trim(),
           packs: Number(packs),
           source,
+          invoiceTotal: amount,
         });
       }
       setDialogOpen(false);
@@ -454,6 +498,7 @@ function EntriesCard(props: {
                 <th className="py-2 pr-3 font-semibold">{t("Nama Customer", "Customer Name")}</th>
                 <th className="py-2 pr-3 font-semibold">{t("Pack", "Packs")}</th>
                 <th className="py-2 pr-3 font-semibold">{t("Sumber Lead", "Lead Source")}</th>
+                <th className="py-2 pr-3 font-semibold">{t("Total Invoice", "Total Invoice")}</th>
                 {isAdmin && <th className="py-2 pr-3 font-semibold">{t("Sales", "Sales")}</th>}
                 <th className="py-2 pr-3 font-semibold">{t("Tarikh", "Date")}</th>
                 <th className="py-2 font-semibold" />
@@ -468,6 +513,9 @@ function EntriesCard(props: {
                   <td className="py-2.5 pr-3 text-[var(--color-text)]">{entry.packs}</td>
                   <td className="py-2.5 pr-3 text-[var(--color-text-secondary)]">
                     {entry.source || "—"}
+                  </td>
+                  <td className="py-2.5 pr-3 font-semibold text-[var(--color-text)]">
+                    {formatRM(entry.invoiceTotal)}
                   </td>
                   {isAdmin && (
                     <td className="py-2.5 pr-3 text-[var(--color-text-secondary)]">
@@ -527,6 +575,18 @@ function EntriesCard(props: {
                   min="1"
                   value={packs}
                   onChange={(e) => setPacks(e.target.value)}
+                  className={`mt-1 ${INPUT}`}
+                />
+              </label>
+              <label className="text-[12.5px] font-semibold text-[var(--color-text-secondary)]">
+                {t("Total invoice (RM)", "Total invoice (RM)")}
+                <input
+                  type="number"
+                  min="0"
+                  step="0.01"
+                  value={invoiceTotal}
+                  onChange={(e) => setInvoiceTotal(e.target.value)}
+                  placeholder="0.00"
                   className={`mt-1 ${INPUT}`}
                 />
               </label>

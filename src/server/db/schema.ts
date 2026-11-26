@@ -1,5 +1,5 @@
 import { sql } from "drizzle-orm";
-import { index, integer, sqliteTable, text, uniqueIndex } from "drizzle-orm/sqlite-core";
+import { index, integer, real, sqliteTable, text, uniqueIndex } from "drizzle-orm/sqlite-core";
 
 // ---------------------------------------------------------------------------
 // Booking Workspace — bookings, passengers, and booking history.
@@ -1825,6 +1825,8 @@ export const shareReports = sqliteTable(
     packs: integer("packs").notNull().default(1),
     /** Lead source label (from lead_sources list, free text allowed). */
     source: text("source").notNull().default(""),
+    /** Total invoice amount for this customer (MYR). */
+    invoiceTotal: real("invoice_total").notNull().default(0),
     notes: text("notes"),
     createdAt: text("created_at")
       .notNull()

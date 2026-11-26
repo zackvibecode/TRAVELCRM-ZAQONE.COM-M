@@ -14,10 +14,11 @@ export interface ShareDashboard {
   ownerUserId: string | null;
   customers: number;
   packs: number;
-  previous: { customers: number; packs: number };
+  invoiceTotal: number;
+  previous: { customers: number; packs: number; invoiceTotal: number };
   sources: Array<{ source: string; count: number }>;
-  daily: Array<{ day: string; entries: number; packs: number }>;
-  reps: Array<{ userId: string; userName: string; customers: number; packs: number }>;
+  daily: Array<{ day: string; entries: number; packs: number; invoiceTotal: number }>;
+  reps: Array<{ userId: string; userName: string; customers: number; packs: number; invoiceTotal: number }>;
 }
 
 export interface ShareEntry {
@@ -28,6 +29,7 @@ export interface ShareEntry {
   customerName: string;
   packs: number;
   source: string;
+  invoiceTotal: number;
   notes: string | null;
   createdAt: string;
 }
@@ -76,6 +78,7 @@ export const shareReportApi = {
     customerName: string;
     packs: number;
     source?: string;
+    invoiceTotal?: number;
     notes?: string;
   }) =>
     apiFetch<{ entry: ShareEntry }>("/share-report/entries", {
@@ -85,7 +88,13 @@ export const shareReportApi = {
 
   updateEntry: (
     id: string,
-    body: { customerName?: string; packs?: number; source?: string; notes?: string },
+    body: {
+      customerName?: string;
+      packs?: number;
+      source?: string;
+      invoiceTotal?: number;
+      notes?: string;
+    },
   ) =>
     apiFetch<{ entry: ShareEntry }>(`/share-report/entries/${id}`, {
       method: "PATCH",

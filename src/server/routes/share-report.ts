@@ -37,6 +37,13 @@ function currentMonth(): string {
   return kl.toISOString().slice(0, 7);
 }
 
+/** Sanitise a non-negative money amount (MYR); invalid → 0. */
+function parseAmount(value: unknown): number {
+  const n = Number(value);
+  if (!Number.isFinite(n) || n < 0) return 0;
+  return Math.round(n * 100) / 100;
+}
+
 /** Previous month key of a YYYY-MM string. */
 function previousMonth(month: string): string {
   const [y, m] = month.split("-").map(Number);
@@ -48,10 +55,11 @@ interface ShareDashboard {
   ownerUserId: string | null;
   customers: number;
   packs: number;
-  previous: { customers: number; packs: number };
+  invoiceTotal: number;
+  previous: { customers: number; packs: number; invoiceTotal: number };
   sources: Array<{ source: string; count: number }>;
-  daily: Array<{ day: string; entries: number; packs: number }>;
-  reps: Array<{ userId: string; userName: string; customers: number; packs: number }>;
+  daily: Array<{ day: string; entries: number; packs: number; invoiceTotal: number }>;
+  reps: Array<{ userId: string; userName: string; customers: number; packs: number; invoiceTotal: number }>;
 }
 
 /** Resolve scope: sales pinned to self; admin may filter or team-wide. */
@@ -90,6 +98,7 @@ shareReportRouter.get("/dashboard", requireRole(...READ_ROLES), async (c) => {
       .select({
         customers: sql<number>`count(*)`,
         packs: sql<number>`coalesce(sum(${schema.shareReports.packs}), 0)`,
+        invoiceTotal: sql<number>`coalesce(sum(${schema.shareReports.invoiceTotal}), 0)`,
       })
       .from(schema.shareReports)
       .where(and(ownerCondition(owner), eq(schema.shareReports.month, month))),
@@ -97,6 +106,7 @@ shareReportRouter.get("/dashboard", requireRole(...READ_ROLES), async (c) => {
       .select({
         customers: sql<number>`count(*)`,
         packs: sql<number>`coalesce(sum(${schema.shareReports.packs}), 0)`,
+        invoiceTotal: sql<number>`coalesce(sum(${schema.shareReports.invoiceTotal}), 0)`,
       })
       .from(schema.shareReports)
       .where(and(ownerCondition(owner), eq(schema.shareReports.month, prev))),
@@ -115,6 +125,7 @@ shareReportRouter.get("/dashboard", requireRole(...READ_ROLES), async (c) => {
         day: sql<string>`substr(${schema.shareReports.createdAt}, 1, 10)`,
         entries: sql<number>`count(*)`,
         packs: sql<number>`coalesce(sum(${schema.shareReports.packs}), 0)`,
+        invoiceTotal: sql<number>`coalesce(sum(${schema.shareReports.invoiceTotal}), 0)`,
       })
       .from(schema.shareReports)
       .where(and(ownerCondition(owner), eq(schema.shareReports.month, month)))
@@ -125,6 +136,7 @@ shareReportRouter.get("/dashboard", requireRole(...READ_ROLES), async (c) => {
         userName: schema.user.name,
         customers: sql<number>`count(*)`,
         packs: sql<number>`coalesce(sum(${schema.shareReports.packs}), 0)`,
+        invoiceTotal: sql<number>`coalesce(sum(${schema.shareReports.invoiceTotal}), 0)`,
       })
       .from(schema.shareReports)
       .leftJoin(schema.user, eq(schema.shareReports.userId, schema.user.id))
@@ -133,8 +145,8 @@ shareReportRouter.get("/dashboard", requireRole(...READ_ROLES), async (c) => {
       .orderBy(sql`count(*) desc`),
   ]);
 
-  const totals = totalsRows[0] ?? { customers: 0, packs: 0 };
-  const prevTotals = prevRows[0] ?? { customers: 0, packs: 0 };
+  const totals = totalsRows[0] ?? { customers: 0, packs: 0, invoiceTotal: 0 };
+  const prevTotals = prevRows[0] ?? { customers: 0, packs: 0, invoiceTotal: 0 };
 
   // Fill all days of the month for the daily trend chart.
   const entryMap = new Map(dailyRows.map((r) => [r.day, r]));
@@ -148,6 +160,7 @@ shareReportRouter.get("/dashboard", requireRole(...READ_ROLES), async (c) => {
       day,
       entries: Number(row?.entries ?? 0),
       packs: Number(row?.packs ?? 0),
+      invoiceTotal: Number(row?.invoiceTotal ?? 0),
     });
   }
 
@@ -156,9 +169,11 @@ shareReportRouter.get("/dashboard", requireRole(...READ_ROLES), async (c) => {
     ownerUserId: owner,
     customers: Number(totals.customers),
     packs: Number(totals.packs),
+    invoiceTotal: Number(totals.invoiceTotal),
     previous: {
       customers: Number(prevTotals.customers),
       packs: Number(prevTotals.packs),
+      invoiceTotal: Number(prevTotals.invoiceTotal),
     },
     sources: sourceRows.map((r) => ({ source: r.source || "Tiada sumber", count: Number(r.count) })),
     daily,
@@ -167,6 +182,7 @@ shareReportRouter.get("/dashboard", requireRole(...READ_ROLES), async (c) => {
       userName: r.userName ?? r.userId,
       customers: Number(r.customers),
       packs: Number(r.packs),
+      invoiceTotal: Number(r.invoiceTotal),
     })),
   };
   return c.json({ success: true, dashboard });
@@ -193,6 +209,7 @@ shareReportRouter.get("/entries", requireRole(...READ_ROLES), async (c) => {
       customerName: schema.shareReports.customerName,
       packs: schema.shareReports.packs,
       source: schema.shareReports.source,
+      invoiceTotal: schema.shareReports.invoiceTotal,
       notes: schema.shareReports.notes,
       createdAt: schema.shareReports.createdAt,
     })
@@ -213,6 +230,7 @@ interface EntryInput {
   customerName?: string;
   packs?: number;
   source?: string;
+  invoiceTotal?: number;
   notes?: string;
 }
 
@@ -237,6 +255,7 @@ shareReportRouter.post("/entries", requireRole(...READ_ROLES), async (c) => {
     customerName,
     packs,
     source: (body.source ?? "").trim(),
+    invoiceTotal: parseAmount(body.invoiceTotal),
     notes: body.notes?.trim() || null,
   });
 
@@ -275,6 +294,8 @@ shareReportRouter.patch("/entries/:id", requireRole(...READ_ROLES), async (c) =>
       packs:
         body.packs !== undefined ? Math.max(1, Math.round(Number(body.packs))) : existing.packs,
       source: body.source !== undefined ? body.source.trim() : existing.source,
+      invoiceTotal:
+        body.invoiceTotal !== undefined ? parseAmount(body.invoiceTotal) : existing.invoiceTotal,
       notes: body.notes !== undefined ? body.notes.trim() || null : existing.notes,
       updatedAt: sql`(datetime('now'))`,
     })
