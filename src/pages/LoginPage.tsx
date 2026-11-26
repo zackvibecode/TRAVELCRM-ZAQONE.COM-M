@@ -72,26 +72,11 @@ export default function LoginPage() {
 
   return (
     <div className="au-shell" data-node-id="auth.login">
-      {/* Full-page decorative shapes */}
-      <div className="au-shell__geo" aria-hidden="true">
-        <span className="au-geo au-geo--orb" />
-        <span className="au-geo au-geo--ring" />
-        <span className="au-geo au-geo--cube" />
-        <span className="au-geo au-geo--dot" />
-      </div>
-
-      {/* Floating login card */}
+      {/* Two sections: login form (left) + brand panel (right) */}
       <div className="au-card">
+        {/* Login form */}
         <div className="au-panel">
           <form onSubmit={handleSubmit}>
-            <div className="au-brandmark">
-              <img
-                src="/brand/zaqone-logo-1024.png"
-                alt="ZAQONE Travel"
-                className="au-brandmark__logo"
-                decoding="async"
-              />
-            </div>
             <div>
               <h2 className="au-title">{t("Log Masuk", "Sign In")}</h2>
               <p className="au-sub">
@@ -175,6 +160,37 @@ export default function LoginPage() {
               {submitting ? t("Sedang log masuk…", "Signing in…") : t("Log Masuk", "Sign In")}
             </button>
           </form>
+        </div>
+
+        {/* Brand panel — logo + CRM info */}
+        <div className="au-brand">
+          <div className="au-brand__geo" aria-hidden="true">
+            <span className="au-geo au-geo--a" />
+            <span className="au-geo au-geo--b" />
+            <span className="au-geo au-geo--c" />
+          </div>
+          <div>
+            <img
+              src="/brand/zaqone-logo-mono-white-1024.png"
+              alt="ZAQONE Travel"
+              className="au-brand__logo"
+              decoding="async"
+            />
+          </div>
+          <div>
+            <h1 className="au-brand__headline">
+              {t("Urus pakej, tempahan & keberangkatan semuanya di satu tempat.", "Manage packages, bookings & departures all in one place.")}
+            </h1>
+            <p className="au-brand__copy">
+              {t(
+                "Platform CRM untuk pasukan operasi travel — leads, invoice, manifest trip dan laman web awam, semuanya bersinkron masa nyata.",
+                "The CRM platform for travel operations teams — leads, invoices, trip manifests and the public website, all synced in real time.",
+              )}
+            </p>
+          </div>
+          <p className="au-brand__tag">
+            {t("Ruang Kerja Staf", "Staff Workspace")} · CRM
+          </p>
         </div>
       </div>
 
