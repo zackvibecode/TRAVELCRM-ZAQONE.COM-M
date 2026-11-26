@@ -485,7 +485,7 @@ followupRouter.get("/leads/all-ids", async (c) => {
     .from(schema.leads)
     .where(conditions.length > 0 ? and(...conditions) : undefined)
     .orderBy(desc(schema.leads.updatedAt))
-    .limit(5000)
+    .limit(50000)
     .all();
 
   return c.json({ success: true, data: ids.map((r) => r.id), count: ids.length });

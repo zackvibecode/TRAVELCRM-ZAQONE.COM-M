@@ -236,24 +236,23 @@ export default function LeadManagement() {
       return;
     }
     setSelected(new Set(selectable.map((l) => l.id)));
-    // ADMIN gets the "all matching" extension beyond the visible 25 rows.
-    if (isAdmin) {
-      void followupApi
-        .leadAllIds({
-          ...(query ? { q: query } : {}),
-          ...(stageFilter !== "all" ? { stage: stageFilter } : {}),
-          ...(ownerFilter !== "all" ? { owner: ownerFilter } : {}),
-        })
-        .then((ids) => {
-          if (ids.length > selectable.length) {
-            setAllMode(true);
-            setSelected(new Set(ids));
-          }
-        })
-        .catch(() => {
-          // Fall back silently to page-scoped selection.
-        });
-    }
+    // "All matching" extends the selection beyond the visible 25 rows. The
+    // server scopes SALES to their own leads, so this is safe for every role.
+    void followupApi
+      .leadAllIds({
+        ...(query ? { q: query } : {}),
+        ...(stageFilter !== "all" ? { stage: stageFilter } : {}),
+        ...(ownerFilter !== "all" ? { owner: ownerFilter } : {}),
+      })
+      .then((ids) => {
+        if (ids.length > selectable.length) {
+          setAllMode(true);
+          setSelected(new Set(ids));
+        }
+      })
+      .catch(() => {
+        // Fall back silently to page-scoped selection.
+      });
   }
 
   function clearAllFilters() {
@@ -339,6 +338,7 @@ export default function LeadManagement() {
         setBulkResult({ updated: res.updated, skipped: res.skipped, label });
       }
       setSelected(new Set());
+      setAllMode(false);
       setOffset(0);
       setExtraRows([]);
       await Promise.all([leadsQuery.refetch(), facetsQuery.refetch()]);
@@ -346,6 +346,8 @@ export default function LeadManagement() {
       showNotice(err instanceof Error ? err.message : String(err));
     } finally {
       setPendingBulk(null);
+      setBulkDeleteStep(1);
+      setBulkDeletePhrase("");
       setBusy(false);
     }
   }
