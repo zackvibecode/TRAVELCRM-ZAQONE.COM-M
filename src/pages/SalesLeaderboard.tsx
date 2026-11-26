@@ -1,6 +1,5 @@
 import { useMemo, useState } from "react";
 import {
-  Award,
   CheckCircle2,
   Crown,
   Medal,
@@ -69,17 +68,14 @@ export default function SalesLeaderboard() {
     [isAdmin, adminUsers.data],
   );
 
-  // Server-ranked scores — sorted by rank, never re-scored or re-scaled here.
+  // Server-ranked rows — sorted by rank (follow-up volume), never re-scored here.
   const rows = useMemo(
     () => [...(leaderboard.data?.scores ?? [])].sort((a, b) => a.rank - b.rank),
     [leaderboard.data],
   );
 
-  const maxScore = rows[0]?.score ?? 1;
   const podium = rows.slice(0, 3);
-  const totals = leaderboard.data?.totals ?? { completed: 0, uniqueLeads: 0, won: 0, leadsOwned: 0 };
-  // "Active sales" = reps with at least one confirmed follow-up in the period.
-  const activeSales = rows.length;
+  const totals = leaderboard.data?.totals ?? { completed: 0, uniqueLeads: 0, won: 0, leadsOwned: 0, fu1: 0, fu2: 0, fu3: 0 };
 
   /** Trend points in the chart's shape (API already returns one bucket per KL day). */
   const trendPoints = useMemo<TrendPoint[]>(
@@ -107,8 +103,8 @@ export default function SalesLeaderboard() {
           </h1>
           <p className="mt-1.5 text-[13px] text-muted-foreground">
             {t(
-              "Peringkat dikira daripada aktiviti unik — setiap lead dan setiap hari aktif dikira sekali sahaja.",
-              "Rankings are based on unique activity — each lead and each active day counts only once.",
+              "Kiraan susulan setiap sales — FU1, FU2 dan FU3 yang telah dilaksanakan.",
+              "Each rep's follow-up count — FU1, FU2 and FU3 completed.",
             )}
           </p>
         </div>
@@ -195,10 +191,10 @@ export default function SalesLeaderboard() {
 
       {/* Summary — team totals for the selected period */}
       <section className="grid grid-cols-2 gap-3 xl:grid-cols-4" aria-label={t("Ringkasan pasukan", "Team summary")}>
-        <SummaryCard icon={Users} label={t("Lead Saya", "My Leads")} value={String(totals.leadsOwned)} />
-        <SummaryCard icon={CheckCircle2} label={t("Susulan Selesai", "Follow-Ups Done")} value={String(totals.completed)} />
-        <SummaryCard icon={Trophy} label={t("Deal Dimenangi", "Deals Won")} value={String(totals.won)} />
-        <SummaryCard icon={Award} label={t("Sales Aktif", "Active Sales")} value={String(activeSales)} />
+        <SummaryCard icon={CheckCircle2} label={t("Jumlah Susulan", "Total Follow-Ups")} value={String(totals.completed)} />
+        <SummaryCard icon={CheckCircle2} label="FU1" value={String(totals.fu1)} />
+        <SummaryCard icon={CheckCircle2} label="FU2" value={String(totals.fu2)} />
+        <SummaryCard icon={CheckCircle2} label="FU3" value={String(totals.fu3)} />
       </section>
 
       {/* Trend + side-by-side comparison (honours the sales filter) */}
@@ -261,10 +257,10 @@ export default function SalesLeaderboard() {
                 />
                 <p className="m-0 truncate text-[14px] font-bold">{r.name}</p>
                 <p className="m-0 font-display text-[20px] font-bold [font-variant-numeric:tabular-nums]">
-                  {r.score}
+                  {r.completed}
                 </p>
                 <p className="m-0 text-[11.5px] text-muted-foreground">
-                  {t("Lead", "Leads")}: {r.leadsOwned} · {t("Menang", "Won")}: {r.won}
+                  {t("susulan", "follow-ups")} · FU1 {r.fu1} · FU2 {r.fu2} · FU3 {r.fu3}
                 </p>
               </div>
             );
@@ -303,11 +299,10 @@ export default function SalesLeaderboard() {
               <tr className="bg-[var(--color-surface-raised)] text-left text-[11.5px] uppercase tracking-wider text-muted-foreground">
                 <th className="px-4 py-2.5 font-semibold">{t("Kedudukan", "Rank")}</th>
                 <th className="px-4 py-2.5 font-semibold">{t("Sales", "Sales")}</th>
-                <th className="px-4 py-2.5 text-right font-semibold">{t("Skor", "Score")}</th>
-                <th className="px-4 py-2.5 text-right font-semibold">{t("Lead Saya", "My Leads")}</th>
-                <th className="px-4 py-2.5 text-right font-semibold">{t("Hari Aktif", "Active Days")}</th>
-                <th className="px-4 py-2.5 text-right font-semibold">{t("Menang", "Won")}</th>
-                <th className="px-4 py-2.5 text-right font-semibold">{t("Susulan Selesai", "Follow-Ups Done")}</th>
+                <th className="px-4 py-2.5 text-right font-semibold">{t("Susulan", "Follow-Ups")}</th>
+                <th className="px-4 py-2.5 text-right font-semibold">FU1</th>
+                <th className="px-4 py-2.5 text-right font-semibold">FU2</th>
+                <th className="px-4 py-2.5 text-right font-semibold">FU3</th>
               </tr>
             </thead>
             <tbody>
@@ -348,21 +343,10 @@ export default function SalesLeaderboard() {
                       )}
                     </div>
                   </td>
-                  <td className="px-4 py-2.5">
-                    <div className="flex items-center justify-end gap-2">
-                      <div className="hidden h-1.5 w-24 overflow-hidden rounded-full bg-[var(--color-surface-muted)] sm:block">
-                        <div
-                          className="h-full rounded-full bg-[var(--color-primary)]"
-                          style={{ width: `${Math.round((r.score / maxScore) * 100)}%` }}
-                        />
-                      </div>
-                      <span className="font-display font-bold [font-variant-numeric:tabular-nums]">{r.score}</span>
-                    </div>
-                  </td>
-                  <td className="px-4 py-2.5 text-right [font-variant-numeric:tabular-nums]">{r.leadsOwned}</td>
-                  <td className="px-4 py-2.5 text-right [font-variant-numeric:tabular-nums]">{r.activeDays}</td>
-                  <td className="px-4 py-2.5 text-right [font-variant-numeric:tabular-nums]">{r.won}</td>
-                  <td className="px-4 py-2.5 text-right text-muted-foreground [font-variant-numeric:tabular-nums]">{r.completed}</td>
+                  <td className="px-4 py-2.5 text-right font-display font-bold [font-variant-numeric:tabular-nums]">{r.completed}</td>
+                  <td className="px-4 py-2.5 text-right [font-variant-numeric:tabular-nums]">{r.fu1}</td>
+                  <td className="px-4 py-2.5 text-right [font-variant-numeric:tabular-nums]">{r.fu2}</td>
+                  <td className="px-4 py-2.5 text-right [font-variant-numeric:tabular-nums]">{r.fu3}</td>
                 </tr>
                 );
               })}
@@ -373,8 +357,8 @@ export default function SalesLeaderboard() {
         <p className="m-0 flex items-start gap-1.5 border-t border-[var(--color-border)] px-4 py-2.5 text-[11.5px] text-muted-foreground">
           <MessageCircle className="mt-0.5 h-3.5 w-3.5 flex-none" />
           {t(
-            "Skor = (lead unik × 10) + (hari aktif × 5) + (deal menang × 25). Follow-up berulang pada lead sama tidak menambah skor.",
-            "Score = (unique leads × 10) + (active days × 5) + (deals won × 25). Repeating follow-ups on the same lead does not add to your score.",
+            "Kedudukan ikut jumlah susulan (FU1 + FU2 + FU3) yang telah dilaksanakan dalam tempoh ini.",
+            "Ranked by total follow-ups (FU1 + FU2 + FU3) completed in this period.",
           )}
         </p>
       </section>

@@ -28,14 +28,21 @@ import { withinRange, type KlRange, type OwnerScope } from "./dashboard-filter";
 
 type DB = DrizzleD1Database<typeof schema>;
 
-/** Leaderboard row — structurally compatible with `SalesScore` in src/lib/followup-ranking.ts. */
+/** Leaderboard row — one sales rep's follow-up counts for a period. */
 export interface SalesScoreRow {
   /** Staff user id — mirrors SalesScore.id (rows are keyed by it in the UI). */
   id: string;
   /** Staff user id again, as SalesScore.userId (used to highlight the signed-in rep). */
   userId: string;
   name: string;
+  /** Total confirmed follow-ups (FU1 + FU2 + FU3). */
   completed: number;
+  /** Confirmed FU1 follow-ups. */
+  fu1: number;
+  /** Confirmed FU2 follow-ups. */
+  fu2: number;
+  /** Confirmed FU3 follow-ups. */
+  fu3: number;
   uniqueLeads: number;
   activeDays: number;
   won: number;
@@ -73,12 +80,15 @@ export async function salesScores(
   scope: OwnerScope = { scoped: false, ownerUserId: null },
 ): Promise<SalesScoreRow[]> {
   // One GROUP BY over the confirmed window. COUNT(DISTINCT …) is computed
-  // in SQL for completed / uniqueLeads; activeDays needs KL day buckets so
-  // it is derived below from the per-rep day list.
+  // in SQL for uniqueLeads; completed is split per FU stage (FU1/FU2/FU3).
+  // activeDays needs KL day buckets so it is derived below from the day list.
   const rows = await db
     .select({
       userId: schema.followupActivities.user,
       completed: sql<number>`count(*)`.mapWith(Number),
+      fu1: sql<number>`coalesce(sum(case when ${schema.followupActivities.stage} = 'FU1' then 1 else 0 end), 0)`.mapWith(Number),
+      fu2: sql<number>`coalesce(sum(case when ${schema.followupActivities.stage} = 'FU2' then 1 else 0 end), 0)`.mapWith(Number),
+      fu3: sql<number>`coalesce(sum(case when ${schema.followupActivities.stage} = 'FU3' then 1 else 0 end), 0)`.mapWith(Number),
       uniqueLeads: sql<number>`count(distinct ${schema.followupActivities.leadId})`.mapWith(Number),
     })
     .from(schema.followupActivities)
@@ -145,6 +155,9 @@ export async function salesScores(
     userId: r.userId,
     name: names.get(r.userId) ?? r.userId,
     completed: r.completed,
+    fu1: r.fu1,
+    fu2: r.fu2,
+    fu3: r.fu3,
     uniqueLeads: r.uniqueLeads,
     activeDays: activeDays.get(r.userId)?.size ?? 0,
     won: wonByOwner.get(r.userId) ?? 0,
@@ -156,6 +169,9 @@ export async function salesScores(
 export interface TeamTotals {
   uniqueLeads: number;
   completed: number;
+  fu1: number;
+  fu2: number;
+  fu3: number;
   won: number;
   activeSales: number;
   leadsOwned: number;
@@ -164,15 +180,21 @@ export interface TeamTotals {
 export function teamTotals(scores: SalesScoreRow[]): TeamTotals {
   let uniqueLeads = 0;
   let completed = 0;
+  let fu1 = 0;
+  let fu2 = 0;
+  let fu3 = 0;
   let won = 0;
   let leadsOwned = 0;
   for (const s of scores) {
     uniqueLeads += s.uniqueLeads;
     completed += s.completed;
+    fu1 += s.fu1;
+    fu2 += s.fu2;
+    fu3 += s.fu3;
     won += s.won;
     leadsOwned += s.leadsOwned;
   }
-  return { uniqueLeads, completed, won, activeSales: scores.length, leadsOwned };
+  return { uniqueLeads, completed, fu1, fu2, fu3, won, activeSales: scores.length, leadsOwned };
 }
 
 /**

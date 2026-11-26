@@ -14,7 +14,6 @@ import {
 } from "recharts";
 import { TrendingUp, Users } from "lucide-react";
 import { useLang } from "@/lib/i18n";
-import { initialsOf } from "@/components/FollowupTaskRow";
 import type { RankedScore } from "@/lib/followup-api";
 
 /** One day of team follow-up activity. */
@@ -82,9 +81,9 @@ export default function FollowupTrendCharts({ trend, scores, days = 7 }: Followu
   const compareData = useMemo(
     () =>
       [...scores]
-        .sort((a, b) => b.leadsOwned - a.leadsOwned)
+        .sort((a, b) => b.completed - a.completed)
         .slice(0, 6)
-        .map((s) => ({ name: s.name, short: initialsOf(s.name), leadsOwned: s.leadsOwned })),
+        .map((s) => ({ name: s.name, completed: s.completed })),
     [scores],
   );
 
@@ -102,8 +101,8 @@ export default function FollowupTrendCharts({ trend, scores, days = 7 }: Followu
         </h2>
         <p className="m-0 mt-0.5 text-[12px] text-muted-foreground">
           {t(
-            "Susulan selesai berbanding lead unik yang disentuh setiap hari.",
-            "Follow-ups completed versus unique leads touched each day.",
+            "Jumlah susulan yang dilaksanakan setiap hari.",
+            "Follow-ups completed each day.",
           )}
         </p>
         {trendData.length === 0 ? (
@@ -153,16 +152,6 @@ export default function FollowupTrendCharts({ trend, scores, days = 7 }: Followu
                 dot={{ r: 3, strokeWidth: 0, fill: "var(--color-primary)" }}
                 activeDot={{ r: 5 }}
               />
-              <Line
-                type="monotone"
-                dataKey="uniqueLeads"
-                name={t("Lead unik", "Unique leads")}
-                stroke="var(--color-info)"
-                strokeWidth={2}
-                strokeDasharray="5 3"
-                dot={{ r: 3, strokeWidth: 0, fill: "var(--color-info)" }}
-                activeDot={{ r: 5 }}
-              />
             </LineChart>
           </ResponsiveContainer>
         </div>
@@ -171,11 +160,11 @@ export default function FollowupTrendCharts({ trend, scores, days = 7 }: Followu
 
       {/* Side-by-side comparison */}
       <section className="min-w-0 rounded-[var(--radius-panel)] border border-[var(--color-border)] bg-[var(--color-surface)] p-5">
-        <h2 className="m-0 text-[14px] font-bold">{t("Perbandingan Lead", "Lead Comparison")}</h2>
+        <h2 className="m-0 text-[14px] font-bold">{t("Perbandingan Susulan", "Follow-Up Comparison")}</h2>
         <p className="m-0 mt-0.5 text-[12px] text-muted-foreground">
           {t(
-            "6 sales teratas mengikut bilangan lead yang dimiliki.",
-            "Top 6 reps by leads owned.",
+            "6 sales teratas mengikut jumlah susulan yang dilaksanakan.",
+            "Top 6 reps by follow-ups completed.",
           )}
         </p>
         {compareData.length === 0 ? (
@@ -201,9 +190,9 @@ export default function FollowupTrendCharts({ trend, scores, days = 7 }: Followu
                 tick={{ fill: "var(--color-text-secondary)", fontSize: 11 }}
               />
               <YAxis
-                dataKey="short"
+                dataKey="name"
                 type="category"
-                width={44}
+                width={150}
                 tickLine={false}
                 axisLine={false}
                 tick={{ fill: "var(--color-text-secondary)", fontSize: 11.5, fontWeight: 600 }}
@@ -217,7 +206,7 @@ export default function FollowupTrendCharts({ trend, scores, days = 7 }: Followu
                   fontSize: 12,
                 }}
               />
-              <Bar dataKey="leadsOwned" name={t("Lead", "Leads")} radius={[0, 6, 6, 0]} barSize={18}>
+              <Bar dataKey="completed" name={t("Susulan", "Follow-ups")} radius={[0, 6, 6, 0]} barSize={18}>
                 {compareData.map((entry, i) => (
                   <Cell
                     key={entry.name}

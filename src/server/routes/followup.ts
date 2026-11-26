@@ -11,7 +11,6 @@ import { klTodayWindow, klWindow, KL_TIMEZONE } from "../lib/kl-time";
 import { parseOwnerFilter, parsePeriodParam, periodRangeKL, previousRangeKL } from "../lib/dashboard-filter";
 import { pipelineSummary } from "../lib/pipeline-summary";
 import { salesScores, teamTotals, dailyTrend } from "../lib/leaderboard-stats";
-import { leaderboardScore } from "../../lib/followup-ranking";
 import { logAudit } from "../lib/audit";
 import {
   parseCsvText,
@@ -148,10 +147,10 @@ followupRouter.get("/leaderboard", async (c) => {
   const totals = teamTotals(scores);
   const previous = prevRange ? teamTotals(previousScores) : null;
 
-  // Score + rank follow the shared model (unique activity only).
+  // Rank by confirmed follow-up volume (FU1+FU2+FU3), then unique leads, then
+  // deals won. No composite score — the board answers "who followed up most".
   const ranked = scores
-    .map((s) => ({ ...s, score: leaderboardScore(s) }))
-    .sort((a, b) => b.score - a.score || b.uniqueLeads - a.uniqueLeads || b.won - a.won)
+    .sort((a, b) => b.completed - a.completed || b.uniqueLeads - a.uniqueLeads || b.won - a.won)
     .map((s, i) => ({ ...s, rank: i + 1 }));
 
   return c.json({

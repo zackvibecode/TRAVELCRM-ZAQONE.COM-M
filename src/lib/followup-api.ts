@@ -142,7 +142,14 @@ export interface MyPipelineSummary {
 export interface SalesScore {
   id: string;
   name: string;
+  /** Total confirmed follow-ups (FU1 + FU2 + FU3). */
   completed: number;
+  /** Confirmed FU1 follow-ups. */
+  fu1: number;
+  /** Confirmed FU2 follow-ups. */
+  fu2: number;
+  /** Confirmed FU3 follow-ups. */
+  fu3: number;
   uniqueLeads: number;
   activeDays: number;
   won: number;
@@ -151,15 +158,14 @@ export interface SalesScore {
 }
 
 export interface RankedScore extends SalesScore {
-  score: number;
   rank: number;
 }
 
 export interface LeaderboardResponse {
   period: string;
   scores: RankedScore[];
-  totals: { completed: number; uniqueLeads: number; won: number; leadsOwned: number } | null;
-  previous: { completed: number; uniqueLeads: number; won: number; leadsOwned: number } | null;
+  totals: { completed: number; uniqueLeads: number; won: number; leadsOwned: number; fu1: number; fu2: number; fu3: number } | null;
+  previous: { completed: number; uniqueLeads: number; won: number; leadsOwned: number; fu1: number; fu2: number; fu3: number } | null;
   window: { from: string; to: string } | null;
   previousWindow: { from: string; to: string } | null;
   today: { start: string; end: string };
