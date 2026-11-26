@@ -1,4 +1,4 @@
-﻿import { useMemo, useState } from "react";
+import { useMemo, useState } from "react";
 import {
   BarChart3,
   Banknote,
@@ -127,6 +127,7 @@ export default function ShareReport() {
 
   const [month, setMonth] = useState(monthKey());
   const [ownerFilter, setOwnerFilter] = useState("all");
+  const [exporting, setExporting] = useState(false);
 
   const owner = isAdmin ? ownerFilter : undefined;
   const dashboard = useShareDashboard(month, owner);
@@ -145,63 +146,31 @@ export default function ShareReport() {
     await Promise.all([dashboard.refetch(), entries.refetch()]);
   }
 
-  /** Export the month's entries as CSV (opens directly in Excel). */
-  function exportExcel() {
-    const header = [
-      t("Nama Customer", "Customer Name"),
-      t("No. Invoice", "Invoice No."),
-      t("Pack", "Packs"),
-      t("Sumber Lead", "Lead Source"),
-      t("Total Invoice", "Total Invoice"),
-      t("Status", "Status"),
-      ...(isAdmin ? [t("Sales", "Sales")] : []),
-      t("Tarikh", "Date"),
-    ];
-    const esc = (v: string | number) => `"${String(v).replace(/"/g, '""')}"`;
-    const statusLabel = (s: string) =>
-      s === "confirm" ? "Confirm" : s === "partial" ? "Partial" : "Cancel";
-    const rows = entryList.map((e) =>
-      [
-        esc(e.customerName),
-        esc(e.invoiceNo || "-"),
-        esc(e.packs),
-        esc(e.source || "-"),
-        esc(e.invoiceTotal.toFixed(2)),
-        esc(statusLabel(e.status)),
-        ...(isAdmin ? [esc(e.userName)] : []),
-        esc(e.createdAt.slice(0, 10)),
-      ].join(","),
-    );
-    // Totals row at the bottom.
-    const totalCustomers = entryList.length;
-    const totalPacks = entryList.reduce((sum, e) => sum + e.packs, 0);
-    const totalInvoice = entryList.reduce((sum, e) => sum + e.invoiceTotal, 0);
-    rows.push("");
-    rows.push(
-      [
-        esc(t("JUMLAH", "TOTAL")),
-        esc(""),
-        esc(totalPacks),
-        esc(""),
-        esc(totalInvoice.toFixed(2)),
-        esc(""),
-        ...(isAdmin ? [esc("")] : []),
-        esc(`${totalCustomers} ${t("customer", "customer(s)")}`),
-      ].join(","),
-    );
-    // \uFEFF BOM so Excel detects UTF-8 (Malay names render correctly).
-    const csv = "\uFEFF" + [header.map(esc).join(","), ...rows].join("\r\n");
-    const blob = new Blob([csv], { type: "text/csv;charset=utf-8;" });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement("a");
-    a.href = url;
-    a.download = `report-monthly-${month}.csv`;
-    document.body.appendChild(a);
-    a.click();
-    document.body.removeChild(a);
-    URL.revokeObjectURL(url);
+  /** Export the month's entries as a formatted .xlsx report. */
+  async function exportExcel() {
+    if (exporting) return;
+    setExporting(true);
+    try {
+      const salesName =
+        ownerFilter !== "all" && ownerFilter
+          ? (dashboard.data?.reps.find((r) => r.userId === ownerFilter)?.userName ?? "Semua Sales")
+          : isAdmin
+            ? "Semua Sales"
+            : (session?.name ?? "Sales");
+      // Lazy-load exceljs only when the user actually exports — it is a large
+      // library and should not weigh down every visit to this page.
+      const { exportSalesReportXlsx } = await import("@/lib/export-sales-report");
+      await exportSalesReportXlsx({
+        month,
+        monthLabel: monthLabel(month, lang),
+        salesName,
+        entries: entryList,
+        includeSalesColumn: isAdmin,
+      });
+    } finally {
+      setExporting(false);
+    }
   }
-
   return (
     <div className="mx-auto flex w-full max-w-[1180px] flex-col gap-5">
       <div className="tvl-pagehead">
@@ -236,12 +205,12 @@ export default function ShareReport() {
           )}
           <button
             type="button"
-            onClick={exportExcel}
-            disabled={entryList.length === 0}
+            onClick={() => void exportExcel()}
+            disabled={entryList.length === 0 || exporting}
             className={BTN}
             title={t("Export Excel", "Export Excel")}
           >
-            <Download className="h-4 w-4" />
+            <Download className={`h-4 w-4 ${exporting ? "animate-pulse" : ""}`} />
           </button>
           <button type="button" onClick={() => void refreshAll()} className={BTN}>
             <RefreshCw className="h-4 w-4" />
