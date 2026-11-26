@@ -2,7 +2,10 @@
 import {
   AlertTriangle,
   CheckCircle2,
+  ChevronRight,
+  Download,
   FileSpreadsheet,
+  Info,
   Loader2,
   Upload,
   XCircle,
@@ -70,6 +73,28 @@ export interface ParsedFile {
 }
 
 const MAX_FILE_MB = 5;
+
+/** Sample rows for the downloadable template: Name → Phone → Package → Pax. */
+const TEMPLATE_HEADERS = ["name", "phone", "package", "pax"];
+const TEMPLATE_ROWS = [
+  ["Ahmad Salleh", "0123456789", "Pakej Umrah Disember", "2"],
+  ["Siti Aminah", "0129876543", "Pakej Bali 4H3M", "4"],
+  ["Tan Wei Ming", "01123456789", "Pakej Bali 4H3M", "1"],
+];
+
+/** Triggers a download of the sample .csv (UTF-8 BOM so Excel opens it cleanly). */
+function downloadTemplate(): void {
+  const csv = [TEMPLATE_HEADERS.join(","), ...TEMPLATE_ROWS.map((r) => r.join(","))].join("\r\n");
+  const blob = new Blob(["\uFEFF" + csv], { type: "text/csv;charset=utf-8" });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement("a");
+  a.href = url;
+  a.download = "lead-import-template.csv";
+  document.body.appendChild(a);
+  a.click();
+  a.remove();
+  URL.revokeObjectURL(url);
+}
 
 /** Converts a server parse response into the preview rows the UI renders. */
 function toPreviewRows(
@@ -172,6 +197,9 @@ export default function LeadImport() {
   const [doneNotice, setDoneNotice] = useState<string>("");
   const [batches, setBatches] = useState<ImportBatch[] | null>(null);
   const [batchesError, setBatchesError] = useState<string | null>(null);
+  /** Overlay animation phases: null = hidden, "processing", "success". */
+  const [overlay, setOverlay] = useState<null | "processing" | "success">(null);
+  const [doneStats, setDoneStats] = useState<{ added: number; dup: number; bad: number } | null>(null);
 
   async function loadBatches() {
     setBatchesError(null);
@@ -264,8 +292,10 @@ export default function LeadImport() {
     }
     setImporting(true);
     setParseError(null);
+    setOverlay("processing");
     try {
       const res = await followupApi.importCommit(file, mapping);
+      setDoneStats({ added: res.insertedRows, dup: res.duplicateRows, bad: res.failedRows });
       setDoneNotice(
         t(
           `Import selesai: ${res.insertedRows} lead ditambah, ${res.duplicateRows} pendua, ${res.failedRows} gagal.`,
@@ -278,12 +308,28 @@ export default function LeadImport() {
       setFileName("");
       setMapping({});
       await loadBatches();
+      setOverlay("success");
+      // Auto-dismiss the success animation after ~2.6s — no button needed.
+      window.setTimeout(() => setOverlay(null), 2600);
     } catch (err) {
       setParseError(err instanceof Error ? err.message : String(err));
+      setOverlay(null);
     } finally {
       setImporting(false);
     }
   }
+
+  // Auto-import: as soon as the server preview is ready, start the import
+  // without waiting for a button press. Requires a valid mapping (name +
+  // phone) and at least one ready row.
+  useEffect(() => {
+    if (importing || parsing || !file) return;
+    if (!headers || rows.length === 0) return;
+    if (!mappingReady) return;
+    if (stats.ready === 0) return;
+    void runImport();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [headers, rows, parsing, importing]);
 
   /** Re-import handler for corrected failed rows — posts to the batch retry endpoint. */
   async function retryFixed(batchId: string, fixed: ImportErrorItem[]) {
@@ -364,6 +410,45 @@ export default function LeadImport() {
           ) : null}
         </div>
         <div className="flex flex-col gap-4 p-5">
+          {/* Format note — shown BEFORE the user uploads so the column order is clear */}
+          <div className="flex items-start gap-3 rounded-[var(--radius-card)] border border-[var(--color-info)]/30 bg-[var(--color-info-soft)] px-4 py-3">
+            <Info className="mt-0.5 h-4 w-4 flex-none text-[var(--color-info)]" />
+            <div className="min-w-0 flex-1">
+              <strong className="block text-[13px] font-semibold text-[var(--color-text)]">
+                {t("Format lajur Excel/CSV", "Excel/CSV column format")}
+              </strong>
+              <ol className="m-0 mt-1 flex list-none flex-wrap items-center gap-1.5 p-0 text-[12.5px] text-[var(--color-text-secondary)]">
+                {[
+                  [t("Name", "Name"), t("nama pelanggan", "customer name")],
+                  [t("Phone", "Phone"), t("nombor WhatsApp", "WhatsApp number")],
+                  [t("Package", "Package"), t("nama pakej", "package name")],
+                  ["Pax", t("bilangan orang", "number of people")],
+                ].map(([col, sub], i, arr) => (
+                  <li key={col} className="inline-flex items-center gap-1.5">
+                    <span className="rounded-md border border-[var(--color-border)] bg-[var(--color-surface)] px-2 py-1 font-mono text-[12px] font-semibold text-[var(--color-primary)]">
+                      {col}
+                    </span>
+                    <span className="text-[11.5px] text-muted-foreground">{sub}</span>
+                    {i < arr.length - 1 && <ChevronRight className="h-3.5 w-3.5 text-muted-foreground" />}
+                  </li>
+                ))}
+              </ol>
+              <p className="m-0 mt-1.5 text-[12px] text-muted-foreground">
+                {t(
+                  "Susunan lajur: Name → Phone → Package → Pax. Jangan tukar susunan. Tambah 1 baris untuk 1 pelanggan.",
+                  "Column order: Name → Phone → Package → Pax. Keep this order. One row per customer.",
+                )}
+              </p>
+              <button
+                type="button"
+                onClick={downloadTemplate}
+                className="mt-2 inline-flex items-center gap-1.5 rounded-[var(--radius-control)] border border-[var(--color-primary)]/40 bg-[var(--color-surface)] px-2.5 py-1.5 text-[12px] font-semibold text-[var(--color-primary)] transition-colors hover:bg-[var(--color-primary-soft)]"
+              >
+                <Download className="h-3.5 w-3.5" />
+                {t("Muat turun templat (.csv)", "Download template (.csv)")}
+              </button>
+            </div>
+          </div>
           <div
             role="button"
             tabIndex={0}
@@ -574,19 +659,6 @@ export default function LeadImport() {
               </tbody>
             </table>
           </div>
-          <div className="flex flex-wrap items-center justify-end gap-3 border-t border-[var(--color-border)] px-5 py-4">
-            <button
-              type="button"
-              onClick={runImport}
-              disabled={importing || parsing || stats.ready === 0 || !mappingReady}
-              className="inline-flex items-center gap-1.5 rounded-[var(--radius-control)] border border-[var(--color-primary)] bg-[var(--color-primary)] px-4 py-2 text-[13px] font-semibold text-[var(--color-on-primary)] transition-colors hover:bg-[var(--color-primary-hover)] disabled:cursor-not-allowed disabled:opacity-45"
-            >
-              {importing ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : null}
-              {importing
-                ? t("Mengimport…", "Importing…")
-                : t(`Import ${stats.ready} lead`, `Import ${stats.ready} leads`)}
-            </button>
-          </div>
         </section>
       )}
 
@@ -614,6 +686,79 @@ export default function LeadImport() {
           />
         )}
       </section>
+
+      {/* Full-screen overlay: processing → success. Fixed positioning means the
+          user never has to scroll down to see it. Auto-dismisses, no button. */}
+      {overlay && (
+        <div
+          role="status"
+          aria-live="polite"
+          className="fixed inset-0 z-50 grid place-items-center bg-[color-mix(in_srgb,var(--color-text)_45%,transparent)] backdrop-blur-[3px]"
+        >
+          {overlay === "processing" ? (
+            <div className="flex flex-col items-center gap-5 rounded-[var(--radius-panel)] border border-[var(--color-border)] bg-[var(--color-surface)] px-12 py-10 shadow-2xl [animation:li-pop-in_var(--duration-base)_var(--ease-out)_both]">
+              {/* Animated spreadsheet icon with orbiting status dots */}
+              <div className="relative grid h-24 w-24 place-items-center">
+                <span className="absolute inset-0 rounded-full bg-[var(--color-primary-soft)] [animation:li-pulse-ring_1.6s_ease-out_infinite]" />
+                <span className="absolute inset-3 rounded-full bg-[var(--color-primary-soft)]/70 [animation:li-pulse-ring_1.6s_ease-out_0.4s_infinite]" />
+                <span className="relative grid h-14 w-14 place-items-center rounded-2xl bg-[var(--color-primary)] text-[var(--color-on-primary)] shadow-lg [animation:li-float_1.8s_ease-in-out_infinite]">
+                  <FileSpreadsheet className="h-7 w-7" />
+                </span>
+                <span className="absolute left-1/2 top-1/2 h-24 w-24 -translate-x-1/2 -translate-y-1/2 [animation:li-spin_2.4s_linear_infinite]">
+                  <span className="absolute left-1/2 top-0 h-2.5 w-2.5 -translate-x-1/2 rounded-full bg-[var(--color-primary)]" />
+                  <span className="absolute bottom-0 left-1/2 h-2 w-2 -translate-x-1/2 rounded-full bg-[var(--color-primary)]/50" />
+                </span>
+              </div>
+              <div className="flex flex-col items-center gap-1.5 text-center">
+                <strong className="text-[16px] font-semibold text-[var(--color-text)]">
+                  {t("Sedang mengimport lead anda…", "Importing your leads…")}
+                </strong>
+                <span className="text-[13px] text-muted-foreground">
+                  {t("Menyemak pendua & menormalkan nombor telefon", "Checking duplicates & normalizing phone numbers")}
+                </span>
+              </div>
+              {/* Progress bar — indeterminate shimmer */}
+              <div className="h-1.5 w-56 overflow-hidden rounded-full bg-[var(--color-surface-muted)]">
+                <span className="block h-full w-1/3 rounded-full bg-[var(--color-primary)] [animation:li-slide_1.2s_ease-in-out_infinite]" />
+              </div>
+            </div>
+          ) : (
+            <div className="flex flex-col items-center gap-4 rounded-[var(--radius-panel)] border border-[var(--color-success)]/30 bg-[var(--color-surface)] px-12 py-9 text-center shadow-2xl [animation:li-pop-in_var(--duration-base)_var(--ease-out)_both]">
+              {/* Success check with confetti-like rays */}
+              <div className="relative grid h-24 w-24 place-items-center">
+                <span className="absolute inset-0 rounded-full bg-[var(--color-success-soft)] [animation:li-pop-in_0.5s_var(--ease-out)_both]" />
+                {Array.from({ length: 8 }).map((_, i) => (
+                  <span
+                    key={i}
+                    className="absolute left-1/2 top-1/2 h-2 w-2 rounded-full bg-[var(--color-success)] [animation:li-burst_0.9s_ease-out_both]"
+                    style={{ "--li-angle": `${i * 45}deg`, animationDelay: `${0.05 * i}s` } as React.CSSProperties}
+                  />
+                ))}
+                <span className="relative grid h-16 w-16 place-items-center rounded-full bg-[var(--color-success)] text-white shadow-lg [animation:li-pop-in_0.45s_var(--ease-spring)_both]">
+                  <CheckCircle2 className="h-9 w-9" strokeWidth={2.5} />
+                </span>
+              </div>
+              <div className="flex flex-col gap-1">
+                <strong className="text-[20px] font-bold text-[var(--color-text)]">
+                  {t("Lead berjaya diimport!", "Leads imported successfully!")}
+                </strong>
+                <span className="text-[13.5px] text-muted-foreground">
+                  {doneStats
+                    ? t(
+                        `${doneStats.added} lead ditambah · ${doneStats.dup} pendua · ${doneStats.bad} gagal`,
+                        `${doneStats.added} leads added · ${doneStats.dup} duplicates · ${doneStats.bad} failed`,
+                      )
+                    : doneNotice}
+                </span>
+              </div>
+              {/* Auto-dismiss progress line (visual only — there is no button) */}
+              <div className="h-1 w-40 overflow-hidden rounded-full bg-[var(--color-surface-muted)]">
+                <span className="block h-full rounded-full bg-[var(--color-success)] [animation:li-shrink_2.6s_linear_both]" />
+              </div>
+            </div>
+          )}
+        </div>
+      )}
     </div>
   );
 }

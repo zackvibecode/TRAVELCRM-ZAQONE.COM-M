@@ -759,6 +759,43 @@
   }
 }
 
+/* ---- Lead import overlay animations (li-*) ------------------------------ */
+@keyframes li-pop-in {
+  from { opacity: 0; transform: scale(0.78); }
+  to { opacity: 1; transform: scale(1); }
+}
+@keyframes li-float {
+  0%, 100% { transform: translateY(0); }
+  50% { transform: translateY(-5px); }
+}
+@keyframes li-spin {
+  from { transform: translate(-50%, -50%) rotate(0deg); }
+  to { transform: translate(-50%, -50%) rotate(360deg); }
+}
+@keyframes li-pulse-ring {
+  0% { transform: scale(0.75); opacity: 0.9; }
+  100% { transform: scale(1.35); opacity: 0; }
+}
+@keyframes li-slide {
+  0% { transform: translateX(-100%); }
+  100% { transform: translateX(300%); }
+}
+@keyframes li-burst {
+  0% { opacity: 1; }
+  100% { opacity: 0; transform: rotate(var(--li-angle, 0deg)) translateY(-3.25rem) scale(0.4); }
+}
+@keyframes li-shrink {
+  from { width: 100%; }
+  to { width: 0%; }
+}
+@media (prefers-reduced-motion: reduce) {
+  [style*="--li-angle"],
+  [class*="animation:li-"] {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+  }
+}
+
 /* Reduced motion — kurangkan pergerakan, kekalkan perubahan warna */
 @media (prefers-reduced-motion: reduce) {
   .tv-btn,
