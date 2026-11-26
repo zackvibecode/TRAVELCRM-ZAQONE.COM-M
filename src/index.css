@@ -2068,146 +2068,115 @@ textarea.bw-input {
   align-items: center;
   justify-content: center;
   padding: var(--space-6) var(--space-4);
-  background:
-    radial-gradient(900px 480px at 12% -8%, rgba(139, 92, 246, 0.12), transparent 62%),
-    radial-gradient(760px 420px at 105% 108%, rgba(59, 130, 246, 0.12), transparent 58%),
-    linear-gradient(165deg, #f3f1fd 0%, #e9eefc 52%, #f1f3fe 100%);
-}
-
-/* Split card: brand panel (left) + form panel (right) */
-.au-card {
-  width: 100%;
-  max-width: 1180px;
-  display: grid;
-  grid-template-columns: 1.15fr 1fr;
-  border-radius: var(--radius-panel);
-  overflow: hidden;
-  box-shadow: 0 24px 60px color-mix(in srgb, #4c3fa8 18%, transparent);
-  border: 1px solid #d8d4f3;
-}
-
-.au-brand {
   position: relative;
-  display: flex;
-  flex-direction: column;
-  justify-content: space-between;
-  gap: var(--space-5);
-  padding: var(--space-8) var(--space-8);
-  color: var(--color-on-primary);
   overflow: hidden;
+  color: #fff;
   background:
-    radial-gradient(720px 420px at 85% 10%, rgba(139, 92, 246, 0.75), transparent 62%),
-    radial-gradient(560px 360px at 10% 95%, rgba(59, 130, 246, 0.65), transparent 60%),
+    radial-gradient(900px 520px at 82% 8%, rgba(139, 92, 246, 0.75), transparent 62%),
+    radial-gradient(760px 460px at 8% 96%, rgba(59, 130, 246, 0.7), transparent 60%),
+    radial-gradient(600px 400px at 50% 50%, rgba(99, 102, 241, 0.25), transparent 70%),
     linear-gradient(160deg, #1a1a3e 0%, #22225a 55%, #141433 100%);
 }
-.au-brand::before {
+.au-shell::before {
   content: "";
   position: absolute;
   inset: 0;
   background:
-    radial-gradient(560px 280px at 80% 0%, rgba(255, 255, 255, 0.14), transparent 60%),
-    radial-gradient(380px 240px at 0% 100%, rgba(167, 139, 250, 0.28), transparent 58%);
+    radial-gradient(560px 280px at 80% 0%, rgba(255, 255, 255, 0.12), transparent 60%),
+    radial-gradient(380px 240px at 0% 100%, rgba(167, 139, 250, 0.25), transparent 58%);
   pointer-events: none;
 }
 
-/* Floating geometric shapes inside the dark brand panel (pure CSS). */
-.au-brand__geo {
+/* Full-page floating geometric shapes (pure CSS, behind the login card). */
+.au-shell__geo {
   position: absolute;
   inset: 0;
   pointer-events: none;
   z-index: 0;
 }
-.au-brand > *:not(.au-brand__geo) {
+.au-shell > *:not(.au-shell__geo) {
   position: relative;
   z-index: 1;
 }
+
+/* Floating login card — single panel, no brand column */
+.au-card {
+  width: 100%;
+  max-width: 440px;
+  border-radius: var(--radius-panel);
+  overflow: hidden;
+  background: #ffffff;
+  box-shadow: 0 32px 80px rgba(10, 10, 40, 0.45), 0 0 0 1px rgba(255, 255, 255, 0.08);
+  border: 1px solid rgba(255, 255, 255, 0.14);
+}
+
+/* Full-page floating geometric shapes (pure CSS). */
 .au-geo {
   position: absolute;
   display: block;
 }
 .au-geo--orb {
-  top: 14%;
-  right: 12%;
-  width: 120px;
-  height: 120px;
+  top: 12%;
+  right: 14%;
+  width: 160px;
+  height: 160px;
   border-radius: 50%;
   background: radial-gradient(circle at 32% 28%, #ddd6fe 0%, #a78bfa 40%, #6d28d9 100%);
-  box-shadow: 0 0 80px rgba(167, 139, 250, 0.75), inset -14px -18px 30px rgba(0, 0, 0, 0.3);
-  animation: au-float 7s ease-in-out infinite;
+  box-shadow: 0 0 100px rgba(167, 139, 250, 0.7), inset -18px -22px 40px rgba(0, 0, 0, 0.3);
+  animation: au-float 8s ease-in-out infinite;
 }
 .au-geo--ring {
-  bottom: 18%;
-  left: 8%;
-  width: 150px;
-  height: 150px;
+  bottom: 14%;
+  left: 10%;
+  width: 200px;
+  height: 200px;
   border-radius: 50%;
-  border: 14px solid transparent;
+  border: 18px solid transparent;
   background:
     linear-gradient(#1e1e4a, #1e1e4a) padding-box,
     linear-gradient(135deg, rgba(196, 181, 253, 1), rgba(96, 165, 250, 0.55)) border-box;
-  box-shadow: 0 0 50px rgba(96, 165, 250, 0.5);
-  animation: au-float 9s ease-in-out 0.6s infinite reverse;
+  box-shadow: 0 0 60px rgba(96, 165, 250, 0.45);
+  animation: au-float 11s ease-in-out 0.6s infinite reverse;
 }
 .au-geo--cube {
-  top: 52%;
-  right: 22%;
-  width: 64px;
-  height: 64px;
-  border-radius: 14px;
+  top: 58%;
+  right: 26%;
+  width: 80px;
+  height: 80px;
+  border-radius: 18px;
   background: linear-gradient(145deg, rgba(221, 214, 254, 1) 0%, rgba(129, 140, 248, 0.9) 60%, rgba(67, 56, 202, 0.95) 100%);
-  box-shadow: 0 12px 40px rgba(129, 140, 248, 0.65), inset 4px 4px 10px rgba(255, 255, 255, 0.3);
+  box-shadow: 0 14px 50px rgba(129, 140, 248, 0.6), inset 5px 5px 12px rgba(255, 255, 255, 0.3);
   transform: rotate(18deg);
-  animation: au-float 6s ease-in-out 1.2s infinite;
+  animation: au-float 7s ease-in-out 1.2s infinite;
 }
 .au-geo--dot {
-  bottom: 34%;
-  right: 8%;
-  width: 18px;
-  height: 18px;
+  top: 30%;
+  left: 22%;
+  width: 22px;
+  height: 22px;
   border-radius: 50%;
   background: #c7d2fe;
-  box-shadow: 0 0 22px rgba(199, 210, 254, 1);
-  animation: au-float 5s ease-in-out 0.3s infinite;
+  box-shadow: 0 0 26px rgba(199, 210, 254, 1);
+  animation: au-float 6s ease-in-out 0.3s infinite;
 }
 @keyframes au-float {
   0%, 100% { translate: 0 0; }
-  50% { translate: 0 -14px; }
-}
-.au-brand__logo {
-  display: block;
-  width: 100%;
-  height: auto;
-}
-.au-brand__headline {
-  margin: 0;
-  font-family: var(--font-display);
-  font-size: 30px;
-  font-weight: 800;
-  line-height: 1.3;
-  letter-spacing: -0.01em;
-}
-.au-brand__copy {
-  margin: 10px 0 0;
-  font-size: 15px;
-  line-height: 1.65;
-  color: rgba(255, 255, 255, 0.88);
-  max-width: 42ch;
-}
-.au-brand__tag {
-  margin: 0;
-  font-size: 11.5px;
-  font-weight: 600;
-  letter-spacing: 0.1em;
-  text-transform: uppercase;
-  color: rgba(255, 255, 255, 0.75);
+  50% { translate: 0 -18px; }
 }
 
 .au-panel {
-  background: linear-gradient(180deg, #f7fafe 0%, #ffffff 34%);
   padding: var(--space-8) var(--space-7);
   display: flex;
   flex-direction: column;
   justify-content: center;
+}
+.au-brandmark {
+  margin-bottom: var(--space-5);
+}
+.au-brandmark__logo {
+  display: block;
+  width: 150px;
+  height: auto;
 }
 .au-panel form {
   display: flex;
@@ -2452,37 +2421,37 @@ textarea.bw-input {
   align-items: center;
   gap: 6px;
   padding: 8px 14px;
-  border: 1px solid #c9dcf5;
+  border: 1px solid rgba(255, 255, 255, 0.28);
   border-radius: var(--radius-control);
-  background: rgba(255, 255, 255, 0.85);
-  color: var(--color-text-secondary);
+  background: rgba(255, 255, 255, 0.12);
+  color: #ffffff;
   font: inherit;
   font-size: 13px;
   font-weight: 600;
   cursor: pointer;
-  backdrop-filter: blur(4px);
+  backdrop-filter: blur(6px);
 }
 .au-lang:hover {
-  background: #ffffff;
-  border-color: #a9c8ef;
+  background: rgba(255, 255, 255, 0.22);
+  border-color: rgba(255, 255, 255, 0.45);
 }
 .au-lang:focus-visible {
-  outline: 2px solid var(--color-focus-ring);
+  outline: 2px solid rgba(255, 255, 255, 0.7);
   outline-offset: 2px;
 }
 .au-note {
   font-size: 13px;
-  color: var(--color-text-muted);
+  color: rgba(255, 255, 255, 0.72);
 }
 
 @media (max-width: 860px) {
   .au-card {
-    grid-template-columns: 1fr;
     max-width: 440px;
   }
-  .au-brand {
-    display: none;
-  }
+  /* Shapes are decorative — shrink on small screens so they never crowd the card */
+  .au-geo--orb { width: 110px; height: 110px; }
+  .au-geo--ring { width: 130px; height: 130px; border-width: 12px; }
+  .au-geo--cube { width: 56px; height: 56px; }
 }
 @media (max-width: 480px) {
   .au-panel {
@@ -2499,5 +2468,8 @@ textarea.bw-input {
   }
   .au-btn:active {
     transform: none;
+  }
+  .au-geo {
+    animation: none;
   }
 }
