@@ -1223,6 +1223,11 @@ followupRouter.post("/leads/:id/notes", async (c) => {
  * rows (activities, follow-ups, follow-up activities, customer notes).
  * ADMIN may delete any lead; SALES may delete only leads they own. Missing
  * or foreign ids answer 404 so existence never leaks.
+ *
+ * The five cascaded deletes run as ONE D1 batch (single transaction, single
+ * round trip). Running them as separate awaited statements previously left
+ * the request open to D1 intermittently resetting the connection mid-flight,
+ * which surfaced to users as a bare "Internal server error".
  */
 followupRouter.delete("/leads/:id", async (c) => {
   const db = c.get("db");
@@ -1239,11 +1244,24 @@ followupRouter.delete("/leads/:id", async (c) => {
   const owned = await requireOwnedLead(db, id, staff);
   if (!owned.ok) return owned.response;
 
-  await db.delete(schema.leadActivities).where(eq(schema.leadActivities.leadId, id)).run();
-  await db.delete(schema.leadFollowUps).where(eq(schema.leadFollowUps.leadId, id)).run();
-  await db.delete(schema.followupActivities).where(eq(schema.followupActivities.leadId, id)).run();
-  await db.delete(schema.customerNotes).where(eq(schema.customerNotes.leadId, id)).run();
-  await db.delete(schema.leads).where(eq(schema.leads.id, id)).run();
+  try {
+    await db.batch([
+      db.delete(schema.leadActivities).where(eq(schema.leadActivities.leadId, id)),
+      db.delete(schema.leadFollowUps).where(eq(schema.leadFollowUps.leadId, id)),
+      db.delete(schema.followupActivities).where(eq(schema.followupActivities.leadId, id)),
+      db.delete(schema.customerNotes).where(eq(schema.customerNotes.leadId, id)),
+      db.delete(schema.leads).where(eq(schema.leads.id, id)),
+    ]);
+  } catch (err) {
+    console.error("[followup] lead delete failed", id, err);
+    return c.json(
+      {
+        error: "delete_failed",
+        message: "Lead could not be deleted. Please retry in a moment.",
+      },
+      { status: 500 },
+    );
+  }
 
   await logAudit(db, {
     actor: staff.id,
@@ -2163,15 +2181,28 @@ followupRouter.post("/leads/bulk-delete", async (c) => {
     return c.json({ success: true, data: { requested: ids.length, deleted: 0 } });
   }
 
+  let deletedSoFar = 0;
   for (let i = 0; i < found.length; i += chunk) {
     const part = found.slice(i, i + chunk);
-    await db.batch([
-      db.delete(schema.leadActivities).where(inArray(schema.leadActivities.leadId, part)),
-      db.delete(schema.leadFollowUps).where(inArray(schema.leadFollowUps.leadId, part)),
-      db.delete(schema.followupActivities).where(inArray(schema.followupActivities.leadId, part)),
-      db.delete(schema.customerNotes).where(inArray(schema.customerNotes.leadId, part)),
-      db.delete(schema.leads).where(inArray(schema.leads.id, part)),
-    ]);
+    try {
+      await db.batch([
+        db.delete(schema.leadActivities).where(inArray(schema.leadActivities.leadId, part)),
+        db.delete(schema.leadFollowUps).where(inArray(schema.leadFollowUps.leadId, part)),
+        db.delete(schema.followupActivities).where(inArray(schema.followupActivities.leadId, part)),
+        db.delete(schema.customerNotes).where(inArray(schema.customerNotes.leadId, part)),
+        db.delete(schema.leads).where(inArray(schema.leads.id, part)),
+      ]);
+    } catch (err) {
+      console.error("[followup] bulk lead delete failed", `chunk=${i / chunk}`, err);
+      return c.json(
+        {
+          error: "delete_failed",
+          message: `Deleted ${deletedSoFar} of ${found.length} leads before the server stopped the request. Please retry for the rest.`,
+        },
+        { status: 500 },
+      );
+    }
+    deletedSoFar += part.length;
   }
 
   await logAudit(db, {
@@ -2180,12 +2211,12 @@ followupRouter.post("/leads/bulk-delete", async (c) => {
     action: "leads_bulk_delete",
     entityType: "leads",
     entityId: found[0],
-    detail: `requested=${ids.length} deleted=${found.length}`,
+    detail: `requested=${ids.length} deleted=${deletedSoFar}`,
   });
 
   return c.json({
     success: true,
-    data: { requested: ids.length, deleted: found.length },
+    data: { requested: ids.length, deleted: deletedSoFar },
   });
 });
 
