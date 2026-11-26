@@ -11,7 +11,7 @@
  * what mutations call to keep the screen truthful after a change.
  */
 import { useCallback, useEffect, useRef, useState } from "react";
-import { followupApi, type FollowupLead, type FuReportRow, type LeadFacets, type MyPipelineSummary } from "@/lib/followup-api";
+import { followupApi, type FollowupLead, type FuReportRow, type ImportGroup, type LeadFacets, type MyPipelineSummary } from "@/lib/followup-api";
 
 export type QueryStatus = "idle" | "loading" | "ready" | "error";
 
@@ -106,6 +106,8 @@ export interface LeadFilters {
   fu?: string;
   state?: string;
   owner?: string;
+  /** Import group id, or "none" for leads without an import batch. */
+  groupId?: string;
 }
 
 export function useLeadList(filters: LeadFilters, limit = 50): Query<{ data: FollowupLead[]; paging: { limit: number; offset: number; count: number } }> {
@@ -151,4 +153,9 @@ export function useAdminUsers() {
 /** GET /admin/imports */
 export function useAdminImports(status: "all" | "ok" | "partial" | "failed" = "all") {
   return useQuery(`admin-imports:${status}`, () => followupApi.adminImports({ status }));
+}
+
+/** GET /import/groups — the caller's import groups with file + lead counts. */
+export function useImportGroups(): Query<ImportGroup[]> {
+  return useQuery("import-groups", () => followupApi.importGroups());
 }

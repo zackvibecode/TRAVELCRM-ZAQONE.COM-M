@@ -236,6 +236,11 @@ export default function ImportHistoryPanel({
                         {b.fileName}
                       </span>
                     </div>
+                    {b.groupName && (
+                      <span className="mt-1 inline-flex items-center rounded-full border border-[var(--color-primary)]/30 bg-[var(--color-primary-soft)] px-2 py-0.5 text-[11px] font-semibold text-[var(--color-primary)]">
+                        {b.groupName}
+                      </span>
+                    )}
                   </td>
                   <td className="px-4 py-3 text-muted-foreground">
                     {formatKl(b.createdAt)}

@@ -718,6 +718,8 @@ export const leads = sqliteTable(
      * the duplicate-detection key for CSV/Excel import (Phase 6).
      */
     phoneNormalized: text("phone_normalized"),
+    /** Import batch (file) this lead came from — links it to an import group. */
+    batchId: text("batch_id"),
     createdAt: text("created_at")
       .notNull()
       .default(sql`(datetime('now'))`),
@@ -737,6 +739,7 @@ export const leads = sqliteTable(
     ownerStageIdx: index("leads_owner_stage_idx").on(table.ownerUserId, table.followupStage),
     lastContactedIdx: index("leads_last_contacted_idx").on(table.lastContactedAt),
     phoneNormalizedIdx: index("leads_phone_normalized_idx").on(table.phoneNormalized),
+    batchIdx: index("leads_batch_idx").on(table.batchId),
     // Dashboard & Ranking (Phase 6): pipeline per owner by state + schedule.
     ownerStateNextIdx: index("leads_owner_state_next_idx").on(
       table.ownerUserId,
@@ -935,6 +938,25 @@ export const whatsappTemplates = sqliteTable(
   }),
 );
 
+/**
+ * Import group ("kumpulan fail") — a named bucket a sales rep files each
+ * upload into. SALES only ever see their own; ADMIN see every group.
+ */
+export const importGroups = sqliteTable(
+  "import_groups",
+  {
+    id: text("id").primaryKey(),
+    name: text("name").notNull(),
+    ownerUserId: text("owner_user_id").notNull(),
+    createdAt: text("created_at")
+      .notNull()
+      .default(sql`(datetime('now'))`),
+  },
+  (table) => ({
+    ownerIdx: index("import_groups_owner_idx").on(table.ownerUserId),
+  }),
+);
+
 /** One row per Excel/CSV import run with its summary counts. */
 export const importBatches = sqliteTable(
   "import_batches",
@@ -947,6 +969,8 @@ export const importBatches = sqliteTable(
     duplicateRows: integer("duplicate_rows").notNull().default(0),
     failedRows: integer("failed_rows").notNull().default(0),
     createdBy: text("created_by").notNull(),
+    /** Import group this file was filed into (null = no group). */
+    groupId: text("group_id"),
     createdAt: text("created_at")
       .notNull()
       .default(sql`(datetime('now'))`),
@@ -954,6 +978,7 @@ export const importBatches = sqliteTable(
   (table) => ({
     createdIdx: index("import_batches_created_idx").on(table.createdAt),
     creatorIdx: index("import_batches_creator_idx").on(table.createdBy),
+    groupIdx: index("import_batches_group_idx").on(table.groupId),
   }),
 );
 

@@ -1,5 +1,5 @@
 import { Hono } from "hono";
-import { and, asc, count, desc, eq, inArray, isNotNull, or, sql, type SQL } from "drizzle-orm";
+import { and, asc, count, desc, eq, inArray, isNotNull, isNull, or, sql, type SQL } from "drizzle-orm";
 import type { AnySQLiteColumn } from "drizzle-orm/sqlite-core";
 import type { DrizzleD1Database } from "drizzle-orm/d1";
 import * as schema from "../db/schema";
@@ -356,56 +356,13 @@ followupRouter.get("/leads", async (c) => {
     );
   }
 
-  const q = (c.req.query("q") ?? "").trim();
-  const status = (c.req.query("status") ?? "").trim();
-  const owner = (c.req.query("owner") ?? "").trim();
-  const stage = (c.req.query("stage") ?? "").trim();
-  // Engine stage filter (FU1/FU2/FU3) — distinct from `stage`, which is the
-  // sales-pipeline stage (new/contacted/qualified/…).
-  const fu = (c.req.query("fu") ?? "").trim();
-  const state = (c.req.query("state") ?? "").trim();
   const limit = Math.min(
     Math.max(Number.parseInt(c.req.query("limit") ?? "50", 10) || 50, 1),
     200,
   );
   const offset = Math.max(Number.parseInt(c.req.query("offset") ?? "0", 10) || 0, 0);
 
-  const conditions = [];
-  // Ownership scope first: SALES only ever see their own leads.
-  if (access === "SALES") {
-    conditions.push(eq(schema.leads.ownerUserId, staff.id));
-  } else if (owner !== "") {
-    conditions.push(eq(schema.leads.ownerUserId, owner));
-  }
-
-  // Multi-column free-text search: name, phone, normalized phone, destination.
-  if (q !== "") {
-    const like = `%${q.toLowerCase()}%`;
-    conditions.push(
-      or(
-        likeLower(schema.leads.name, like),
-        likeLower(schema.leads.phone, like),
-        likeLower(schema.leads.phoneNormalized, like),
-        likeLower(schema.leads.destination, like),
-      )!,
-    );
-  }
-  if (status !== "") {
-    conditions.push(eq(schema.leads.followupStatus, status as "new" | "responded" | "won" | "lost" | "paused"));
-  }
-  if (stage !== "") {
-    conditions.push(eq(schema.leads.stage, stage as "new" | "contacted" | "qualified" | "quotation" | "won" | "lost"));
-  }
-  if (fu !== "") {
-    conditions.push(
-      eq(schema.leads.followupStage, fu as "FU1" | "FU2" | "FU3"),
-    );
-  }
-  if (state !== "") {
-    conditions.push(
-      eq(schema.leads.followupState, state as "active" | "paused" | "done" | "escalated"),
-    );
-  }
+  const conditions = leadFilterConditions(db, c.req.query(), staff, access);
 
   const where = conditions.length > 0 ? and(...conditions) : undefined;
   const rows = await db
@@ -443,7 +400,7 @@ followupRouter.get("/leads/all-ids", async (c) => {
     );
   }
 
-  const conditions = leadFilterConditions(c.req.query(), staff, access);
+  const conditions = leadFilterConditions(db, c.req.query(), staff, access);
   const ids = await db
     .select({ id: schema.leads.id })
     .from(schema.leads)
@@ -461,6 +418,7 @@ followupRouter.get("/leads/all-ids", async (c) => {
  * always pinned to their own leads regardless of the `owner` param.
  */
 function leadFilterConditions(
+  db: DrizzleD1Database<typeof schema>,
   query: Record<string, string>,
   staff: StaffIdentity,
   access: "ADMIN" | "SALES",
@@ -471,12 +429,28 @@ function leadFilterConditions(
   const stage = (query.stage ?? "").trim();
   const fu = (query.fu ?? "").trim();
   const state = (query.state ?? "").trim();
+  // Import group ("kumpulan fail"): "none" = leads with no batch (pre-group
+  // imports); any other non-empty value = that group's id.
+  const groupId = (query.groupId ?? "").trim();
 
   const conditions: SQL[] = [];
   if (access === "SALES") {
     conditions.push(eq(schema.leads.ownerUserId, staff.id));
   } else if (owner !== "") {
     conditions.push(eq(schema.leads.ownerUserId, owner));
+  }
+  if (groupId === "none") {
+    conditions.push(isNull(schema.leads.batchId));
+  } else if (groupId !== "") {
+    conditions.push(
+      inArray(
+        schema.leads.batchId,
+        db
+          .select({ id: schema.importBatches.id })
+          .from(schema.importBatches)
+          .where(eq(schema.importBatches.groupId, groupId)),
+      ),
+    );
   }
   if (q !== "") {
     const like = `%${q.toLowerCase()}%`;
@@ -1453,6 +1427,7 @@ followupRouter.post("/import/commit", async (c) => {
   let file: File | null = null;
   let mappingRaw: string | null = null;
   let ownerUserId: string | null = null;
+  let groupId: string | null = null;
   try {
     const form = await c.req.parseBody();
     const candidate = form["file"];
@@ -1461,6 +1436,8 @@ followupRouter.post("/import/commit", async (c) => {
     if (typeof mapCandidate === "string") mappingRaw = mapCandidate;
     const ownerCandidate = form["ownerUserId"];
     if (typeof ownerCandidate === "string" && ownerCandidate !== "") ownerUserId = ownerCandidate;
+    const groupCandidate = form["groupId"];
+    if (typeof groupCandidate === "string" && groupCandidate !== "") groupId = groupCandidate;
   } catch {
     return Response.json(
       { error: "bad_request", message: "Invalid multipart body" },
@@ -1482,6 +1459,25 @@ followupRouter.post("/import/commit", async (c) => {
 
   // Ownership: only ADMIN may import on behalf of another user.
   const finalOwner = access === "ADMIN" && ownerUserId ? ownerUserId : staff.id;
+
+  // Import group: must exist and belong to the caller (ADMIN may use any).
+  // A bad id is rejected up-front rather than silently dropping the file
+  // into "no group", so the caller learns their selection was stale.
+  let finalGroupId: string | null = null;
+  if (groupId) {
+    const [group] = await db
+      .select({ id: schema.importGroups.id, ownerUserId: schema.importGroups.ownerUserId })
+      .from(schema.importGroups)
+      .where(eq(schema.importGroups.id, groupId))
+      .limit(1);
+    if (!group || (access === "SALES" && group.ownerUserId !== staff.id)) {
+      return c.json(
+        { error: "not_found", message: "Import group not found" },
+        { status: 404 },
+      );
+    }
+    finalGroupId = group.id;
+  }
 
   const text = await file.text();
   const parsed = parseCsvText(text);
@@ -1572,6 +1568,7 @@ followupRouter.post("/import/commit", async (c) => {
       followupStage: "FU1",
       followupStageAt: nowIso,
       nextFollowupAt: nextFu,
+      batchId,
       createdAt: nowIso,
       updatedAt: nowIso,
     }).run();
@@ -1597,6 +1594,7 @@ followupRouter.post("/import/commit", async (c) => {
     duplicateRows: duplicates.length,
     failedRows: failed.length,
     createdBy: staff.id,
+    groupId: finalGroupId,
   }).run();
 
   await logAudit(db, {
@@ -1605,7 +1603,7 @@ followupRouter.post("/import/commit", async (c) => {
     action: "import_commit",
     entityType: "import_batches",
     entityId: batchId,
-    detail: `file=${file.name} total=${rows.length} inserted=${inserted.length} dup=${duplicates.length} failed=${failed.length} owner=${finalOwner}`,
+    detail: `file=${file.name} total=${rows.length} inserted=${inserted.length} dup=${duplicates.length} failed=${failed.length} owner=${finalOwner} group=${finalGroupId ?? "-"}`,
   });
 
   return c.json(
@@ -1619,12 +1617,234 @@ followupRouter.post("/import/commit", async (c) => {
         duplicateRows: duplicates.length,
         failedRows: failed.length,
         ownerUserId: finalOwner,
+        groupId: finalGroupId,
         duplicates,
         failed,
       },
     },
     201,
   );
+});
+
+// ---------------------------------------------------------------------------
+// Import: groups ("kumpulan fail")
+// ---------------------------------------------------------------------------
+
+/**
+ * Loads a group and enforces ownership. SALES may only touch their own
+ * groups; ADMIN may touch any. Returns a neutral 404 for both missing and
+ * foreign ids so group existence never leaks.
+ */
+async function requireOwnedGroup(
+  db: DrizzleD1Database<typeof schema>,
+  groupId: string,
+  staff: StaffIdentity,
+  access: "ADMIN" | "SALES",
+): Promise<
+  | { ok: true; group: typeof schema.importGroups.$inferSelect }
+  | { ok: false; response: Response }
+> {
+  const [group] = await db
+    .select()
+    .from(schema.importGroups)
+    .where(eq(schema.importGroups.id, groupId))
+    .limit(1);
+  if (!group || (access === "SALES" && group.ownerUserId !== staff.id)) {
+    return {
+      ok: false,
+      response: Response.json(
+        { error: "not_found", message: "Import group not found" },
+        { status: 404 },
+      ),
+    };
+  }
+  return { ok: true, group };
+}
+
+/** GET /api/followup/import/groups — the caller's import groups with counts. */
+followupRouter.get("/import/groups", async (c) => {
+  const db = c.get("db");
+  const staff = c.get("staff");
+  const access = followupAccessRole(staff.role);
+  if (!access) {
+    return Response.json(
+      { error: "not_found", message: "Follow-up CRM not available for this role" },
+      { status: 404 },
+    );
+  }
+
+  const groups = await db
+    .select()
+    .from(schema.importGroups)
+    .where(access === "SALES" ? eq(schema.importGroups.ownerUserId, staff.id) : undefined)
+    .orderBy(desc(schema.importGroups.createdAt));
+
+  // Per-group file + lead counts (one aggregate each; small tables).
+  const fileCounts = await db
+    .select({ groupId: schema.importBatches.groupId, n: count() })
+    .from(schema.importBatches)
+    .where(isNotNull(schema.importBatches.groupId))
+    .groupBy(schema.importBatches.groupId);
+  const leadCounts = await db
+    .select({
+      groupId: schema.importBatches.groupId,
+      n: count(),
+    })
+    .from(schema.leads)
+    .innerJoin(schema.importBatches, eq(schema.leads.batchId, schema.importBatches.id))
+    .where(isNotNull(schema.importBatches.groupId))
+    .groupBy(schema.importBatches.groupId);
+
+  const files = new Map(fileCounts.map((r) => [r.groupId, Number(r.n)]));
+  const leads = new Map(leadCounts.map((r) => [r.groupId, Number(r.n)]));
+
+  return c.json({
+    success: true,
+    data: groups.map((g) => ({
+      ...g,
+      fileCount: files.get(g.id) ?? 0,
+      leadCount: leads.get(g.id) ?? 0,
+    })),
+  });
+});
+
+/** POST /api/followup/import/groups — create a group owned by the caller. */
+followupRouter.post("/import/groups", async (c) => {
+  const db = c.get("db");
+  const staff = c.get("staff");
+  const access = followupAccessRole(staff.role);
+  if (!access) {
+    return Response.json(
+      { error: "not_found", message: "Follow-up CRM not available for this role" },
+      { status: 404 },
+    );
+  }
+
+  let body: { name?: unknown };
+  try {
+    body = await c.req.json();
+  } catch {
+    return Response.json(
+      { error: "bad_request", message: "Invalid JSON body" },
+      { status: 400 },
+    );
+  }
+  const name = typeof body.name === "string" ? body.name.trim().slice(0, 80) : "";
+  if (!name) {
+    return c.json(
+      { success: false, error: "Group name is required" },
+      { status: 400 },
+    );
+  }
+
+  const group = {
+    id: crypto.randomUUID(),
+    name,
+    ownerUserId: staff.id,
+  };
+  await db.insert(schema.importGroups).values(group).run();
+
+  await logAudit(db, {
+    actor: staff.id,
+    role: staff.role,
+    action: "import_group.create",
+    entityType: "import_groups",
+    entityId: group.id,
+    detail: `name=${name}`,
+  });
+
+  return c.json(
+    { success: true, data: { ...group, createdAt: new Date().toISOString(), fileCount: 0, leadCount: 0 } },
+    201,
+  );
+});
+
+/** PUT /api/followup/import/groups/:id — rename a group. */
+followupRouter.put("/import/groups/:id", async (c) => {
+  const db = c.get("db");
+  const staff = c.get("staff");
+  const access = followupAccessRole(staff.role);
+  if (!access) {
+    return Response.json(
+      { error: "not_found", message: "Follow-up CRM not available for this role" },
+      { status: 404 },
+    );
+  }
+
+  const owned = await requireOwnedGroup(db, c.req.param("id") ?? "", staff, access);
+  if (!owned.ok) return owned.response;
+
+  let body: { name?: unknown };
+  try {
+    body = await c.req.json();
+  } catch {
+    return Response.json(
+      { error: "bad_request", message: "Invalid JSON body" },
+      { status: 400 },
+    );
+  }
+  const name = typeof body.name === "string" ? body.name.trim().slice(0, 80) : "";
+  if (!name) {
+    return c.json(
+      { success: false, error: "Group name is required" },
+      { status: 400 },
+    );
+  }
+
+  await db
+    .update(schema.importGroups)
+    .set({ name })
+    .where(eq(schema.importGroups.id, owned.group.id))
+    .run();
+
+  await logAudit(db, {
+    actor: staff.id,
+    role: staff.role,
+    action: "import_group.rename",
+    entityType: "import_groups",
+    entityId: owned.group.id,
+    detail: `from=${owned.group.name} to=${name}`,
+  });
+
+  return c.json({ success: true, data: { ...owned.group, name } });
+});
+
+/**
+ * DELETE /api/followup/import/groups/:id — remove the group only. Its
+ * batches are detached (group_id → NULL) so files and leads are untouched.
+ */
+followupRouter.delete("/import/groups/:id", async (c) => {
+  const db = c.get("db");
+  const staff = c.get("staff");
+  const access = followupAccessRole(staff.role);
+  if (!access) {
+    return Response.json(
+      { error: "not_found", message: "Follow-up CRM not available for this role" },
+      { status: 404 },
+    );
+  }
+
+  const owned = await requireOwnedGroup(db, c.req.param("id") ?? "", staff, access);
+  if (!owned.ok) return owned.response;
+
+  await db.batch([
+    db
+      .update(schema.importBatches)
+      .set({ groupId: null })
+      .where(eq(schema.importBatches.groupId, owned.group.id)),
+    db.delete(schema.importGroups).where(eq(schema.importGroups.id, owned.group.id)),
+  ]);
+
+  await logAudit(db, {
+    actor: staff.id,
+    role: staff.role,
+    action: "import_group.delete",
+    entityType: "import_groups",
+    entityId: owned.group.id,
+    detail: `name=${owned.group.name}`,
+  });
+
+  return c.json({ success: true, data: { id: owned.group.id } });
 });
 
 // ---------------------------------------------------------------------------
@@ -1648,14 +1868,18 @@ followupRouter.get("/import/batches", async (c) => {
   }
 
   const batches = await db
-    .select()
+    .select({
+      batch: schema.importBatches,
+      groupName: schema.importGroups.name,
+    })
     .from(schema.importBatches)
+    .leftJoin(schema.importGroups, eq(schema.importBatches.groupId, schema.importGroups.id))
     .where(access === "SALES" ? eq(schema.importBatches.createdBy, staff.id) : undefined)
     .orderBy(desc(schema.importBatches.createdAt))
     .limit(50);
 
   const errorsByBatch = new Map<string, (typeof schema.importErrors.$inferSelect)[]>();
-  for (const batch of batches) {
+  for (const { batch } of batches) {
     const errors = await db
       .select()
       .from(schema.importErrors)
@@ -1666,8 +1890,9 @@ followupRouter.get("/import/batches", async (c) => {
 
   return c.json({
     success: true,
-    data: batches.map((batch) => ({
+    data: batches.map(({ batch, groupName }) => ({
       ...batch,
+      groupName,
       errors: (errorsByBatch.get(batch.id) ?? []).map((e) => ({
         rowNumber: e.rowNumber,
         reason: e.reason,
@@ -1896,6 +2121,8 @@ followupRouter.post("/import/batches/:id/retry", async (c) => {
       followupStage: "FU1",
       followupStageAt: nowIso,
       nextFollowupAt: nextFu,
+      // Retried rows stay attached to the original file / import group.
+      batchId: batch.id,
       createdAt: nowIso,
       updatedAt: nowIso,
     }).run();
@@ -2162,6 +2389,7 @@ followupRouter.post("/leads/bulk-delete", async (c) => {
   // budget for selections in the thousands.
   if (body.all === true) {
     const conditions = leadFilterConditions(
+      db,
       (body.filters ?? {}) as Record<string, string>,
       staff,
       access,

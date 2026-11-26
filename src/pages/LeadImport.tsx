@@ -5,14 +5,16 @@ import {
   ChevronRight,
   Download,
   FileSpreadsheet,
+  FolderOpen,
   Info,
   Loader2,
+  Plus,
   Upload,
   XCircle,
 } from "lucide-react";
 import { useLang } from "@/lib/i18n";
 import { cn } from "@/lib/utils";
-import { followupApi, type AdminImportBatch } from "@/lib/followup-api";
+import { followupApi, type AdminImportBatch, type ImportGroup } from "@/lib/followup-api";
 import { FollowupErrorState, FollowupLoading } from "@/components/FollowupStates";
 import ImportHistoryPanel from "@/components/ImportHistoryPanel";
 
@@ -56,6 +58,8 @@ export interface ImportBatch {
   duplicateRows: number;
   failedRows: number;
   createdAt: string;
+  /** Import group name this file was filed into, if any. */
+  groupName?: string | null;
   /** Failed rows for the batch detail view. */
   errors?: ImportErrorItem[];
 }
@@ -147,6 +151,7 @@ function toHistoryBatch(b: AdminImportBatch): ImportBatch {
     duplicateRows: b.duplicateRows,
     failedRows: b.failedRows,
     createdAt: b.createdAt,
+    groupName: b.groupName,
     errors: b.errors.map((e) => ({
       rowNumber: e.rowNumber,
       reason: e.reason,
@@ -200,6 +205,52 @@ export default function LeadImport() {
   /** Overlay animation phases: null = hidden, "processing", "success". */
   const [overlay, setOverlay] = useState<null | "processing" | "success">(null);
   const [doneStats, setDoneStats] = useState<{ added: number; dup: number; bad: number } | null>(null);
+
+  // --- Import group ("kumpulan fail") selection -------------------------
+  // Chosen BEFORE a file is dropped: the auto-import effect fires as soon as
+  // the preview is ready, so the group must already be decided by then.
+  const [groups, setGroups] = useState<ImportGroup[]>([]);
+  const [selectedGroupId, setSelectedGroupId] = useState<string>("");
+  const [creatingGroup, setCreatingGroup] = useState(false);
+  const [newGroupName, setNewGroupName] = useState("");
+  const [groupBusy, setGroupBusy] = useState(false);
+
+  async function loadGroups(preselectLatest = false) {
+    try {
+      const list = await followupApi.importGroups();
+      setGroups(list);
+      // Default to the most recently created group so consecutive uploads
+      // land in the same bucket without extra clicks.
+      if (preselectLatest && list.length > 0) {
+        setSelectedGroupId((cur) => (list.some((g) => g.id === cur) ? cur : list[0].id));
+      } else {
+        setSelectedGroupId((cur) => (list.some((g) => g.id === cur) ? cur : ""));
+      }
+    } catch {
+      // Group selection is optional; a failed list must not block imports.
+    }
+  }
+
+  useEffect(() => {
+    void loadGroups(true);
+  }, []);
+
+  async function createGroup() {
+    const name = newGroupName.trim();
+    if (!name) return;
+    setGroupBusy(true);
+    try {
+      const g = await followupApi.createImportGroup(name);
+      setGroups((prev) => [g, ...prev]);
+      setSelectedGroupId(g.id);
+      setNewGroupName("");
+      setCreatingGroup(false);
+    } catch (err) {
+      alert(err instanceof Error ? err.message : String(err));
+    } finally {
+      setGroupBusy(false);
+    }
+  }
 
   async function loadBatches() {
     setBatchesError(null);
@@ -294,12 +345,13 @@ export default function LeadImport() {
     setParseError(null);
     setOverlay("processing");
     try {
-      const res = await followupApi.importCommit(file, mapping);
+      const res = await followupApi.importCommit(file, mapping, undefined, selectedGroupId || undefined);
+      const groupName = groups.find((g) => g.id === selectedGroupId)?.name;
       setDoneStats({ added: res.insertedRows, dup: res.duplicateRows, bad: res.failedRows });
       setDoneNotice(
         t(
-          `Import selesai: ${res.insertedRows} lead ditambah, ${res.duplicateRows} pendua, ${res.failedRows} gagal.`,
-          `Import finished: ${res.insertedRows} leads added, ${res.duplicateRows} duplicates, ${res.failedRows} failed.`,
+          `Import selesai: ${res.insertedRows} lead ditambah, ${res.duplicateRows} pendua, ${res.failedRows} gagal${groupName ? ` — kumpulan "${groupName}"` : ""}.`,
+          `Import finished: ${res.insertedRows} leads added, ${res.duplicateRows} duplicates, ${res.failedRows} failed${groupName ? ` — group "${groupName}"` : ""}.`,
         ),
       );
       setRows([]);
@@ -307,6 +359,8 @@ export default function LeadImport() {
       setFile(null);
       setFileName("");
       setMapping({});
+      // Refresh counts on the group chips (new file + leads now attached).
+      void loadGroups();
       // Show success immediately; refresh the history list in the background
       // so the extra API call never delays the animation.
       setOverlay("success");
@@ -453,6 +507,115 @@ export default function LeadImport() {
                 {t("Muat turun templat (.csv)", "Download template (.csv)")}
               </button>
             </div>
+          </div>
+
+          {/* File group picker — decide the bucket BEFORE dropping a file */}
+          <div
+            data-tour="import-group"
+            className="flex flex-col gap-3 rounded-[var(--radius-card)] border border-[var(--color-border)] bg-[var(--color-surface-raised)] px-4 py-3"
+          >
+            <div className="flex flex-wrap items-center justify-between gap-3">
+              <div className="flex min-w-0 items-center gap-2">
+                <FolderOpen className="h-4 w-4 flex-none text-[var(--color-primary)]" />
+                <strong className="text-[13px] font-semibold text-[var(--color-text)]">
+                  {t("Kumpulan fail", "File group")}
+                </strong>
+                <span className="text-[12px] text-muted-foreground">
+                  {t(
+                    "Fail ini akan dimasukkan ke kumpulan yang dipilih.",
+                    "This file will be filed into the selected group.",
+                  )}
+                </span>
+              </div>
+              <button
+                type="button"
+                onClick={() => setCreatingGroup((v) => !v)}
+                disabled={groupBusy}
+                className="inline-flex items-center gap-1 rounded-[var(--radius-control)] border border-[var(--color-border)] bg-[var(--color-surface)] px-2.5 py-1.5 text-[12px] font-semibold text-[var(--color-text-secondary)] transition-colors hover:bg-[var(--color-surface-muted)] disabled:opacity-50"
+              >
+                <Plus className="h-3.5 w-3.5" />
+                {t("Kumpulan baru", "New group")}
+              </button>
+            </div>
+
+            {groups.length > 0 && (
+              <div className="flex flex-wrap gap-2" role="radiogroup" aria-label={t("Pilih kumpulan fail", "Choose a file group")}>
+                {groups.map((g) => {
+                  const active = g.id === selectedGroupId;
+                  return (
+                    <button
+                      key={g.id}
+                      type="button"
+                      role="radio"
+                      aria-checked={active}
+                      onClick={() => setSelectedGroupId(g.id)}
+                      className={cn(
+                        "inline-flex items-center gap-1.5 rounded-full border px-3 py-1.5 text-[12.5px] font-semibold transition-colors",
+                        active
+                          ? "border-[var(--color-primary)] bg-[var(--color-primary)] text-[var(--color-on-primary)]"
+                          : "border-[var(--color-border)] bg-[var(--color-surface)] text-[var(--color-text-secondary)] hover:border-[var(--color-primary)]/50 hover:text-foreground",
+                      )}
+                    >
+                      {g.name}
+                      <span
+                        className={cn(
+                          "rounded-full px-1.5 text-[10.5px] font-bold tabular-nums",
+                          active ? "bg-[var(--color-on-primary)]/20" : "bg-[var(--color-surface-muted)] text-muted-foreground",
+                        )}
+                        title={t(`${g.fileCount} fail · ${g.leadCount} lead`, `${g.fileCount} files · ${g.leadCount} leads`)}
+                      >
+                        {g.fileCount}
+                      </span>
+                    </button>
+                  );
+                })}
+              </div>
+            )}
+
+            {creatingGroup && (
+              <form
+                className="flex flex-wrap items-center gap-2"
+                onSubmit={(e) => {
+                  e.preventDefault();
+                  void createGroup();
+                }}
+              >
+                <input
+                  value={newGroupName}
+                  onChange={(e) => setNewGroupName(e.target.value)}
+                  maxLength={80}
+                  autoFocus
+                  placeholder={t("Nama kumpulan, cth: Umrah Mac 2026", "Group name, e.g. Umrah March 2026")}
+                  className="min-w-0 flex-1 rounded-[var(--radius-control)] border border-[var(--color-border)] bg-[var(--color-surface)] px-3 py-1.5 text-[13px] text-[var(--color-text)] focus:border-[var(--color-primary)] focus:outline-none"
+                />
+                <button
+                  type="submit"
+                  disabled={groupBusy || newGroupName.trim() === ""}
+                  className="rounded-[var(--radius-control)] bg-[var(--color-primary)] px-3 py-1.5 text-[12.5px] font-semibold text-[var(--color-on-primary)] disabled:opacity-50"
+                >
+                  {t("Cipta", "Create")}
+                </button>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setCreatingGroup(false);
+                    setNewGroupName("");
+                  }}
+                  className="rounded-[var(--radius-control)] border border-[var(--color-border)] px-3 py-1.5 text-[12.5px] font-semibold text-[var(--color-text-secondary)]"
+                >
+                  {t("Batal", "Cancel")}
+                </button>
+              </form>
+            )}
+
+            {!creatingGroup && groups.length === 0 && (
+              <p className="m-0 text-[12px] text-muted-foreground">
+                {t(
+                  "Belum ada kumpulan. Buat satu untuk mengumpulkan fail-fail import anda.",
+                  "No groups yet. Create one to collect your imported files.",
+                )}
+              </p>
+            )}
           </div>
           <div
             role="button"

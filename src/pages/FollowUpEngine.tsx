@@ -16,7 +16,7 @@ import {
   type FollowupLead,
   type FollowupStage,
 } from "@/lib/followup-api";
-import { useFuReport, useLeadList, useTemplates } from "@/lib/useFollowup";
+import { useFuReport, useImportGroups, useLeadList, useTemplates } from "@/lib/useFollowup";
 import {
   FollowupEmptyState,
   FollowupErrorState,
@@ -98,6 +98,8 @@ export default function FollowUpEngine() {
   const { t, lang } = useLang();
   const [activeTab, setActiveTab] = useState<EngineTab>("active");
   const [fuFilter, setFuFilter] = useState<"all" | FollowupStage>("all");
+  // "" = all groups, "none" = leads with no import batch, otherwise group id.
+  const [groupFilter, setGroupFilter] = useState<string>("");
   const [dateFrom, setDateFrom] = useState("");
   const [dateTo, setDateTo] = useState("");
   const [notice, setNotice] = useState<string>("");
@@ -107,8 +109,10 @@ export default function FollowUpEngine() {
   const templatesQuery = useTemplates();
   const templates = useMemo(() => flattenTemplateGroups(templatesQuery.data ?? []), [templatesQuery.data]);
   const reportQuery = useFuReport();
+  const groupsQuery = useImportGroups();
+  const groups = useMemo(() => groupsQuery.data ?? [], [groupsQuery.data]);
 
-  const list = useLeadList({}, 500);
+  const list = useLeadList(groupFilter ? { groupId: groupFilter } : {}, 500);
   const leads = useMemo(() => list.data?.data ?? [], [list.data]);
 
   const counts = useMemo(
@@ -349,8 +353,26 @@ export default function FollowUpEngine() {
             }
           />
 
-          {/* Filter bar — FU stage + date range */}
+          {/* Filter bar — file group + FU stage + date range */}
           <div className="flex flex-wrap items-end gap-2 border-b border-[var(--color-border)] px-4 py-3">
+            {groups.length > 0 && (
+              <label className="flex flex-col gap-1 text-[11.5px] font-semibold text-muted-foreground">
+                {t("Kumpulan fail", "File group")}
+                <select
+                  value={groupFilter}
+                  onChange={(e) => setGroupFilter(e.target.value)}
+                  className="max-w-[220px] rounded-lg border border-[var(--color-border)] bg-[var(--color-surface)] px-2 py-1.5 text-[12.5px] text-foreground"
+                >
+                  <option value="">{t("Semua kumpulan", "All groups")}</option>
+                  {groups.map((g) => (
+                    <option key={g.id} value={g.id}>
+                      {g.name} ({g.leadCount})
+                    </option>
+                  ))}
+                  <option value="none">{t("Tiada kumpulan", "No group")}</option>
+                </select>
+              </label>
+            )}
             <label className="flex flex-col gap-1 text-[11.5px] font-semibold text-muted-foreground">
               {t("Peringkat FU", "FU stage")}
               <select
@@ -382,10 +404,10 @@ export default function FollowUpEngine() {
                 className="rounded-lg border border-[var(--color-border)] bg-[var(--color-surface)] px-2 py-1.5 text-[12.5px] text-foreground"
               />
             </label>
-            {(fuFilter !== "all" || dateFrom !== "" || dateTo !== "") && (
+            {(groupFilter !== "" || fuFilter !== "all" || dateFrom !== "" || dateTo !== "") && (
               <button
                 type="button"
-                onClick={() => { setFuFilter("all"); setDateFrom(""); setDateTo(""); }}
+                onClick={() => { setGroupFilter(""); setFuFilter("all"); setDateFrom(""); setDateTo(""); }}
                 className="ml-auto rounded-lg border border-[var(--color-border)] px-2.5 py-1.5 text-[12px] font-semibold text-[var(--color-text-secondary)] hover:bg-[var(--color-surface-muted)]"
               >
                 {t("Kosongkan penapis", "Clear filters")}
@@ -401,10 +423,10 @@ export default function FollowUpEngine() {
             <FollowupEmptyState
               compact
               icon={CheckCircle2}
-              title={fuFilter !== "all" || dateFrom !== "" || dateTo !== "" ? t("Tiada lead padan penapis ini", "No leads match these filters") : t("Tiada lead dalam keadaan ini", "No leads in this state")}
+              title={groupFilter !== "" || fuFilter !== "all" || dateFrom !== "" || dateTo !== "" ? t("Tiada lead padan penapis ini", "No leads match these filters") : t("Tiada lead dalam keadaan ini", "No leads in this state")}
               description={
-                fuFilter !== "all" || dateFrom !== "" || dateTo !== ""
-                  ? t("Tukar peringkat FU atau julat tarikh.", "Change the FU stage or the date range.")
+                groupFilter !== "" || fuFilter !== "all" || dateFrom !== "" || dateTo !== ""
+                  ? t("Tukar kumpulan fail, peringkat FU atau julat tarikh.", "Change the file group, FU stage or the date range.")
                   : t("Lead akan muncul di sini apabila statusnya berubah.", "Leads will appear here as their status changes.")
               }
             />

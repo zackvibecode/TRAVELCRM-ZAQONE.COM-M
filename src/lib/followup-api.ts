@@ -256,10 +256,23 @@ export interface AdminImportBatch {
   insertedRows: number;
   duplicateRows: number;
   failedRows: number;
+  /** Import group ("kumpulan fail") this file was filed into, if any. */
+  groupId: string | null;
+  groupName: string | null;
   createdAt: string;
   createdBy: string;
   createdByName: string;
   errors: { id: string; rowNumber: number; reason: string; raw: Record<string, unknown> }[];
+}
+
+/** An import group ("kumpulan fail") — a named bucket for uploaded files. */
+export interface ImportGroup {
+  id: string;
+  name: string;
+  ownerUserId: string;
+  createdAt: string;
+  fileCount: number;
+  leadCount: number;
 }
 
 // ---------------------------------------------------------------------------
@@ -303,6 +316,8 @@ export const followupApi = {
     fu?: string;
     state?: string;
     owner?: string;
+    /** Import group id, or "none" for leads without a batch. */
+    groupId?: string;
     limit?: number;
     offset?: number;
   } = {}) =>
@@ -498,11 +513,17 @@ export const followupApi = {
   },
 
   /** POST /import/commit — insert clean rows, record the batch summary (multipart). */
-  importCommit: (file: File, mapping?: Partial<Record<"name" | "phone" | "destination" | "pax", number>>, ownerUserId?: string) => {
+  importCommit: (
+    file: File,
+    mapping?: Partial<Record<"name" | "phone" | "destination" | "pax", number>>,
+    ownerUserId?: string,
+    groupId?: string,
+  ) => {
     const form = new FormData();
     form.append("file", file);
     if (mapping) form.append("mapping", JSON.stringify(mapping));
     if (ownerUserId) form.append("ownerUserId", ownerUserId);
+    if (groupId) form.append("groupId", groupId);
     return apiFetch<
       Ok<{
         batchId: string;
@@ -512,11 +533,38 @@ export const followupApi = {
         duplicateRows: number;
         failedRows: number;
         ownerUserId: string;
+        groupId: string | null;
         duplicates: { rowNo: number; reason: string }[];
         failed: { rowNo: number; reason: string; name: string; phoneRaw: string }[];
       }>
     >(`${BASE}/import/commit`, { method: "POST", body: form }).then((r) => r.data);
   },
+
+  // --- Import groups ("kumpulan fail") -----------------------------------
+
+  /** GET /import/groups — the caller's groups with file + lead counts. */
+  importGroups: () =>
+    apiFetch<Ok<ImportGroup[]>>(`${BASE}/import/groups`).then((r) => r.data),
+
+  /** POST /import/groups — create a group owned by the caller. */
+  createImportGroup: (name: string) =>
+    apiFetch<Ok<ImportGroup>>(`${BASE}/import/groups`, {
+      method: "POST",
+      body: JSON.stringify({ name }),
+    }).then((r) => r.data),
+
+  /** PUT /import/groups/:id — rename a group. */
+  renameImportGroup: (id: string, name: string) =>
+    apiFetch<Ok<ImportGroup>>(`${BASE}/import/groups/${id}`, {
+      method: "PUT",
+      body: JSON.stringify({ name }),
+    }).then((r) => r.data),
+
+  /** DELETE /import/groups/:id — remove the group only (files + leads stay). */
+  deleteImportGroup: (id: string) =>
+    apiFetch<Ok<{ id: string }>>(`${BASE}/import/groups/${id}`, {
+      method: "DELETE",
+    }).then((r) => r.data),
 
   /** POST /import/batches/:id/retry — re-import corrected failed rows. */
   importRetry: (batchId: string, rows: { rowNumber: number; name: string; phone: string }[]) =>
