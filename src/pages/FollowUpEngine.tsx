@@ -282,54 +282,45 @@ export default function FollowUpEngine() {
         </div>
       )}
 
-      {/* Three-stage flow */}
+      {/* Three-stage flow + completed counts, combined into one row of cards */}
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
         {[
-          { num: 1, title: t("FU1 — kenalan pertama", "FU1 — first contact"), desc: t("Dijadualkan automatik apabila lead masuk.", "Scheduled automatically when a lead comes in.") },
-          { num: 2, title: t("FU2 — peringatan kedua", "FU2 — second reminder"), desc: t("Dijadualkan selepas FU1 selesai tanpa jawapan.", "Scheduled after FU1 is done with no reply.") },
-          { num: 3, title: t("FU3 — eskalasi", "FU3 — escalation"), desc: t("Tiada jawapan selepas FU3 bermakna lead perlu semakan admin.", "No reply after FU3 means the lead needs an admin review.") },
-        ].map((step) => (
-          <div key={step.num} className="flex flex-col gap-1.5 rounded-[var(--radius-card)] border border-[var(--color-border)] bg-[var(--color-surface)] px-5 py-4">
-            <span className="inline-flex h-[26px] w-[26px] items-center justify-center rounded-full bg-[var(--color-primary-soft)] text-[12px] font-bold text-[var(--color-primary)]">
-              {step.num}
-            </span>
-            <strong className="text-[14px] font-semibold text-[var(--color-text)]">{step.title}</strong>
-            <p className="m-0 text-[12.5px] leading-relaxed text-muted-foreground">{step.desc}</p>
-          </div>
-        ))}
-      </div>
-
-      {/* Per-staff FU1/FU2/FU3 report — admins see the team, sales see themselves */}
-      <Card>
-        <CardHead
-          title={isAdmin ? t("Report pasukan", "Team report") : t("Prestasi saya", "My performance")}
-          aside={<span className="text-[11.5px] text-muted-foreground">{t("Follow-up dh dibuat (disahkan)", "Follow-ups completed (confirmed)")}</span>}
-        />
-        <div className="grid grid-cols-1 gap-4 p-5 sm:grid-cols-3">
-          {(["FU1", "FU2", "FU3"] as const).map((stage) => (
-            <div key={stage} className="rounded-[var(--radius-control)] border border-[var(--color-border)] bg-[var(--color-surface-raised)] p-3">
-              <div className="mb-2 flex items-center justify-between">
-                <strong className="text-[13px] font-semibold text-[var(--color-text)]">{stage}</strong>
-                <span className="rounded-full bg-[var(--color-primary-soft)] px-2 py-0.5 text-[11.5px] font-bold text-[var(--color-primary)]">
-                  {report.reduce((s, r) => s + (stage === "FU1" ? r.fu1 : stage === "FU2" ? r.fu2 : r.fu3), 0)}
+          { num: 1, stage: "FU1" as const, title: t("FU1 — kenalan pertama", "FU1 — first contact"), desc: t("Dijadualkan automatik apabila lead masuk.", "Scheduled automatically when a lead comes in.") },
+          { num: 2, stage: "FU2" as const, title: t("FU2 — peringatan kedua", "FU2 — second reminder"), desc: t("Dijadualkan selepas FU1 selesai tanpa jawapan.", "Scheduled after FU1 is done with no reply.") },
+          { num: 3, stage: "FU3" as const, title: t("FU3 — eskalasi", "FU3 — escalation"), desc: t("Tiada jawapan selepas FU3 bermakna lead perlu semakan admin.", "No reply after FU3 means the lead needs an admin review.") },
+        ].map((step) => {
+          const stage = step.stage;
+          const done = report.reduce((s, r) => s + (stage === "FU1" ? r.fu1 : stage === "FU2" ? r.fu2 : r.fu3), 0);
+          return (
+            <div key={step.num} className="flex flex-col gap-1.5 rounded-[var(--radius-card)] border border-[var(--color-border)] bg-[var(--color-surface)] px-5 py-4">
+              <div className="flex items-center justify-between gap-2">
+                <span className="inline-flex h-[26px] w-[26px] items-center justify-center rounded-full bg-[var(--color-primary-soft)] text-[12px] font-bold text-[var(--color-primary)]">
+                  {step.num}
+                </span>
+                <span className="inline-flex items-center gap-1 rounded-full bg-[var(--color-primary-soft)] px-2 py-0.5 text-[11.5px] font-bold text-[var(--color-primary)]" title={t("Susulan disahkan", "Follow-ups completed")}>
+                  {done}
                 </span>
               </div>
-              <ul className="m-0 flex list-none flex-col gap-1.5 p-0">
-                {report.map((r) => {
-                  const n = stage === "FU1" ? r.fu1 : stage === "FU2" ? r.fu2 : r.fu3;
-                  if (n === 0) return null;
-                  return (
-                    <li key={r.userId} className="flex items-center justify-between text-[12.5px]">
-                      <span className="truncate text-[var(--color-text-secondary)]">{r.name}</span>
-                      <span className="font-semibold tabular-nums text-[var(--color-text)]">{n}</span>
-                    </li>
-                  );
-                })}
-              </ul>
+              <strong className="text-[14px] font-semibold text-[var(--color-text)]">{step.title}</strong>
+              <p className="m-0 text-[12.5px] leading-relaxed text-muted-foreground">{step.desc}</p>
+              {isAdmin && report.length > 0 && done > 0 && (
+                <ul className="m-0 mt-1 flex list-none flex-col gap-1 border-t border-[var(--color-border)] pt-2">
+                  {report.map((r) => {
+                    const n = stage === "FU1" ? r.fu1 : stage === "FU2" ? r.fu2 : r.fu3;
+                    if (n === 0) return null;
+                    return (
+                      <li key={r.userId} className="flex items-center justify-between text-[12px]">
+                        <span className="truncate text-[var(--color-text-secondary)]">{r.name}</span>
+                        <span className="font-semibold tabular-nums text-[var(--color-text)]">{n}</span>
+                      </li>
+                    );
+                  })}
+                </ul>
+              )}
             </div>
-          ))}
-        </div>
-      </Card>
+          );
+        })}
+      </div>
 
       <div className="grid grid-cols-1 gap-5 lg:grid-cols-[minmax(0,1.55fr)_minmax(0,1fr)]">
         <Card>
