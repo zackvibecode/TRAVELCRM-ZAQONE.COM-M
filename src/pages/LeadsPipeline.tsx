@@ -203,7 +203,7 @@ export default function LeadsPipeline() {
       </section>
 
       <div className="grid min-w-0 grid-cols-1 gap-5 lg:grid-cols-[minmax(0,1fr)_340px]">
-        <section className="min-w-0 overflow-hidden rounded-[var(--radius-panel)] border border-[var(--color-border)] bg-[var(--color-surface)]">
+        <section data-tour="pipeline-board" className="min-w-0 overflow-hidden rounded-[var(--radius-panel)] border border-[var(--color-border)] bg-[var(--color-surface)]">
           <div className="px-4 pt-4">
             <div className="flex flex-wrap gap-1 border-b border-[var(--color-border)]" role="tablist">
               <button type="button" role="tab" aria-selected="true" className="inline-flex items-center gap-2 border-b-2 border-[var(--color-primary)] px-3 pb-3 pt-1.5 text-[13.5px] font-semibold text-[var(--color-primary)]">

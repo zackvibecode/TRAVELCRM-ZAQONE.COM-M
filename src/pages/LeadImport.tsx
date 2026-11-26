@@ -413,7 +413,10 @@ export default function LeadImport() {
         </div>
         <div className="flex flex-col gap-4 p-5">
           {/* Format note — shown BEFORE the user uploads so the column order is clear */}
-          <div className="flex items-start gap-3 rounded-[var(--radius-card)] border border-[var(--color-info)]/30 bg-[var(--color-info-soft)] px-4 py-3">
+          <div
+            data-tour="import-format"
+            className="flex items-start gap-3 rounded-[var(--radius-card)] border border-[var(--color-info)]/30 bg-[var(--color-info-soft)] px-4 py-3"
+          >
             <Info className="mt-0.5 h-4 w-4 flex-none text-[var(--color-info)]" />
             <div className="min-w-0 flex-1">
               <strong className="block text-[13px] font-semibold text-[var(--color-text)]">
@@ -454,6 +457,7 @@ export default function LeadImport() {
           <div
             role="button"
             tabIndex={0}
+            data-tour="import-dropzone"
             onClick={() => inputRef.current?.click()}
             onKeyDown={(e) => e.key === "Enter" && inputRef.current?.click()}
             onDragOver={(e) => e.preventDefault()}

@@ -52,6 +52,8 @@ import { usePermissionMatrix } from "@/lib/permission-store";
 import { useBranding } from "@/lib/useBranding";
 import { followupApi } from "@/lib/followup-api";
 import { getInstallPrompt, onInstallAvailability, isStandalone, type InstallPrompt } from "@/lib/pwa";
+import TourLaunchButton from "@/components/tour/TourLaunchButton";
+import SpotlightOverlay from "@/components/tour/SpotlightOverlay";
 
 const ROLE_BADGE: Record<StaffRole, { ms: string; en: string }> = {
   super_admin: { ms: "Super Admin", en: "Super Admin" },
@@ -289,6 +291,25 @@ export default function AppShell() {
       return changed ? next : prev;
     });
   }, [navPathname]);
+
+  // The onboarding tour asks the sidebar to reveal a group (e.g. the
+  // Follow-Up group) so the highlighted link is never hidden behind a
+  // collapsed parent.
+  useEffect(() => {
+    const onOpen = (e: Event) => {
+      const route = (e as CustomEvent<string>).detail;
+      if (!route) return;
+      setOpenGroups((prev) => {
+        const group = COLLAPSIBLE_GROUPS.find(
+          (g) => route === g.to || route.startsWith(`${g.to}/`) || g.children?.some((c) => c.to === route),
+        );
+        if (!group || prev[group.to]) return prev;
+        return { ...prev, [group.to]: true };
+      });
+    };
+    window.addEventListener("tour:open-group", onOpen);
+    return () => window.removeEventListener("tour:open-group", onOpen);
+  }, []);
   const { lang, setLang, t } = useLang();
   const branding = useBranding();
   const navigate = useNavigate();
@@ -655,6 +676,9 @@ export default function AppShell() {
           </button>
 
           <div className="ml-auto flex items-center gap-2 md:ml-0">
+            {/* Sales onboarding tour */}
+            <TourLaunchButton />
+
             {/* Language switcher */}
             <div className="flex items-center rounded-full border border-[var(--color-border)] p-0.5">
               <Languages className="mx-1.5 h-3.5 w-3.5 text-muted-foreground" />
@@ -769,6 +793,9 @@ export default function AppShell() {
 
         {/* Floating AI assistant — available on every CRM page. */}
         <AiAssistantFab />
+
+        {/* Sales onboarding tour — spotlight overlay above everything. */}
+        <SpotlightOverlay />
 
         {/* Global search command palette */}
         {searchOpen && (

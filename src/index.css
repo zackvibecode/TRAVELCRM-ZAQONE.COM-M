@@ -2521,3 +2521,176 @@ textarea.bw-input {
     animation: none;
   }
 }
+
+/* ---------------------------------------------------------------------------
+   Sales onboarding tour — spotlight overlay
+   3-tone palette only: white / brand blue / dark blue.
+   --------------------------------------------------------------------------- */
+.tour-root {
+  position: fixed;
+  inset: 0;
+  z-index: 200;
+  pointer-events: auto;
+}
+/* Each shade is a solid dark-blue panel; together they leave a hole over the target. */
+.tour-shade {
+  position: fixed;
+  background: rgba(15, 23, 42, 0.72);
+  animation: tour-fade 200ms ease-out both;
+}
+/* Thin blue ring drawn exactly around the hole. */
+.tour-ring {
+  position: fixed;
+  border-radius: 12px;
+  box-shadow:
+    0 0 0 2px var(--color-primary),
+    0 0 0 6px rgba(37, 99, 235, 0.18),
+    0 10px 40px rgba(37, 99, 235, 0.25);
+  pointer-events: none;
+  animation: tour-fade 200ms ease-out both;
+}
+@keyframes tour-fade {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+.tour-tip {
+  position: fixed;
+  width: min(340px, calc(100vw - 24px));
+  background: #ffffff;
+  border: 1px solid #cfe0f7;
+  border-radius: 14px;
+  box-shadow: 0 20px 50px rgba(30, 64, 175, 0.22);
+  padding: 14px 16px 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  animation: tour-pop 220ms cubic-bezier(0.2, 0.8, 0.2, 1) both;
+}
+@keyframes tour-pop {
+  from { opacity: 0; transform: translateY(6px) scale(0.98); }
+  to { opacity: 1; transform: translateY(0) scale(1); }
+}
+.tour-tip__head {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.tour-tip__badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 3px 8px;
+  border-radius: 999px;
+  background: var(--color-primary-soft);
+  color: var(--color-primary);
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+.tour-tip__count {
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--color-text-muted);
+  font-variant-numeric: tabular-nums;
+}
+.tour-tip__close {
+  margin-left: auto;
+  display: grid;
+  place-items: center;
+  width: 28px;
+  height: 28px;
+  border: 0;
+  border-radius: 6px;
+  background: transparent;
+  color: var(--color-text-muted);
+  cursor: pointer;
+}
+.tour-tip__close:hover {
+  background: var(--color-surface-muted);
+  color: var(--color-text);
+}
+.tour-tip__title {
+  margin: 0;
+  font-family: var(--font-display);
+  font-size: 15px;
+  font-weight: 700;
+  color: var(--color-text);
+  line-height: 1.35;
+}
+.tour-tip__body {
+  margin: 0;
+  font-size: 13px;
+  line-height: 1.6;
+  color: var(--color-text-secondary);
+}
+.tour-tip__foot {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  margin-top: 4px;
+  padding-top: 10px;
+  border-top: 1px solid #e3edfb;
+}
+.tour-tip__skip {
+  border: 0;
+  background: transparent;
+  padding: 0;
+  font: inherit;
+  font-size: 12.5px;
+  font-weight: 600;
+  color: var(--color-text-muted);
+  cursor: pointer;
+}
+.tour-tip__skip:hover {
+  color: var(--color-text);
+  text-decoration: underline;
+}
+.tour-tip__nav {
+  display: inline-flex;
+  gap: 6px;
+}
+.tour-tip__btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  height: 34px;
+  padding: 0 12px;
+  border-radius: 8px;
+  border: 1px solid #cfe0f7;
+  background: #ffffff;
+  color: var(--color-text-secondary);
+  font: inherit;
+  font-size: 12.5px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background 140ms ease, border-color 140ms ease;
+}
+.tour-tip__btn:hover:not(:disabled) {
+  background: var(--color-primary-soft);
+  border-color: var(--color-primary);
+  color: var(--color-primary);
+}
+.tour-tip__btn:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+.tour-tip__btn--primary {
+  background: var(--color-primary);
+  border-color: var(--color-primary);
+  color: #ffffff;
+}
+.tour-tip__btn--primary:hover:not(:disabled) {
+  background: #1d4ed8;
+  border-color: #1d4ed8;
+  color: #ffffff;
+}
+@media (prefers-reduced-motion: reduce) {
+  .tour-shade,
+  .tour-ring,
+  .tour-tip {
+    animation: none;
+  }
+}

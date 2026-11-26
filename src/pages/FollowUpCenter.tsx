@@ -343,7 +343,7 @@ export default function FollowUpCenter() {
             <section className="min-w-0 overflow-hidden rounded-[var(--radius-panel)] border border-[var(--color-border)] bg-[var(--color-surface)]">
               <div className="px-4 pt-4">
                 <div className="flex flex-wrap items-center justify-between gap-3">
-                  <div className="inline-flex items-center gap-1 rounded-[var(--radius-control)] bg-[var(--color-surface-muted)] p-1" role="tablist" aria-label={t("Antrean susulan", "Follow-up queues")}>
+                  <div data-tour="fu-today-tab" className="inline-flex items-center gap-1 rounded-[var(--radius-control)] bg-[var(--color-surface-muted)] p-1" role="tablist" aria-label={t("Antrean susulan", "Follow-up queues")}>
                     <button type="button" role="tab" aria-selected={tab === "today"} onClick={() => setTab("today")} className={cn("inline-flex items-center gap-1.5 rounded-[6px] px-2.5 py-1.5 text-[12.5px] font-medium", tab === "today" ? "bg-[var(--color-surface)] font-semibold text-foreground shadow-sm" : "text-muted-foreground hover:text-foreground")}>
                       {t("Hari Ini", "Due")}
                       <span className="rounded-full bg-[var(--color-neutral-soft)] px-1.5 py-0.5 text-[11px] font-bold tabular-nums">{shownToday.length}</span>

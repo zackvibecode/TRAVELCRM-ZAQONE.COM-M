@@ -801,7 +801,7 @@ export default function LeadManagement() {
             />
           )
         ) : (
-          <div className="overflow-x-auto">
+          <div data-tour="lead-table" className="overflow-x-auto">
             <table className="w-full border-collapse text-left text-[13px]">
               <thead>
                 <tr className="border-b border-[var(--color-border)] bg-[var(--color-surface-raised)]">

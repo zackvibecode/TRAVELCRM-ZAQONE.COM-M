@@ -5,6 +5,8 @@ import App from "./App";
 import { LanguageProvider } from "@/lib/i18n";
 import { preloadBranding } from "@/lib/useBranding";
 import { registerServiceWorker } from "@/lib/pwa";
+import { TourProvider } from "@/components/tour/TourContext";
+import { SALES_TOUR_STEPS } from "@/components/tour/steps";
 import "./index.css";
 
 // Warm the shared branding cache so the CRM shell and the public website
@@ -18,7 +20,9 @@ createRoot(document.getElementById("root")!).render(
   <StrictMode>
     <BrowserRouter>
       <LanguageProvider>
-        <App />
+        <TourProvider steps={SALES_TOUR_STEPS}>
+          <App />
+        </TourProvider>
       </LanguageProvider>
     </BrowserRouter>
   </StrictMode>,

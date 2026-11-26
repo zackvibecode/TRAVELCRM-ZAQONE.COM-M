@@ -283,7 +283,7 @@ export default function FollowUpEngine() {
       )}
 
       {/* Three-stage flow + completed counts, combined into one row of cards */}
-      <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
+      <div data-tour="engine-stages" className="grid grid-cols-1 gap-4 sm:grid-cols-3">
         {[
           { num: 1, stage: "FU1" as const, title: t("FU1 — kenalan pertama", "FU1 — first contact"), desc: t("Dijadualkan automatik apabila lead masuk.", "Scheduled automatically when a lead comes in.") },
           { num: 2, stage: "FU2" as const, title: t("FU2 — peringatan kedua", "FU2 — second reminder"), desc: t("Dijadualkan selepas FU1 selesai tanpa jawapan.", "Scheduled after FU1 is done with no reply.") },
@@ -418,6 +418,7 @@ export default function FollowUpEngine() {
                 return (
                   <div
                     key={lead.id}
+                    data-tour={visible[0]?.id === lead.id ? "engine-lead-action" : undefined}
                     className={cn(
                       "grid grid-cols-[auto_minmax(0,1fr)_auto] items-center gap-3 border-t border-[var(--color-border)] px-4 py-3 first:border-t-0",
                       isTop && "bg-[var(--color-primary-soft)]",
