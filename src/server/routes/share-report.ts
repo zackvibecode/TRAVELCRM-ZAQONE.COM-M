@@ -25,6 +25,85 @@ type Env = {
 const shareReportRouter = new Hono<Env>();
 
 const READ_ROLES = ["super_admin", "management", "sales"] as const;
+const ADMIN_ROLES = ["super_admin", "management"] as const;
+
+/** GET /packages — the curated list of sellable packages for the report form. */
+shareReportRouter.get("/packages", requireRole(...READ_ROLES), async (c) => {
+  const db = c.get("db");
+  const rows = await db
+    .select({
+      id: schema.salesPackages.id,
+      flag: schema.salesPackages.flag,
+      name: schema.salesPackages.name,
+    })
+    .from(schema.salesPackages)
+    .where(eq(schema.salesPackages.active, true))
+    .orderBy(schema.salesPackages.sortOrder, schema.salesPackages.name);
+  return c.json({ success: true, packages: rows });
+});
+
+/** POST /packages — admin adds a package to the list. */
+shareReportRouter.post("/packages", requireRole(...ADMIN_ROLES), async (c) => {
+  const db = c.get("db");
+  const body = (await c.req.json<{ flag?: string; name?: string }>()) as {
+    flag?: string;
+    name?: string;
+  };
+  const name = (body.name ?? "").trim().slice(0, 80);
+  if (!name) return c.json({ success: false, error: "Nama pakej diperlukan" }, 400);
+  const id = crypto.randomUUID();
+  const [row] = await db
+    .insert(schema.salesPackages)
+    .values({
+      id,
+      flag: (body.flag ?? "").trim().slice(0, 12),
+      name,
+    })
+    .returning();
+  return c.json({ success: true, package: row });
+});
+
+/** PATCH /packages/:id — admin renames / toggles a package. */
+shareReportRouter.patch(
+  "/packages/:id",
+  requireRole(...ADMIN_ROLES),
+  async (c) => {
+    const db = c.get("db");
+    const id = c.req.param("id");
+    const body = (await c.req.json<{
+      flag?: string;
+      name?: string;
+      active?: boolean;
+    }>()) as { flag?: string; name?: string; active?: boolean };
+    const [existing] = await db
+      .select()
+      .from(schema.salesPackages)
+      .where(eq(schema.salesPackages.id, id))
+      .limit(1);
+    if (!existing) return c.json({ success: false, error: "not_found" }, 404);
+    await db
+      .update(schema.salesPackages)
+      .set({
+        flag: body.flag !== undefined ? body.flag.trim().slice(0, 12) : existing.flag,
+        name: body.name !== undefined ? body.name.trim().slice(0, 80) : existing.name,
+        active: body.active !== undefined ? body.active : existing.active,
+      })
+      .where(eq(schema.salesPackages.id, id));
+    const [row] = await db
+      .select()
+      .from(schema.salesPackages)
+      .where(eq(schema.salesPackages.id, id))
+      .limit(1);
+    return c.json({ success: true, package: row });
+  },
+);
+
+/** DELETE /packages/:id — admin removes a package. */
+shareReportRouter.delete("/packages/:id", requireRole(...ADMIN_ROLES), async (c) => {
+  const db = c.get("db");
+  await db.delete(schema.salesPackages).where(eq(schema.salesPackages.id, c.req.param("id")));
+  return c.json({ success: true });
+});
 
 /** Month key guard: YYYY-MM only. */
 function isMonthKey(value: string | undefined): value is string {
@@ -222,6 +301,7 @@ shareReportRouter.get("/entries", requireRole(...READ_ROLES), async (c) => {
       invoiceTotal: schema.shareReports.invoiceTotal,
       invoiceNo: schema.shareReports.invoiceNo,
       status: schema.shareReports.status,
+      packageName: schema.shareReports.packageName,
       notes: schema.shareReports.notes,
       createdAt: schema.shareReports.createdAt,
     })
@@ -245,6 +325,7 @@ interface EntryInput {
   invoiceTotal?: number;
   invoiceNo?: string;
   status?: string;
+  packageName?: string;
   notes?: string;
 }
 
@@ -272,6 +353,7 @@ shareReportRouter.post("/entries", requireRole(...READ_ROLES), async (c) => {
     invoiceTotal: parseAmount(body.invoiceTotal),
     invoiceNo: (body.invoiceNo ?? "").trim().slice(0, 60),
     status: parseStatus(body.status),
+    packageName: (body.packageName ?? "").trim().slice(0, 80),
     notes: body.notes?.trim() || null,
   });
 
@@ -314,6 +396,8 @@ shareReportRouter.patch("/entries/:id", requireRole(...READ_ROLES), async (c) =>
         body.invoiceTotal !== undefined ? parseAmount(body.invoiceTotal) : existing.invoiceTotal,
       invoiceNo: body.invoiceNo !== undefined ? body.invoiceNo.trim().slice(0, 60) : existing.invoiceNo,
       status: body.status !== undefined ? parseStatus(body.status) : existing.status,
+      packageName:
+        body.packageName !== undefined ? body.packageName.trim().slice(0, 80) : existing.packageName,
       notes: body.notes !== undefined ? body.notes.trim() || null : existing.notes,
       updatedAt: sql`(datetime('now'))`,
     })

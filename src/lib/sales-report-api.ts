@@ -32,8 +32,15 @@ export interface ShareEntry {
   invoiceTotal: number;
   invoiceNo: string;
   status: "confirm" | "partial" | "cancel";
+  packageName: string;
   notes: string | null;
   createdAt: string;
+}
+
+export interface SalesPackage {
+  id: string;
+  flag: string;
+  name: string;
 }
 
 export interface SalesTarget {
@@ -83,6 +90,7 @@ export const shareReportApi = {
     invoiceTotal?: number;
     invoiceNo?: string;
     status?: "confirm" | "partial" | "cancel";
+    packageName?: string;
     notes?: string;
   }) =>
     apiFetch<{ entry: ShareEntry }>("/share-report/entries", {
@@ -99,6 +107,7 @@ export const shareReportApi = {
       invoiceTotal?: number;
       invoiceNo?: string;
       status?: "confirm" | "partial" | "cancel";
+      packageName?: string;
       notes?: string;
     },
   ) =>
@@ -109,6 +118,24 @@ export const shareReportApi = {
 
   deleteEntry: (id: string) =>
     apiFetch<{ success: boolean }>(`/share-report/entries/${id}`, { method: "DELETE" }),
+
+  packages: () =>
+    apiFetch<{ packages: SalesPackage[] }>("/share-report/packages").then((r) => r.packages),
+
+  createPackage: (body: { flag?: string; name: string }) =>
+    apiFetch<{ package: SalesPackage }>("/share-report/packages", {
+      method: "POST",
+      body: JSON.stringify(body),
+    }).then((r) => r.package),
+
+  updatePackage: (id: string, body: { flag?: string; name?: string; active?: boolean }) =>
+    apiFetch<{ package: SalesPackage }>(`/share-report/packages/${id}`, {
+      method: "PATCH",
+      body: JSON.stringify(body),
+    }).then((r) => r.package),
+
+  deletePackage: (id: string) =>
+    apiFetch<{ success: boolean }>(`/share-report/packages/${id}`, { method: "DELETE" }),
 };
 
 export const salesReportApi = {
@@ -246,4 +273,8 @@ export function useSalesTargets(month: string): SalesQuery<{ targets: SalesTarge
 
 export function useLeadSources(): SalesQuery<LeadSource[]> {
   return useSalesQuery("lead-sources", () => leadSourceApi.list(true));
+}
+
+export function useSalesPackages(): SalesQuery<SalesPackage[]> {
+  return useSalesQuery("sales-packages", () => shareReportApi.packages());
 }

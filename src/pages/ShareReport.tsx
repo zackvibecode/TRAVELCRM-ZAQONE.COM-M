@@ -32,9 +32,11 @@ import {
   percentChange,
   shareReportApi,
   useLeadSources,
+  useSalesPackages,
   useShareDashboard,
   useShareEntries,
   type LeadSource,
+  type SalesPackage,
   type ShareEntry,
 } from "@/lib/sales-report-api";
 
@@ -133,6 +135,7 @@ export default function ShareReport() {
   const dashboard = useShareDashboard(month, owner);
   const entries = useShareEntries(month, owner);
   const sources = useLeadSources();
+  const salesPackages = useSalesPackages();
 
   const sourceChartData = useMemo(
     () => (dashboard.data?.sources ?? []).map((s) => ({ name: s.source, nilai: s.count })),
@@ -336,6 +339,7 @@ export default function ShareReport() {
         month={month}
         entries={entryList}
         sources={sources.data ?? []}
+        packages={salesPackages.data ?? []}
         isAdmin={isAdmin}
         onChanged={() => void refreshAll()}
       />
@@ -354,11 +358,12 @@ function EntriesCard(props: {
   month: string;
   entries: ShareEntry[];
   sources: LeadSource[];
+  packages: SalesPackage[];
   isAdmin: boolean;
   onChanged: () => void;
 }) {
   const { t } = useLang();
-  const { month, entries, sources, isAdmin, onChanged } = props;
+  const { month, entries, sources, packages, isAdmin, onChanged } = props;
 
   const [dialogOpen, setDialogOpen] = useState(false);
   const [editing, setEditing] = useState<ShareEntry | null>(null);
@@ -367,6 +372,7 @@ function EntriesCard(props: {
   const [invoiceNo, setInvoiceNo] = useState("");
   const [invoiceTotal, setInvoiceTotal] = useState("");
   const [status, setStatus] = useState<"confirm" | "partial" | "cancel">("confirm");
+  const [packageName, setPackageName] = useState("");
   const [source, setSource] = useState("");
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -378,6 +384,7 @@ function EntriesCard(props: {
     setInvoiceNo("");
     setInvoiceTotal("");
     setStatus("confirm");
+    setPackageName("");
     setSource("");
     setError(null);
     setDialogOpen(true);
@@ -392,6 +399,7 @@ function EntriesCard(props: {
       entry.invoiceTotal > 0 ? String(entry.invoiceTotal) : "",
     );
     setStatus(entry.status ?? "confirm");
+    setPackageName(entry.packageName ?? "");
     setSource(entry.source);
     setError(null);
     setDialogOpen(true);
@@ -418,6 +426,7 @@ function EntriesCard(props: {
           invoiceTotal: amount,
           invoiceNo: invoiceNo.trim(),
           status,
+          packageName,
         });
       } else {
         await shareReportApi.createEntry({
@@ -428,6 +437,7 @@ function EntriesCard(props: {
           invoiceTotal: amount,
           invoiceNo: invoiceNo.trim(),
           status,
+          packageName,
         });
       }
       setDialogOpen(false);
@@ -499,6 +509,11 @@ function EntriesCard(props: {
                     {entry.invoiceNo && (
                       <span className="mt-0.5 block text-[11px] font-normal text-[var(--color-text-secondary)]">
                         {entry.invoiceNo}
+                      </span>
+                    )}
+                    {entry.packageName && (
+                      <span className="mt-0.5 block text-[11px] font-normal text-[var(--color-primary)]">
+                        {entry.packageName}
                       </span>
                     )}
                   </td>
@@ -584,6 +599,22 @@ function EntriesCard(props: {
                   maxLength={60}
                   className={`mt-1 ${INPUT}`}
                 />
+              </label>
+              <label className="text-[12.5px] font-semibold text-[var(--color-text-secondary)]">
+                {t("Pakej", "Package")}
+                <select
+                  value={packageName}
+                  onChange={(e) => setPackageName(e.target.value)}
+                  className={`mt-1 ${INPUT}`}
+                >
+                  <option value="">{t("— Pilih pakej —", "— Choose package —")}</option>
+                  {(packages ?? []).map((p) => (
+                    <option key={p.id} value={p.name}>
+                      {p.flag ? `${p.flag} ` : ""}
+                      {p.name}
+                    </option>
+                  ))}
+                </select>
               </label>
               <label className="text-[12.5px] font-semibold text-[var(--color-text-secondary)]">
                 {t("Berapa pack", "How many packs")}

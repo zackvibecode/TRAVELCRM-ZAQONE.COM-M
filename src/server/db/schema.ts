@@ -1856,6 +1856,8 @@ export const shareReports = sqliteTable(
     invoiceNo: text("invoice_no").notNull().default(""),
     /** Deal status: confirm (default), partial, cancel. */
     status: text("status").notNull().default("confirm"),
+    /** Sales package picked from the sales_packages list (free text label). */
+    packageName: text("package_name").notNull().default(""),
     notes: text("notes"),
     createdAt: text("created_at")
       .notNull()
@@ -1872,6 +1874,33 @@ export const shareReports = sqliteTable(
 
 export type ShareReportRow = typeof shareReports.$inferSelect;
 export type NewShareReportRow = typeof shareReports.$inferInsert;
+
+// ---------------------------------------------------------------------------
+// Sales packages — the curated list of sellable packages (flag + name) that
+// sales pick from when submitting a share report. Managed by admin; seeded
+// with the company's 26 packages.
+// ---------------------------------------------------------------------------
+
+export const salesPackages = sqliteTable(
+  "sales_packages",
+  {
+    id: text("id").primaryKey(),
+    /** Flag emoji shown before the name (e.g. "🇮🇩"). */
+    flag: text("flag").notNull().default(""),
+    name: text("name").notNull(),
+    sortOrder: integer("sort_order").notNull().default(0),
+    active: integer("active", { mode: "boolean" }).notNull().default(true),
+    createdAt: text("created_at")
+      .notNull()
+      .default(sql`(datetime('now'))`),
+  },
+  (table) => ({
+    activeIdx: index("sales_packages_active_idx").on(table.active),
+  }),
+);
+
+export type SalesPackageRow = typeof salesPackages.$inferSelect;
+export type NewSalesPackageRow = typeof salesPackages.$inferInsert;
 
 // ---------------------------------------------------------------------------
 // MCP OAuth 2.1 — lets AI clients (Claude, Cursor, ...) connect to /mcp via

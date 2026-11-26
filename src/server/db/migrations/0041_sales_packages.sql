@@ -1,0 +1,35 @@
+CREATE TABLE `sales_packages` (
+  `id` text PRIMARY KEY NOT NULL,
+  `flag` text NOT NULL DEFAULT '',
+  `name` text NOT NULL,
+  `sort_order` integer NOT NULL DEFAULT 0,
+  `active` integer NOT NULL DEFAULT 1,
+  `created_at` text DEFAULT (datetime('now')) NOT NULL
+);--> statement-breakpoint
+CREATE INDEX `sales_packages_active_idx` ON `sales_packages` (`active`);--> statement-breakpoint
+INSERT INTO `sales_packages` (`id`, `flag`, `name`, `sort_order`) VALUES
+  ('sp_padang', '🇮🇩', 'Padang Bukittinggi', 1),
+  ('sp_palembang', '🇮🇩', 'Palembang', 2),
+  ('sp_jakarta_bandung', '🇮🇩', 'Jakarta Bandung', 3),
+  ('sp_surabaya_bromo', '🇮🇩', 'Surabaya Bromo', 4),
+  ('sp_makassar', '🇮🇩', 'Makassar', 5),
+  ('sp_transjava', '🇮🇩', 'Transjava', 6),
+  ('sp_yunnan', '🇨🇳', 'Yunnan', 10),
+  ('sp_china4', '🇨🇳', 'China 4 Wilayah', 11),
+  ('sp_shanghai_disney', '🇨🇳', 'Shanghai Disneyland', 12),
+  ('sp_sichuan_chengdu', '🇨🇳', 'Sichuan Chengdu', 13),
+  ('sp_xian_lanzhou', '🇨🇳', 'Xian Lanzhou', 14),
+  ('sp_xinjiang', '🇨🇳', 'Xinjiang', 15),
+  ('sp_chiangmai_chiangrai', '🇹🇭', 'Chiangmai Chiangrai', 20),
+  ('sp_hatyai_krabi_phuket', '🇹🇭', 'Hatyai Krabi Phuket', 21),
+  ('sp_phu_quoc', '🇻🇳', 'Phu Quoc', 25),
+  ('sp_transviet', '🇻🇳', 'Transviet', 26),
+  ('sp_korea', '🇰🇷', 'Korea', 30),
+  ('sp_turkiye_classic', '🇹🇷', 'Turkiye Classic', 35),
+  ('sp_egypt', '🇪🇬', 'Egypt', 40),
+  ('sp_3_tan', '🇰🇿🇰🇬🇺🇿', '3 Tan', 45),
+  ('sp_bosnia', '🇧🇦🇭🇷🇲🇪', 'Bosnia Herzegovina', 50),
+  ('sp_italy_cinque', '🇮🇹', 'Italy Cinque Terre', 55),
+  ('sp_scandinavia', '🇳🇴🇩🇰🇸🇪🇫🇮🇪🇪', 'Scandinavia 5 Negara', 60),
+  ('sp_swiss_mono', '🇨🇭', 'Swiss Mono', 65),
+  ('sp_new_zealand', '🇳🇿', 'New Zealand Utara + Selatan', 70);

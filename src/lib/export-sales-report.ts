@@ -51,6 +51,7 @@ export async function exportSalesReportXlsx(input: SalesReportExportInput): Prom
     { key: "no", width: 6, header: "Bil" },
     { key: "customer", width: 30, header: "Nama Customer" },
     { key: "invoiceNo", width: 16, header: "No. Invoice" },
+    { key: "packageName", width: 22, header: "Pakej" },
     { key: "packs", width: 8, header: "Pack" },
     { key: "source", width: 20, header: "Sumber Lead" },
     { key: "total", width: 20, header: "Total Invoice (RM)" },
@@ -105,12 +106,13 @@ export async function exportSalesReportXlsx(input: SalesReportExportInput): Prom
     };
   });
 
-  const totalCol = 6;
+  const totalCol = 7;
   entries.forEach((e, i) => {
     const row = ws.addRow({
       no: i + 1,
       customer: e.customerName,
       invoiceNo: e.invoiceNo || "-",
+      packageName: e.packageName || "-",
       packs: e.packs,
       source: e.source || "-",
       total: e.invoiceTotal,
@@ -128,13 +130,13 @@ export async function exportSalesReportXlsx(input: SalesReportExportInput): Prom
         cell.fill = { type: "pattern", pattern: "solid", fgColor: { argb: BLUE_SOFT } };
       }
       const centered =
-        colNumber === 1 || colNumber === 4 || colNumber === totalCol || colNumber === 7;
+        colNumber === 1 || colNumber === 5 || colNumber === totalCol || colNumber === 8;
       cell.alignment = { horizontal: centered ? "center" : "left", vertical: "middle" };
       cell.font = { size: 10.5, color: { argb: "FF111827" } };
     });
     row.getCell(totalCol).numFmt = '"RM" #,##0.00';
     row.getCell(totalCol).font = { size: 10.5, bold: true, color: { argb: "FF111827" } };
-    const statusCell = row.getCell(7);
+    const statusCell = row.getCell(8);
     statusCell.fill = { type: "pattern", pattern: "solid", fgColor: { argb: statusFill(e.status)! } };
     statusCell.font = { size: 10, bold: true, color: { argb: statusColor(e.status) } };
   });
@@ -147,6 +149,7 @@ export async function exportSalesReportXlsx(input: SalesReportExportInput): Prom
     no: "",
     customer: "JUMLAH",
     invoiceNo: "",
+    packageName: "",
     packs: totalPacks,
     source: `${entries.length} customer`,
     total: totalInvoice,
@@ -163,7 +166,7 @@ export async function exportSalesReportXlsx(input: SalesReportExportInput): Prom
   totalRow.getCell(2).alignment = { horizontal: "left", vertical: "middle" };
   totalRow.getCell(totalCol).numFmt = '"RM" #,##0.00';
   totalRow.getCell(totalCol).alignment = { horizontal: "center", vertical: "middle" };
-  totalRow.getCell(4).alignment = { horizontal: "center", vertical: "middle" };
+  totalRow.getCell(5).alignment = { horizontal: "center", vertical: "middle" };
 
   // ---- Download ----------------------------------------------------------
   const buf = await wb.xlsx.writeBuffer();

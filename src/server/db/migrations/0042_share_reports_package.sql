@@ -1,0 +1,1 @@
+ALTER TABLE `share_reports` ADD `package_name` text DEFAULT '' NOT NULL;--> statement-breakpoint
