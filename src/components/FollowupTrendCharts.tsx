@@ -82,9 +82,9 @@ export default function FollowupTrendCharts({ trend, scores, days = 7 }: Followu
   const compareData = useMemo(
     () =>
       [...scores]
-        .sort((a, b) => b.uniqueLeads - a.uniqueLeads)
+        .sort((a, b) => b.leadsOwned - a.leadsOwned)
         .slice(0, 6)
-        .map((s) => ({ name: s.name, short: initialsOf(s.name), uniqueLeads: s.uniqueLeads })),
+        .map((s) => ({ name: s.name, short: initialsOf(s.name), leadsOwned: s.leadsOwned })),
     [scores],
   );
 
@@ -171,11 +171,11 @@ export default function FollowupTrendCharts({ trend, scores, days = 7 }: Followu
 
       {/* Side-by-side comparison */}
       <section className="min-w-0 rounded-[var(--radius-panel)] border border-[var(--color-border)] bg-[var(--color-surface)] p-5">
-        <h2 className="m-0 text-[14px] font-bold">{t("Perbandingan Lead Unik", "Unique-Lead Comparison")}</h2>
+        <h2 className="m-0 text-[14px] font-bold">{t("Perbandingan Lead", "Lead Comparison")}</h2>
         <p className="m-0 mt-0.5 text-[12px] text-muted-foreground">
           {t(
-            "6 sales teratas mengikut bilangan lead unik — bukan jumlah sentuhan.",
-            "Top 6 reps by unique leads touched — not raw touch count.",
+            "6 sales teratas mengikut bilangan lead yang dimiliki.",
+            "Top 6 reps by leads owned.",
           )}
         </p>
         {compareData.length === 0 ? (
@@ -217,7 +217,7 @@ export default function FollowupTrendCharts({ trend, scores, days = 7 }: Followu
                   fontSize: 12,
                 }}
               />
-              <Bar dataKey="uniqueLeads" name={t("Lead unik", "Unique leads")} radius={[0, 6, 6, 0]} barSize={18}>
+              <Bar dataKey="leadsOwned" name={t("Lead", "Leads")} radius={[0, 6, 6, 0]} barSize={18}>
                 {compareData.map((entry, i) => (
                   <Cell
                     key={entry.name}

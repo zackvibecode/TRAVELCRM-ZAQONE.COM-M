@@ -77,7 +77,7 @@ export default function SalesLeaderboard() {
 
   const maxScore = rows[0]?.score ?? 1;
   const podium = rows.slice(0, 3);
-  const totals = leaderboard.data?.totals ?? { completed: 0, uniqueLeads: 0, won: 0 };
+  const totals = leaderboard.data?.totals ?? { completed: 0, uniqueLeads: 0, won: 0, leadsOwned: 0 };
   // "Active sales" = reps with at least one confirmed follow-up in the period.
   const activeSales = rows.length;
 
@@ -195,7 +195,7 @@ export default function SalesLeaderboard() {
 
       {/* Summary — team totals for the selected period */}
       <section className="grid grid-cols-2 gap-3 xl:grid-cols-4" aria-label={t("Ringkasan pasukan", "Team summary")}>
-        <SummaryCard icon={Users} label={t("Lead Unik Disusul", "Unique Leads Worked")} value={String(totals.uniqueLeads)} />
+        <SummaryCard icon={Users} label={t("Lead Saya", "My Leads")} value={String(totals.leadsOwned)} />
         <SummaryCard icon={CheckCircle2} label={t("Susulan Selesai", "Follow-Ups Done")} value={String(totals.completed)} />
         <SummaryCard icon={Trophy} label={t("Deal Dimenangi", "Deals Won")} value={String(totals.won)} />
         <SummaryCard icon={Award} label={t("Sales Aktif", "Active Sales")} value={String(activeSales)} />
@@ -264,7 +264,7 @@ export default function SalesLeaderboard() {
                   {r.score}
                 </p>
                 <p className="m-0 text-[11.5px] text-muted-foreground">
-                  {t("Lead unik", "Unique leads")}: {r.uniqueLeads} · {t("Menang", "Won")}: {r.won}
+                  {t("Lead", "Leads")}: {r.leadsOwned} · {t("Menang", "Won")}: {r.won}
                 </p>
               </div>
             );
@@ -304,7 +304,7 @@ export default function SalesLeaderboard() {
                 <th className="px-4 py-2.5 font-semibold">{t("Kedudukan", "Rank")}</th>
                 <th className="px-4 py-2.5 font-semibold">{t("Sales", "Sales")}</th>
                 <th className="px-4 py-2.5 text-right font-semibold">{t("Skor", "Score")}</th>
-                <th className="px-4 py-2.5 text-right font-semibold">{t("Lead Unik", "Unique Leads")}</th>
+                <th className="px-4 py-2.5 text-right font-semibold">{t("Lead Saya", "My Leads")}</th>
                 <th className="px-4 py-2.5 text-right font-semibold">{t("Hari Aktif", "Active Days")}</th>
                 <th className="px-4 py-2.5 text-right font-semibold">{t("Menang", "Won")}</th>
                 <th className="px-4 py-2.5 text-right font-semibold">{t("Susulan Selesai", "Follow-Ups Done")}</th>
@@ -359,7 +359,7 @@ export default function SalesLeaderboard() {
                       <span className="font-display font-bold [font-variant-numeric:tabular-nums]">{r.score}</span>
                     </div>
                   </td>
-                  <td className="px-4 py-2.5 text-right [font-variant-numeric:tabular-nums]">{r.uniqueLeads}</td>
+                  <td className="px-4 py-2.5 text-right [font-variant-numeric:tabular-nums]">{r.leadsOwned}</td>
                   <td className="px-4 py-2.5 text-right [font-variant-numeric:tabular-nums]">{r.activeDays}</td>
                   <td className="px-4 py-2.5 text-right [font-variant-numeric:tabular-nums]">{r.won}</td>
                   <td className="px-4 py-2.5 text-right text-muted-foreground [font-variant-numeric:tabular-nums]">{r.completed}</td>

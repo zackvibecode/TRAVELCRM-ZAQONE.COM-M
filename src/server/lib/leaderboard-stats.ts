@@ -39,6 +39,8 @@ export interface SalesScoreRow {
   uniqueLeads: number;
   activeDays: number;
   won: number;
+  /** Total leads currently owned by this rep, across every stage. */
+  leadsOwned: number;
 }
 
 /** One KL day of trend data — same shape as `TrendPoint` in the frontend. */
@@ -121,6 +123,15 @@ export async function salesScores(
     .all();
   const wonByOwner = new Map(wonRows.map((w) => [w.owner, w.won]));
 
+  // Total leads owned by each rep (all stages) — "how many leads they have".
+  const ownedRows = await db
+    .select({ owner: schema.leads.ownerUserId, owned: sql<number>`count(*)`.mapWith(Number) })
+    .from(schema.leads)
+    .where(inArray(schema.leads.ownerUserId, userIds))
+    .groupBy(schema.leads.ownerUserId)
+    .all();
+  const ownedByOwner = new Map(ownedRows.map((o) => [o.owner, o.owned]));
+
   // Resolve display names (only for reps that appear in the ranking).
   const users = await db
     .select({ id: schema.user.id, name: schema.user.name })
@@ -137,6 +148,7 @@ export async function salesScores(
     uniqueLeads: r.uniqueLeads,
     activeDays: activeDays.get(r.userId)?.size ?? 0,
     won: wonByOwner.get(r.userId) ?? 0,
+    leadsOwned: ownedByOwner.get(r.userId) ?? 0,
   }));
 }
 
@@ -146,18 +158,21 @@ export interface TeamTotals {
   completed: number;
   won: number;
   activeSales: number;
+  leadsOwned: number;
 }
 
 export function teamTotals(scores: SalesScoreRow[]): TeamTotals {
   let uniqueLeads = 0;
   let completed = 0;
   let won = 0;
+  let leadsOwned = 0;
   for (const s of scores) {
     uniqueLeads += s.uniqueLeads;
     completed += s.completed;
     won += s.won;
+    leadsOwned += s.leadsOwned;
   }
-  return { uniqueLeads, completed, won, activeSales: scores.length };
+  return { uniqueLeads, completed, won, activeSales: scores.length, leadsOwned };
 }
 
 /**

@@ -131,7 +131,12 @@ followupRouter.get("/leaderboard", async (c) => {
   }
 
   const period = parsePeriodParam(c.req.query("period"));
-  const scope = parseOwnerFilter(c.req.query("owner"), access, staff.id);
+  // Leaderboard is team-wide for everyone: SALES may pass any owner to inspect
+  // a colleague, ADMIN keeps the team view. No owner filter pins the caller.
+  const requestedOwner = (c.req.query("owner") ?? "").trim();
+  const scope = requestedOwner && requestedOwner.toLowerCase() !== "all"
+    ? { scoped: true, ownerUserId: requestedOwner }
+    : { scoped: false, ownerUserId: null };
   const range = periodRangeKL(period);
   const prevRange = previousRangeKL(period);
 

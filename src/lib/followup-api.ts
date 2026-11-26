@@ -146,6 +146,8 @@ export interface SalesScore {
   uniqueLeads: number;
   activeDays: number;
   won: number;
+  /** Total leads currently owned by this rep, across every stage. */
+  leadsOwned: number;
 }
 
 export interface RankedScore extends SalesScore {
@@ -156,8 +158,8 @@ export interface RankedScore extends SalesScore {
 export interface LeaderboardResponse {
   period: string;
   scores: RankedScore[];
-  totals: { completed: number; uniqueLeads: number; won: number } | null;
-  previous: { completed: number; uniqueLeads: number; won: number } | null;
+  totals: { completed: number; uniqueLeads: number; won: number; leadsOwned: number } | null;
+  previous: { completed: number; uniqueLeads: number; won: number; leadsOwned: number } | null;
   window: { from: string; to: string } | null;
   previousWindow: { from: string; to: string } | null;
   today: { start: string; end: string };
