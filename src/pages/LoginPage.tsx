@@ -74,8 +74,14 @@ export default function LoginPage() {
     <div className="au-shell" data-node-id="auth.login">
       {/* Page */}
       <div className="au-card">
-        {/* Brand panel — red gradient with logo + marketing copy */}
+        {/* Brand panel — dark navy with purple-blue gradient + glowing geometric shapes */}
         <div className="au-brand">
+          <div className="au-brand__geo" aria-hidden="true">
+            <span className="au-geo au-geo--orb" />
+            <span className="au-geo au-geo--ring" />
+            <span className="au-geo au-geo--cube" />
+            <span className="au-geo au-geo--dot" />
+          </div>
           <div>
             <img
               src="/brand/zaqone-logo-mono-white-1024.png"

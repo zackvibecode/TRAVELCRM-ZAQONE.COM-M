@@ -2069,9 +2069,9 @@ textarea.bw-input {
   justify-content: center;
   padding: var(--space-6) var(--space-4);
   background:
-    radial-gradient(900px 480px at 12% -8%, rgba(37, 99, 235, 0.10), transparent 62%),
+    radial-gradient(900px 480px at 12% -8%, rgba(139, 92, 246, 0.12), transparent 62%),
     radial-gradient(760px 420px at 105% 108%, rgba(59, 130, 246, 0.12), transparent 58%),
-    linear-gradient(165deg, #eaf2fd 0%, #dfeafc 52%, #e8f1fe 100%);
+    linear-gradient(165deg, #f3f1fd 0%, #e9eefc 52%, #f1f3fe 100%);
 }
 
 /* Split card: brand panel (left) + form panel (right) */
@@ -2082,8 +2082,8 @@ textarea.bw-input {
   grid-template-columns: 1.15fr 1fr;
   border-radius: var(--radius-panel);
   overflow: hidden;
-  box-shadow: 0 24px 60px color-mix(in srgb, #1e4fa3 18%, transparent);
-  border: 1px solid #cfe0f7;
+  box-shadow: 0 24px 60px color-mix(in srgb, #4c3fa8 18%, transparent);
+  border: 1px solid #d8d4f3;
 }
 
 .au-brand {
@@ -2094,16 +2094,84 @@ textarea.bw-input {
   gap: var(--space-5);
   padding: var(--space-8) var(--space-8);
   color: var(--color-on-primary);
-  background: linear-gradient(155deg, #3b82f6 0%, #2563eb 58%, #1d4ed8 100%);
+  overflow: hidden;
+  background:
+    radial-gradient(720px 420px at 85% 10%, rgba(139, 92, 246, 0.55), transparent 60%),
+    radial-gradient(520px 320px at 10% 95%, rgba(59, 130, 246, 0.45), transparent 58%),
+    linear-gradient(160deg, #12122b 0%, #1a1a3e 55%, #0f0f24 100%);
 }
 .au-brand::before {
   content: "";
   position: absolute;
   inset: 0;
   background:
-    radial-gradient(640px 300px at 88% -12%, rgba(255, 255, 255, 0.20), transparent 62%),
-    radial-gradient(420px 260px at -8% 108%, rgba(147, 197, 253, 0.22), transparent 60%);
+    radial-gradient(560px 280px at 80% 0%, rgba(255, 255, 255, 0.10), transparent 60%),
+    radial-gradient(380px 240px at 0% 100%, rgba(167, 139, 250, 0.18), transparent 58%);
   pointer-events: none;
+}
+
+/* Floating geometric shapes inside the dark brand panel (pure CSS). */
+.au-brand__geo {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  z-index: 0;
+}
+.au-brand > *:not(.au-brand__geo) {
+  position: relative;
+  z-index: 1;
+}
+.au-geo {
+  position: absolute;
+  display: block;
+}
+.au-geo--orb {
+  top: 14%;
+  right: 12%;
+  width: 120px;
+  height: 120px;
+  border-radius: 50%;
+  background: radial-gradient(circle at 32% 28%, #c4b5fd 0%, #8b5cf6 45%, #4c1d95 100%);
+  box-shadow: 0 0 60px rgba(139, 92, 246, 0.55), inset -14px -18px 30px rgba(0, 0, 0, 0.35);
+  animation: au-float 7s ease-in-out infinite;
+}
+.au-geo--ring {
+  bottom: 18%;
+  left: 8%;
+  width: 150px;
+  height: 150px;
+  border-radius: 50%;
+  border: 14px solid transparent;
+  background:
+    linear-gradient(#161638, #161638) padding-box,
+    linear-gradient(135deg, rgba(167, 139, 250, 0.9), rgba(96, 165, 250, 0.35)) border-box;
+  box-shadow: 0 0 40px rgba(96, 165, 250, 0.35);
+  animation: au-float 9s ease-in-out 0.6s infinite reverse;
+}
+.au-geo--cube {
+  top: 52%;
+  right: 22%;
+  width: 64px;
+  height: 64px;
+  border-radius: 14px;
+  background: linear-gradient(145deg, rgba(196, 181, 253, 0.95) 0%, rgba(99, 102, 241, 0.75) 60%, rgba(49, 46, 129, 0.9) 100%);
+  box-shadow: 0 12px 36px rgba(99, 102, 241, 0.5), inset 4px 4px 10px rgba(255, 255, 255, 0.25);
+  transform: rotate(18deg);
+  animation: au-float 6s ease-in-out 1.2s infinite;
+}
+.au-geo--dot {
+  bottom: 34%;
+  right: 8%;
+  width: 18px;
+  height: 18px;
+  border-radius: 50%;
+  background: #a5b4fc;
+  box-shadow: 0 0 18px rgba(165, 180, 252, 0.9);
+  animation: au-float 5s ease-in-out 0.3s infinite;
+}
+@keyframes au-float {
+  0%, 100% { translate: 0 0; }
+  50% { translate: 0 -14px; }
 }
 .au-brand__logo {
   display: block;
