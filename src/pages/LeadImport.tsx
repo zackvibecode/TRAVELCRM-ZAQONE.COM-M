@@ -235,6 +235,12 @@ export default function LeadImport() {
     void loadGroups(true);
   }, []);
 
+  // When there are no groups yet, open the create form by default so the
+  // picker is never an empty box that looks like the feature is missing.
+  useEffect(() => {
+    if (groups.length === 0) setCreatingGroup(true);
+  }, [groups.length]);
+
   async function createGroup() {
     const name = newGroupName.trim();
     if (!name) return;
@@ -319,6 +325,12 @@ export default function LeadImport() {
     }
     setFileName(selected.name);
     setFile(selected);
+    // Pre-fill the new-group name from the file so creating a matching
+    // group is one click when none exists yet.
+    if (groups.length === 0 && newGroupName.trim() === "") {
+      setCreatingGroup(true);
+      setNewGroupName(selected.name.replace(/\.[^.]+$/, "").slice(0, 80));
+    }
     void parse(selected);
   }
 
@@ -345,13 +357,25 @@ export default function LeadImport() {
     setParseError(null);
     setOverlay("processing");
     try {
-      const res = await followupApi.importCommit(file, mapping, undefined, selectedGroupId || undefined);
-      const groupName = groups.find((g) => g.id === selectedGroupId)?.name;
+      // Every file lands in a group. If the rep did not pick one, create a
+      // group named after the file (sans extension) so the lead list can
+      // always be filtered by it — nothing is ever left "unassigned".
+      let targetGroupId = selectedGroupId;
+      let targetGroupName = groups.find((g) => g.id === selectedGroupId)?.name;
+      if (!targetGroupId) {
+        const autoName = file.name.replace(/\.[^.]+$/, "").slice(0, 80) || "Import";
+        const g = await followupApi.createImportGroup(autoName);
+        setGroups((prev) => [g, ...prev]);
+        setSelectedGroupId(g.id);
+        targetGroupId = g.id;
+        targetGroupName = g.name;
+      }
+      const res = await followupApi.importCommit(file, mapping, undefined, targetGroupId);
       setDoneStats({ added: res.insertedRows, dup: res.duplicateRows, bad: res.failedRows });
       setDoneNotice(
         t(
-          `Import selesai: ${res.insertedRows} lead ditambah, ${res.duplicateRows} pendua, ${res.failedRows} gagal${groupName ? ` — kumpulan "${groupName}"` : ""}.`,
-          `Import finished: ${res.insertedRows} leads added, ${res.duplicateRows} duplicates, ${res.failedRows} failed${groupName ? ` — group "${groupName}"` : ""}.`,
+          `Import selesai: ${res.insertedRows} lead ditambah, ${res.duplicateRows} pendua, ${res.failedRows} gagal — kumpulan "${targetGroupName}".`,
+          `Import finished: ${res.insertedRows} leads added, ${res.duplicateRows} duplicates, ${res.failedRows} failed — group "${targetGroupName}".`,
         ),
       );
       setRows([]);
@@ -377,15 +401,18 @@ export default function LeadImport() {
 
   // Auto-import: as soon as the server preview is ready, start the import
   // without waiting for a button press. Requires a valid mapping (name +
-  // phone) and at least one ready row.
+  // phone) and at least one ready row. It WAITS while the new-group form is
+  // open so the rep can name the group (or pick an existing one) first —
+  // the group has to be decided before the file is committed.
   useEffect(() => {
     if (importing || parsing || !file) return;
     if (!headers || rows.length === 0) return;
     if (!mappingReady) return;
     if (stats.ready === 0) return;
+    if (creatingGroup) return;
     void runImport();
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [headers, rows, parsing, importing]);
+  }, [headers, rows, parsing, importing, creatingGroup]);
 
   /** Re-import handler for corrected failed rows — posts to the batch retry endpoint. */
   async function retryFixed(batchId: string, fixed: ImportErrorItem[]) {
@@ -530,7 +557,7 @@ export default function LeadImport() {
               <button
                 type="button"
                 onClick={() => setCreatingGroup((v) => !v)}
-                disabled={groupBusy}
+                disabled={groupBusy || groups.length === 0}
                 className="inline-flex items-center gap-1 rounded-[var(--radius-control)] border border-[var(--color-border)] bg-[var(--color-surface)] px-2.5 py-1.5 text-[12px] font-semibold text-[var(--color-text-secondary)] transition-colors hover:bg-[var(--color-surface-muted)] disabled:opacity-50"
               >
                 <Plus className="h-3.5 w-3.5" />
@@ -611,8 +638,16 @@ export default function LeadImport() {
             {!creatingGroup && groups.length === 0 && (
               <p className="m-0 text-[12px] text-muted-foreground">
                 {t(
-                  "Belum ada kumpulan. Buat satu untuk mengumpulkan fail-fail import anda.",
-                  "No groups yet. Create one to collect your imported files.",
+                  "Belum ada kumpulan. Tekan 'Kumpulan baru' untuk cipta satu, atau terus upload — kumpulan akan dibuat automatik mengikut nama fail.",
+                  "No groups yet. Press 'New group' to create one, or just upload — a group named after the file is created automatically.",
+                )}
+              </p>
+            )}
+            {creatingGroup && groups.length === 0 && (
+              <p className="m-0 text-[12px] text-muted-foreground">
+                {t(
+                  "Setiap fail import akan dimasukkan ke kumpulan ini. Anda boleh tukar kumpulan untuk fail seterusnya.",
+                  "Every imported file goes into this group. You can switch groups for the next file.",
                 )}
               </p>
             )}
