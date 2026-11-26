@@ -2062,7 +2062,7 @@ textarea.bw-input {
    -------------------------------------------------------------------------- */
 
 .au-shell {
-  min-height: 100vh;
+  height: 100vh;
   display: grid;
   grid-template-columns: 1.05fr 1fr;
   gap: var(--space-4);
@@ -2070,6 +2070,7 @@ textarea.bw-input {
   box-sizing: border-box;
   background: #ffffff;
   font-family: "Montserrat", var(--font-sans);
+  overflow: hidden;
 }
 
 /* ── Left: large visual panel, rounded, blue ─────────────────────── */
