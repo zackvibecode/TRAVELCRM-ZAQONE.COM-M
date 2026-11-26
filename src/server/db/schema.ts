@@ -1852,6 +1852,10 @@ export const shareReports = sqliteTable(
     source: text("source").notNull().default(""),
     /** Total invoice amount for this customer (MYR). */
     invoiceTotal: real("invoice_total").notNull().default(0),
+    /** Invoice number for this sale (free text, e.g. "INV-2026/001"). */
+    invoiceNo: text("invoice_no").notNull().default(""),
+    /** Deal status: confirm (default), partial, cancel. */
+    status: text("status").notNull().default("confirm"),
     notes: text("notes"),
     createdAt: text("created_at")
       .notNull()

@@ -149,19 +149,25 @@ export default function ShareReport() {
   function exportExcel() {
     const header = [
       t("Nama Customer", "Customer Name"),
+      t("No. Invoice", "Invoice No."),
       t("Pack", "Packs"),
       t("Sumber Lead", "Lead Source"),
       t("Total Invoice", "Total Invoice"),
+      t("Status", "Status"),
       ...(isAdmin ? [t("Sales", "Sales")] : []),
       t("Tarikh", "Date"),
     ];
     const esc = (v: string | number) => `"${String(v).replace(/"/g, '""')}"`;
+    const statusLabel = (s: string) =>
+      s === "confirm" ? "Confirm" : s === "partial" ? "Partial" : "Cancel";
     const rows = entryList.map((e) =>
       [
         esc(e.customerName),
+        esc(e.invoiceNo || "-"),
         esc(e.packs),
         esc(e.source || "-"),
         esc(e.invoiceTotal.toFixed(2)),
+        esc(statusLabel(e.status)),
         ...(isAdmin ? [esc(e.userName)] : []),
         esc(e.createdAt.slice(0, 10)),
       ].join(","),
@@ -174,9 +180,11 @@ export default function ShareReport() {
     rows.push(
       [
         esc(t("JUMLAH", "TOTAL")),
+        esc(""),
         esc(totalPacks),
         esc(""),
         esc(totalInvoice.toFixed(2)),
+        esc(""),
         ...(isAdmin ? [esc("")] : []),
         esc(`${totalCustomers} ${t("customer", "customer(s)")}`),
       ].join(","),
@@ -387,7 +395,9 @@ function EntriesCard(props: {
   const [editing, setEditing] = useState<ShareEntry | null>(null);
   const [customerName, setCustomerName] = useState("");
   const [packs, setPacks] = useState("1");
+  const [invoiceNo, setInvoiceNo] = useState("");
   const [invoiceTotal, setInvoiceTotal] = useState("");
+  const [status, setStatus] = useState<"confirm" | "partial" | "cancel">("confirm");
   const [source, setSource] = useState("");
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -396,7 +406,9 @@ function EntriesCard(props: {
     setEditing(null);
     setCustomerName("");
     setPacks("1");
+    setInvoiceNo("");
     setInvoiceTotal("");
+    setStatus("confirm");
     setSource("");
     setError(null);
     setDialogOpen(true);
@@ -406,9 +418,11 @@ function EntriesCard(props: {
     setEditing(entry);
     setCustomerName(entry.customerName);
     setPacks(String(entry.packs));
+    setInvoiceNo(entry.invoiceNo ?? "");
     setInvoiceTotal(
       entry.invoiceTotal > 0 ? String(entry.invoiceTotal) : "",
     );
+    setStatus(entry.status ?? "confirm");
     setSource(entry.source);
     setError(null);
     setDialogOpen(true);
@@ -433,6 +447,8 @@ function EntriesCard(props: {
           packs: Number(packs),
           source,
           invoiceTotal: amount,
+          invoiceNo: invoiceNo.trim(),
+          status,
         });
       } else {
         await shareReportApi.createEntry({
@@ -441,6 +457,8 @@ function EntriesCard(props: {
           packs: Number(packs),
           source,
           invoiceTotal: amount,
+          invoiceNo: invoiceNo.trim(),
+          status,
         });
       }
       setDialogOpen(false);
@@ -509,6 +527,11 @@ function EntriesCard(props: {
                 <tr key={entry.id} className="border-b border-[var(--color-border)] last:border-b-0">
                   <td className="py-2.5 pr-3 font-semibold text-[var(--color-text)]">
                     {entry.customerName}
+                    {entry.invoiceNo && (
+                      <span className="mt-0.5 block text-[11px] font-normal text-[var(--color-text-secondary)]">
+                        {entry.invoiceNo}
+                      </span>
+                    )}
                   </td>
                   <td className="py-2.5 pr-3 text-[var(--color-text)]">{entry.packs}</td>
                   <td className="py-2.5 pr-3 text-[var(--color-text-secondary)]">
@@ -516,6 +539,21 @@ function EntriesCard(props: {
                   </td>
                   <td className="py-2.5 pr-3 font-semibold text-[var(--color-text)]">
                     {formatRM(entry.invoiceTotal)}
+                    <span
+                      className={`ml-2 inline-block rounded-full px-1.5 py-0.5 text-[10px] font-bold ${
+                        entry.status === "confirm"
+                          ? "bg-[var(--color-success-soft)] text-[var(--color-success)]"
+                          : entry.status === "partial"
+                            ? "bg-[#fef3c7] text-[#b45309]"
+                            : "bg-[var(--color-danger-soft)] text-[var(--color-danger)]"
+                      }`}
+                    >
+                      {entry.status === "confirm"
+                        ? t("Confirm", "Confirm")
+                        : entry.status === "partial"
+                          ? t("Partial", "Partial")
+                          : t("Cancel", "Cancel")}
+                    </span>
                   </td>
                   {isAdmin && (
                     <td className="py-2.5 pr-3 text-[var(--color-text-secondary)]">
@@ -569,6 +607,16 @@ function EntriesCard(props: {
                 />
               </label>
               <label className="text-[12.5px] font-semibold text-[var(--color-text-secondary)]">
+                {t("No. Invoice", "Invoice No.")}
+                <input
+                  value={invoiceNo}
+                  onChange={(e) => setInvoiceNo(e.target.value)}
+                  placeholder={t("cth. INV-2026/001", "e.g. INV-2026/001")}
+                  maxLength={60}
+                  className={`mt-1 ${INPUT}`}
+                />
+              </label>
+              <label className="text-[12.5px] font-semibold text-[var(--color-text-secondary)]">
                 {t("Berapa pack", "How many packs")}
                 <input
                   type="number"
@@ -603,6 +651,36 @@ function EntriesCard(props: {
                     ))}
                 </select>
               </label>
+              <div className="text-[12.5px] font-semibold text-[var(--color-text-secondary)]">
+                {t("Status", "Status")}
+                <div className="mt-1 grid grid-cols-3 gap-1.5">
+                  {(
+                    [
+                      ["confirm", t("Confirm", "Confirm"), "var(--color-success)", "var(--color-success-soft)"],
+                      ["partial", t("Partial", "Partial"), "var(--color-warning, #b45309)", "var(--color-warning-soft, #fef3c7)"],
+                      ["cancel", t("Cancel", "Cancel"), "var(--color-danger)", "var(--color-danger-soft)"],
+                    ] as const
+                  ).map(([value, label, color, soft]) => (
+                    <button
+                      key={value}
+                      type="button"
+                      onClick={() => setStatus(value)}
+                      className={`rounded-[var(--radius-control)] border px-2 py-1.5 text-[12.5px] font-semibold transition-colors ${
+                        status === value
+                          ? "border-transparent"
+                          : "border-[var(--color-border)] bg-[var(--color-surface)] text-[var(--color-text-secondary)] hover:bg-[var(--color-surface-muted)]"
+                      }`}
+                      style={
+                        status === value
+                          ? { backgroundColor: soft, color }
+                          : undefined
+                      }
+                    >
+                      {label}
+                    </button>
+                  ))}
+                </div>
+              </div>
             </div>
             <div className="mt-4 flex gap-2">
               <button

@@ -50,6 +50,16 @@ function previousMonth(month: string): string {
   return m === 1 ? `${y - 1}-12` : `${y}-${String(m - 1).padStart(2, "0")}`;
 }
 
+/** Deal status values accepted from the client. */
+const STATUSES = ["confirm", "partial", "cancel"] as const;
+type DealStatus = (typeof STATUSES)[number];
+
+/** Coerce an incoming status; anything unknown falls back to "confirm". */
+function parseStatus(value: unknown): DealStatus {
+  const v = typeof value === "string" ? value.trim().toLowerCase() : "";
+  return (STATUSES as readonly string[]).includes(v) ? (v as DealStatus) : "confirm";
+}
+
 interface ShareDashboard {
   month: string;
   ownerUserId: string | null;
@@ -210,6 +220,8 @@ shareReportRouter.get("/entries", requireRole(...READ_ROLES), async (c) => {
       packs: schema.shareReports.packs,
       source: schema.shareReports.source,
       invoiceTotal: schema.shareReports.invoiceTotal,
+      invoiceNo: schema.shareReports.invoiceNo,
+      status: schema.shareReports.status,
       notes: schema.shareReports.notes,
       createdAt: schema.shareReports.createdAt,
     })
@@ -231,6 +243,8 @@ interface EntryInput {
   packs?: number;
   source?: string;
   invoiceTotal?: number;
+  invoiceNo?: string;
+  status?: string;
   notes?: string;
 }
 
@@ -256,6 +270,8 @@ shareReportRouter.post("/entries", requireRole(...READ_ROLES), async (c) => {
     packs,
     source: (body.source ?? "").trim(),
     invoiceTotal: parseAmount(body.invoiceTotal),
+    invoiceNo: (body.invoiceNo ?? "").trim().slice(0, 60),
+    status: parseStatus(body.status),
     notes: body.notes?.trim() || null,
   });
 
@@ -296,6 +312,8 @@ shareReportRouter.patch("/entries/:id", requireRole(...READ_ROLES), async (c) =>
       source: body.source !== undefined ? body.source.trim() : existing.source,
       invoiceTotal:
         body.invoiceTotal !== undefined ? parseAmount(body.invoiceTotal) : existing.invoiceTotal,
+      invoiceNo: body.invoiceNo !== undefined ? body.invoiceNo.trim().slice(0, 60) : existing.invoiceNo,
+      status: body.status !== undefined ? parseStatus(body.status) : existing.status,
       notes: body.notes !== undefined ? body.notes.trim() || null : existing.notes,
       updatedAt: sql`(datetime('now'))`,
     })

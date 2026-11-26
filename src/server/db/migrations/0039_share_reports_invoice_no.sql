@@ -1,0 +1,1 @@
+ALTER TABLE `share_reports` ADD `invoice_no` text DEFAULT '' NOT NULL;--> statement-breakpoint

@@ -30,6 +30,8 @@ export interface ShareEntry {
   packs: number;
   source: string;
   invoiceTotal: number;
+  invoiceNo: string;
+  status: "confirm" | "partial" | "cancel";
   notes: string | null;
   createdAt: string;
 }
@@ -79,6 +81,8 @@ export const shareReportApi = {
     packs: number;
     source?: string;
     invoiceTotal?: number;
+    invoiceNo?: string;
+    status?: "confirm" | "partial" | "cancel";
     notes?: string;
   }) =>
     apiFetch<{ entry: ShareEntry }>("/share-report/entries", {
@@ -93,6 +97,8 @@ export const shareReportApi = {
       packs?: number;
       source?: string;
       invoiceTotal?: number;
+      invoiceNo?: string;
+      status?: "confirm" | "partial" | "cancel";
       notes?: string;
     },
   ) =>

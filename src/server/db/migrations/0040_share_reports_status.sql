@@ -1,0 +1,1 @@
+ALTER TABLE `share_reports` ADD `status` text DEFAULT 'confirm' NOT NULL;--> statement-breakpoint
