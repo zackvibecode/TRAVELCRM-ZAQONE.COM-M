@@ -23,8 +23,6 @@ const ROUTE_TO_MODULE: Record<string, string> = {
   "/trips": "trips",
   "/packages": "packages",
   "/customers": "customers",
-  "/leads": "followup",
-  "/followups": "followup",
   "/lead-import": "followup",
   "/lead-management": "followup",
   "/mesin-follow-up": "followup",

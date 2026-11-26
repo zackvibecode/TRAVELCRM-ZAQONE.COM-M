@@ -115,7 +115,7 @@ export default function MyPipelineCards({ summary, ownerName }: MyPipelineCardsP
       {/* Action queues for today */}
       <div className="mt-3 grid grid-cols-1 gap-3 sm:grid-cols-2">
         <Link
-          to="/followups"
+          to="/mesin-follow-up"
           className={cn(
             "flex items-center gap-3 rounded-[var(--radius-card)] border p-3.5 transition-colors",
             summary.dueToday > 0
@@ -134,7 +134,7 @@ export default function MyPipelineCards({ summary, ownerName }: MyPipelineCardsP
           </div>
         </Link>
         <Link
-          to="/followups"
+          to="/mesin-follow-up"
           className={cn(
             "flex items-center gap-3 rounded-[var(--radius-card)] border p-3.5 transition-colors",
             summary.overdue > 0

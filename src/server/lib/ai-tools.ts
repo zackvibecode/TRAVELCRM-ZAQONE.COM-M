@@ -885,7 +885,7 @@ export async function runAiTool(
         ok: true,
         mutation: true,
         data: { id, name, phone },
-        url: `/leads`,
+        url: `/lead-management`,
         urlLabel: name,
         summary: `Lead "${name}" created and saved to the CRM`,
       };
@@ -916,7 +916,7 @@ export async function runAiTool(
         ok: true,
         mutation: true,
         data: { id: activityId, leadId },
-        url: `/leads`,
+        url: `/lead-management`,
         urlLabel: "Buka Leads",
         summary: `Activity note added to lead ${leadId}`,
       };
@@ -1434,7 +1434,7 @@ export async function runAiTool(
         ok: true,
         mutation: true,
         data: { id, changed },
-        url: "/leads",
+        url: "/lead-management",
         urlLabel: "Buka Leads",
         summary: `Lead "${existing[0].name}" updated (${changed.join(", ")})`,
       };

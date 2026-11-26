@@ -11,8 +11,6 @@ export const ROUTE_ROLES: Record<string, StaffRole[]> = {
   "/trips": ["super_admin", "management", "sales", "operations"],
   "/packages": ["super_admin", "management", "sales", "operations"],
   "/customers": ["super_admin", "management", "sales"],
-  "/leads": ["super_admin", "management", "sales"],
-  "/followups": ["super_admin", "management", "sales"],
   "/lead-import": ["super_admin", "management", "sales"],
   "/lead-management": ["super_admin", "management", "sales"],
   "/mesin-follow-up": ["super_admin", "management", "sales"],

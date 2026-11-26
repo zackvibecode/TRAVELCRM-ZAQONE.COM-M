@@ -9,8 +9,6 @@ import ResetPasswordPage from "@/pages/ResetPasswordPage";
 import BookingWorkspace from "@/pages/BookingWorkspace";
 import TripsDashboard from "@/pages/TripsDashboard";
 import PackageCatalog from "@/pages/PackageCatalog";
-import LeadsPipeline from "@/pages/LeadsPipeline";
-import FollowUpCenter from "@/pages/FollowUpCenter";
 import SalesLeaderboard from "@/pages/SalesLeaderboard";
 import LeadImport from "@/pages/LeadImport";
 import LeadManagement from "@/pages/LeadManagement";
@@ -65,8 +63,6 @@ export default function App() {
           <Route path="/bookings" element={<RoleRoute path="/bookings"><BookingWorkspace /></RoleRoute>} />
           <Route path="/trips" element={<RoleRoute path="/trips"><TripsDashboard /></RoleRoute>} />
           <Route path="/packages" element={<RoleRoute path="/packages"><PackageCatalog /></RoleRoute>} />
-          <Route path="/leads" element={<RoleRoute path="/leads"><LeadsPipeline /></RoleRoute>} />
-          <Route path="/followups" element={<RoleRoute path="/followups"><FollowUpCenter /></RoleRoute>} />
           <Route path="/lead-import" element={<RoleRoute path="/lead-import"><LeadImport /></RoleRoute>} />
           <Route path="/lead-management" element={<RoleRoute path="/lead-management"><LeadManagement /></RoleRoute>} />
           <Route path="/lead-management/:id" element={<RoleRoute path="/lead-management"><LeadDetail /></RoleRoute>} />
