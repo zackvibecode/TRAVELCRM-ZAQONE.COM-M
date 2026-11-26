@@ -320,9 +320,16 @@ export default function LeadManagement() {
     setBusy(true);
     try {
       if (pendingBulk.action === "delete") {
-        // Set-based hard delete via the dedicated bulk-delete endpoint.
-        // The server handles any count in one request, so no client chunking.
-        const res = await followupApi.bulkDeleteLeads([...selected]);
+        // "All matching" mode sends the filters — the server deletes with
+        // set-based statements so 6,000+ leads cost the same as 6. Page-mode
+        // still sends the explicit id list.
+        const res = allMode
+          ? await followupApi.bulkDeleteAllLeads({
+              ...(query ? { q: query } : {}),
+              ...(stageFilter !== "all" ? { stage: stageFilter } : {}),
+              ...(ownerFilter !== "all" ? { owner: ownerFilter } : {}),
+            })
+          : await followupApi.bulkDeleteLeads([...selected]);
         setBulkResult({ updated: res.deleted, skipped: selected.size - res.deleted, label: bulkLabel(pendingBulk) });
       } else {
         const res = await followupApi.bulk({

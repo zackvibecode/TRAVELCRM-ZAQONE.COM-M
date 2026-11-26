@@ -376,6 +376,17 @@ export const followupApi = {
       body: JSON.stringify({ ids }),
     }).then((r) => r.data),
 
+  /**
+   * POST /leads/bulk-delete { all: true, filters } — delete every lead that
+   * matches the current filters in one set-based request. Scales to any
+   * selection size because no ids cross the wire.
+   */
+  bulkDeleteAllLeads: (filters: { q?: string; stage?: string; owner?: string }) =>
+    apiFetch<Ok<{ requested: number; deleted: number }>>(`${BASE}/leads/bulk-delete`, {
+      method: "POST",
+      body: JSON.stringify({ all: true, filters }),
+    }).then((r) => r.data),
+
   /** ADMIN-only closure of an escalated lead. */
   review: (id: string, body: { outcome: "won" | "lost" | "handover"; note?: string }) =>
     apiFetch<Ok<{ leadId: string; outcome: string }>>(`${BASE}/leads/${id}/review`, {

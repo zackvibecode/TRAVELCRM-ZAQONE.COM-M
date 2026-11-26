@@ -1,5 +1,5 @@
 import { Hono } from "hono";
-import { and, asc, desc, eq, inArray, isNotNull, or, sql } from "drizzle-orm";
+import { and, asc, count, desc, eq, inArray, isNotNull, or, sql, type SQL } from "drizzle-orm";
 import type { AnySQLiteColumn } from "drizzle-orm/sqlite-core";
 import type { DrizzleD1Database } from "drizzle-orm/d1";
 import * as schema from "../db/schema";
@@ -443,14 +443,36 @@ followupRouter.get("/leads/all-ids", async (c) => {
     );
   }
 
-  const q = (c.req.query("q") ?? "").trim();
-  const status = (c.req.query("status") ?? "").trim();
-  const owner = (c.req.query("owner") ?? "").trim();
-  const stage = (c.req.query("stage") ?? "").trim();
-  const fu = (c.req.query("fu") ?? "").trim();
-  const state = (c.req.query("state") ?? "").trim();
+  const conditions = leadFilterConditions(c.req.query(), staff, access);
+  const ids = await db
+    .select({ id: schema.leads.id })
+    .from(schema.leads)
+    .where(conditions.length > 0 ? and(...conditions) : undefined)
+    .orderBy(desc(schema.leads.updatedAt))
+    .limit(50000)
+    .all();
 
-  const conditions = [];
+  return c.json({ success: true, data: ids.map((r) => r.id), count: ids.length });
+});
+
+/**
+ * Builds the WHERE conditions shared by the lead list / all-ids / bulk
+ * "all matching" endpoints from the same query-string filters. SALES is
+ * always pinned to their own leads regardless of the `owner` param.
+ */
+function leadFilterConditions(
+  query: Record<string, string>,
+  staff: StaffIdentity,
+  access: "ADMIN" | "SALES",
+): SQL[] {
+  const q = (query.q ?? "").trim();
+  const status = (query.status ?? "").trim();
+  const owner = (query.owner ?? "").trim();
+  const stage = (query.stage ?? "").trim();
+  const fu = (query.fu ?? "").trim();
+  const state = (query.state ?? "").trim();
+
+  const conditions: SQL[] = [];
   if (access === "SALES") {
     conditions.push(eq(schema.leads.ownerUserId, staff.id));
   } else if (owner !== "") {
@@ -479,17 +501,8 @@ followupRouter.get("/leads/all-ids", async (c) => {
   if (state !== "") {
     conditions.push(eq(schema.leads.followupState, state as "active" | "paused" | "done" | "escalated"));
   }
-
-  const ids = await db
-    .select({ id: schema.leads.id })
-    .from(schema.leads)
-    .where(conditions.length > 0 ? and(...conditions) : undefined)
-    .orderBy(desc(schema.leads.updatedAt))
-    .limit(50000)
-    .all();
-
-  return c.json({ success: true, data: ids.map((r) => r.id), count: ids.length });
-});
+  return conditions;
+}
 
 /** Case-insensitive LIKE helper (SQLite lower() only handles ASCII). */
 function likeLower(column: AnySQLiteColumn, pattern: string) {
@@ -2131,7 +2144,7 @@ followupRouter.post("/leads/bulk-delete", async (c) => {
     );
   }
 
-  let body: { ids?: unknown };
+  let body: { ids?: unknown; all?: unknown; filters?: unknown };
   try {
     body = await c.req.json();
   } catch {
@@ -2141,6 +2154,74 @@ followupRouter.post("/leads/bulk-delete", async (c) => {
     );
   }
 
+  // ── Mode A: "delete everything matching the current filters" ─────────────
+  // The client sends the filters, NOT thousands of ids. Each child table is
+  // cleared with a single `... WHERE lead_id IN (SELECT id FROM leads WHERE
+  // <filters>)` statement, so the cost is constant no matter how many leads
+  // match. This is the only shape that scales past D1's per-request query
+  // budget for selections in the thousands.
+  if (body.all === true) {
+    const conditions = leadFilterConditions(
+      (body.filters ?? {}) as Record<string, string>,
+      staff,
+      access,
+    );
+    const where = conditions.length > 0 ? and(...conditions) : undefined;
+    const matchingIds = db
+      .select({ id: schema.leads.id })
+      .from(schema.leads)
+      .where(where);
+
+    let deletedCount = 0;
+    try {
+      const [{ matched }] = await db
+        .select({ matched: count() })
+        .from(schema.leads)
+        .where(where)
+        .all();
+      deletedCount = matched;
+
+      if (deletedCount > 0) {
+        await db.batch([
+          db.delete(schema.leadActivities).where(
+            inArray(schema.leadActivities.leadId, matchingIds),
+          ),
+          db.delete(schema.leadFollowUps).where(
+            inArray(schema.leadFollowUps.leadId, matchingIds),
+          ),
+          db.delete(schema.followupActivities).where(
+            inArray(schema.followupActivities.leadId, matchingIds),
+          ),
+          db.delete(schema.customerNotes).where(
+            inArray(schema.customerNotes.leadId, matchingIds),
+          ),
+          db.delete(schema.leads).where(where ?? sql`1 = 1`),
+        ]);
+      }
+    } catch (err) {
+      console.error("[followup] bulk lead delete (all) failed", err);
+      return c.json(
+        {
+          error: "delete_failed",
+          message: "The server could not complete the delete. Please retry.",
+        },
+        { status: 500 },
+      );
+    }
+
+    await logAudit(db, {
+      actor: staff.id,
+      role: staff.role,
+      action: "leads_bulk_delete",
+      entityType: "leads",
+      entityId: "all-matching",
+      detail: `filters=${JSON.stringify(body.filters ?? {})} deleted=${deletedCount}`,
+    });
+
+    return c.json({ success: true, data: { requested: deletedCount, deleted: deletedCount } });
+  }
+
+  // ── Mode B: explicit id list (page selections, small bulk actions) ───────
   const ids = Array.isArray(body.ids)
     ? [...new Set(body.ids.filter((v): v is string => typeof v === "string" && v !== ""))]
     : [];
@@ -2152,35 +2233,33 @@ followupRouter.post("/leads/bulk-delete", async (c) => {
   }
 
   // Chunk size for IN(...) lists — D1 caps bound parameters per statement.
-  const chunk = 100;
-  // D1 limits bound parameters per statement, so run every query in small
-  // chunks. We first resolve which of the requested ids actually exist, then
-  // cascade-delete each chunk across all child tables before removing the
-  // leads themselves.
-  //
-  // Each chunk's five DELETEs go through db.batch() so D1 runs them as ONE
-  // round trip inside a transaction. Without this, a 2,000-lead delete needed
-  // 100+ sequential statements and blew past D1's per-request query budget,
-  // surfacing to the user as "internal_error".
+  // D1 caps bound parameters at 100 per statement. Chunk well below that so
+  // the IN(...) list plus any extra predicate never crosses the limit.
+  const chunk = 50;
+  // Resolve which of the requested ids actually exist. Ownership is checked
+  // in JS (not as an extra SQL bound param) so every statement stays small.
   const found: string[] = [];
   for (let i = 0; i < ids.length; i += chunk) {
     const part = ids.slice(i, i + chunk);
-    // SALES may only delete their own leads — foreign ids are filtered out.
     const rows = await db
-      .select({ id: schema.leads.id })
+      .select({ id: schema.leads.id, ownerUserId: schema.leads.ownerUserId })
       .from(schema.leads)
-      .where(
-        access === "SALES"
-          ? and(inArray(schema.leads.id, part), eq(schema.leads.ownerUserId, staff.id))
-          : inArray(schema.leads.id, part),
-      )
+      .where(inArray(schema.leads.id, part))
       .all();
-    for (const r of rows) found.push(r.id);
+    for (const r of rows) {
+      if (access === "SALES" && r.ownerUserId !== staff.id) continue;
+      found.push(r.id);
+    }
   }
   if (found.length === 0) {
     return c.json({ success: true, data: { requested: ids.length, deleted: 0 } });
   }
 
+  // Each chunk's five cascaded deletes go in ONE db.batch() (single D1
+  // transaction / round trip). If D1 cuts the request short mid-way (query
+  // budget / time limit), report exactly how many were removed so the client
+  // can simply call again for the remainder — no data is ever half-deleted
+  // within a chunk because each batch is atomic.
   let deletedSoFar = 0;
   for (let i = 0; i < found.length; i += chunk) {
     const part = found.slice(i, i + chunk);
@@ -2196,10 +2275,12 @@ followupRouter.post("/leads/bulk-delete", async (c) => {
       console.error("[followup] bulk lead delete failed", `chunk=${i / chunk}`, err);
       return c.json(
         {
+          success: deletedSoFar > 0,
           error: "delete_failed",
           message: `Deleted ${deletedSoFar} of ${found.length} leads before the server stopped the request. Please retry for the rest.`,
+          data: { requested: ids.length, deleted: deletedSoFar, remaining: found.length - deletedSoFar },
         },
-        { status: 500 },
+        { status: deletedSoFar > 0 ? 200 : 500 },
       );
     }
     deletedSoFar += part.length;
