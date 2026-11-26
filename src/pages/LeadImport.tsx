@@ -307,10 +307,12 @@ export default function LeadImport() {
       setFile(null);
       setFileName("");
       setMapping({});
-      await loadBatches();
+      // Show success immediately; refresh the history list in the background
+      // so the extra API call never delays the animation.
       setOverlay("success");
-      // Auto-dismiss the success animation after ~2.6s — no button needed.
-      window.setTimeout(() => setOverlay(null), 2600);
+      void loadBatches();
+      // Auto-dismiss the success animation after ~1.5s — no button needed.
+      window.setTimeout(() => setOverlay(null), 1500);
     } catch (err) {
       setParseError(err instanceof Error ? err.message : String(err));
       setOverlay(null);
@@ -753,7 +755,7 @@ export default function LeadImport() {
               </div>
               {/* Auto-dismiss progress line (visual only — there is no button) */}
               <div className="h-1 w-40 overflow-hidden rounded-full bg-[var(--color-surface-muted)]">
-                <span className="block h-full rounded-full bg-[var(--color-success)] [animation:li-shrink_2.6s_linear_both]" />
+                <span className="block h-full rounded-full bg-[var(--color-success)] [animation:li-shrink_1.5s_linear_both]" />
               </div>
             </div>
           )}
