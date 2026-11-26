@@ -1,12 +1,15 @@
-﻿import { useMemo, useState } from "react";
+﻿import { useEffect, useMemo, useState } from "react";
 import {
   CheckCircle2,
   Clock,
   Copy,
   Languages,
+  Loader2,
   MessageCircle,
+  Pencil,
   Phone,
   Plus,
+  Save,
   Send,
   X,
 } from "lucide-react";
@@ -173,6 +176,15 @@ export default function WhatsAppTemplates() {
   /** Template code pending deactivation — confirm dialog shown while set. */
   const [pendingDeactivate, setPendingDeactivate] = useState<string | null>(null);
 
+  /**
+   * Compose-panel draft. Edits are held locally until the user presses Save,
+   * instead of firing an API call on every keystroke (which raced with
+   * refetch and wiped what the user typed).
+   */
+  const [draftName, setDraftName] = useState("");
+  const [draftBody, setDraftBody] = useState("");
+  const [saving, setSaving] = useState(false);
+
   /** Real leads for the "Preview for" selector. */
   const leadList = useLeadList({}, 200);
   const leads = useMemo(() => leadList.data?.data ?? [], [leadList.data]);
@@ -203,6 +215,68 @@ export default function WhatsAppTemplates() {
     );
   }, [selectedGroup, lang]);
 
+  // Reset the draft whenever the selected template or UI language changes,
+  // or when a refetch brings back fresh server values.
+  const draftKey = selectedRow ? `${selectedRow.id}:${selectedRow.updatedAt}` : "";
+  useEffect(() => {
+    setDraftName(selectedGroup?.name ?? "");
+    setDraftBody(selectedRow?.body ?? "");
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [draftKey]);
+
+  /** True when the compose panel has edits that are not saved yet. */
+  const dirty =
+    !!selectedGroup &&
+    !!selectedRow &&
+    (draftName !== selectedGroup.name || draftBody !== selectedRow.body);
+
+  /** Persists the compose-panel draft with a single API call. */
+  async function saveDraft() {
+    if (!selectedGroup || !selectedRow) return;
+    if (!draftName.trim() || !draftBody.trim()) {
+      showNotice(t("Nama dan mesej templat diperlukan.", "Template name and message are required."));
+      return;
+    }
+    if (unknownTokensIn(draftBody).length > 0) {
+      showNotice(t("Placeholder tidak dikenali — periksa mesej.", "Unknown placeholders — check the message."));
+      return;
+    }
+    const locale = selectedRow.locale;
+    const payload = {
+      name: draftName,
+      stage: selectedGroup.stage,
+      enBody: locale === "en" ? draftBody : selectedGroup.rows.find((r) => r.locale === "en")?.body ?? "",
+      msBody: locale === "ms" ? draftBody : selectedGroup.rows.find((r) => r.locale === "ms")?.body ?? "",
+    };
+    setSaving(true);
+    try {
+      await followupApi.updateTemplate(selectedGroup.code, payload);
+      await query.refetch();
+      showNotice(t("Templat disimpan.", "Template saved."));
+    } catch (err) {
+      showNotice(err instanceof Error ? err.message : String(err));
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  /** Opens the full bilingual editor for the selected template. */
+  function openEditor(code: string | null) {
+    if (code) {
+      const g = groups.find((x) => x.code === code);
+      if (!g) return;
+      setEditor({
+        code: g.code,
+        name: g.name,
+        stage: g.stage,
+        enBody: g.rows.find((r) => r.locale === "en")?.body ?? "",
+        msBody: g.rows.find((r) => r.locale === "ms")?.body ?? "",
+      });
+    } else {
+      setEditor({ code: null, name: "", stage: "FU1", enBody: "", msBody: "" });
+    }
+  }
+
   const lead = useMemo(() => leads.find((l) => l.id === leadId) ?? leads[0] ?? null, [leads, leadId]);
 
   /** Fills the selected body with real lead values for the chat preview. */
@@ -214,11 +288,11 @@ export default function WhatsAppTemplates() {
       "{{date}}": departDate.trim() || "20 April 2026",
       "{{salesName}}": salesName.trim() || "Farid Osman",
     };
-    return selectedRow.body.replace(/\{\{(\w+)\}\}/g, (whole) => {
+    return draftBody.replace(/\{\{(\w+)\}\}/g, (whole) => {
       const v = values[whole];
       return v && v.trim() ? v : whole;
     });
-  }, [selectedRow, lead, departDate, salesName]);
+  }, [selectedRow, draftBody, lead, departDate, salesName]);
 
   /** Toggles active for BOTH locale rows of one logical template. */
   async function applyActive(code: string, next: boolean) {
@@ -270,26 +344,9 @@ export default function WhatsAppTemplates() {
     );
   }
 
+  /** Appends a placeholder token to the draft (no API call — press Save). */
   function insertPlaceholder(token: string) {
-    if (!selectedGroup || !selectedRow) return;
-    const code = selectedGroup.code;
-    const locale = selectedRow.locale;
-    const body = selectedRow.body;
-    const next = body ? `${body} ${token}` : token;
-    const payload = {
-      name: selectedGroup.name,
-      stage: selectedGroup.stage,
-      enBody: locale === "en" ? next : selectedGroup.rows.find((r) => r.locale === "en")?.body ?? "",
-      msBody: locale === "ms" ? next : selectedGroup.rows.find((r) => r.locale === "ms")?.body ?? "",
-    };
-    void (async () => {
-      try {
-        await followupApi.updateTemplate(code, payload);
-        await query.refetch();
-      } catch (err) {
-        showNotice(err instanceof Error ? err.message : String(err));
-      }
-    })();
+    setDraftBody((body) => (body ? `${body} ${token}` : token));
   }
 
   /** Persists the bilingual form through the templates API. */
@@ -345,7 +402,7 @@ export default function WhatsAppTemplates() {
           <div className="flex flex-wrap gap-2">
             <button
               type="button"
-              onClick={() => setEditor({ code: null, name: "", stage: "FU1", enBody: "", msBody: "" })}
+              onClick={() => openEditor(null)}
               className="inline-flex items-center gap-1.5 rounded-[var(--radius-control)] border border-[var(--color-border-strong)] bg-[var(--color-surface)] px-4 py-2 text-[13px] font-semibold text-[var(--color-text-secondary)] transition-colors hover:bg-[var(--color-surface-muted)] hover:text-foreground"
             >
               <Plus className="h-4 w-4" />
@@ -422,29 +479,42 @@ export default function WhatsAppTemplates() {
                 const sel = selectedGroup?.code === g.code;
                 const row = g.rows[0];
                 return (
-                  <button
+                  <div
                     key={g.code}
-                    type="button"
-                    aria-selected={sel}
-                    onClick={() => setSelectedCode(g.code)}
                     className={cn(
-                      "flex w-full items-start gap-2.5 border-0 border-t border-l-[3px] border-l-transparent bg-transparent px-4 py-3 text-left transition-colors first:border-t-0",
-                      sel ? "border-l-[var(--color-primary)] bg-[var(--color-primary-soft)]" : "hover:bg-[var(--color-surface-raised)]",
+                      "group relative flex items-start border-0 border-t border-l-[3px] border-l-transparent first:border-t-0",
+                      sel ? "border-l-[var(--color-primary)] bg-[var(--color-primary-soft)]" : "bg-transparent hover:bg-[var(--color-surface-raised)]",
                     )}
                   >
-                    <span className={cn("grid h-7 w-7 flex-none place-items-center rounded-[9px]", sel ? "bg-[var(--color-primary)] text-[var(--color-on-primary)]" : "bg-[var(--color-surface-muted)] text-[var(--color-text-secondary)]")}>
-                      <MessageCircle className="h-3.5 w-3.5" />
-                    </span>
-                    <span className="flex min-w-0 flex-1 flex-col gap-0.5">
-                      <strong className="truncate text-[13.5px] font-semibold text-[var(--color-text)]">{g.name}</strong>
-                      <span className="truncate text-[12px] text-muted-foreground">
-                        {row?.body.length ?? 0} {t("aksara", "chars")} · {placeholdersIn(row?.body ?? "").length} {t("placeholder", "placeholders")}
+                    <button
+                      type="button"
+                      aria-selected={sel}
+                      onClick={() => setSelectedCode(g.code)}
+                      className="flex min-w-0 flex-1 items-start gap-2.5 border-0 bg-transparent px-4 py-3 text-left"
+                    >
+                      <span className={cn("grid h-7 w-7 flex-none place-items-center rounded-[9px]", sel ? "bg-[var(--color-primary)] text-[var(--color-on-primary)]" : "bg-[var(--color-surface-muted)] text-[var(--color-text-secondary)]")}>
+                        <MessageCircle className="h-3.5 w-3.5" />
                       </span>
-                    </span>
-                    <span className={cn("flex-none rounded-full px-2 py-0.5 text-[11px] font-semibold", sel ? "bg-[var(--color-surface)] text-[var(--color-primary)]" : "bg-[var(--color-surface-muted)] text-muted-foreground")}>
-                      {g.rows.some((r) => r.locale === "ms") ? "BM" : "EN"}
-                    </span>
-                  </button>
+                      <span className="flex min-w-0 flex-1 flex-col gap-0.5">
+                        <strong className="truncate text-[13.5px] font-semibold text-[var(--color-text)]">{g.name}</strong>
+                        <span className="truncate text-[12px] text-muted-foreground">
+                          {row?.body.length ?? 0} {t("aksara", "chars")} · {placeholdersIn(row?.body ?? "").length} {t("placeholder", "placeholders")}
+                        </span>
+                      </span>
+                      <span className={cn("flex-none rounded-full px-2 py-0.5 text-[11px] font-semibold", sel ? "bg-[var(--color-surface)] text-[var(--color-primary)]" : "bg-[var(--color-surface-muted)] text-muted-foreground")}>
+                        {g.rows.some((r) => r.locale === "ms") ? "BM" : "EN"}
+                      </span>
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => openEditor(g.code)}
+                      aria-label={t(`Edit ${g.name}`, `Edit ${g.name}`)}
+                      title={t("Edit templat", "Edit template")}
+                      className="mr-2 mt-3 grid h-7 w-7 flex-none place-items-center rounded-[6px] border border-transparent text-muted-foreground transition-colors hover:border-[var(--color-border)] hover:bg-[var(--color-surface)] hover:text-[var(--color-primary)]"
+                    >
+                      <Pencil className="h-3.5 w-3.5" />
+                    </button>
+                  </div>
                 );
               })}
             </div>
@@ -456,8 +526,24 @@ export default function WhatsAppTemplates() {
           {selectedRow ? (
             <>
               <div className="flex items-center justify-between gap-3 border-b border-[var(--color-border)] px-5 py-4">
-                <h2 className="m-0 text-[15px] font-semibold text-[var(--color-text)]">{t("Karang", "Compose")}</h2>
-                <span className="rounded-full bg-[var(--color-primary-soft)] px-2.5 py-0.5 text-[12px] font-semibold text-[var(--color-primary)]">{langLabel}</span>
+                <div className="flex min-w-0 items-center gap-2.5">
+                  <h2 className="m-0 text-[15px] font-semibold text-[var(--color-text)]">{t("Karang", "Compose")}</h2>
+                  <span className="rounded-full bg-[var(--color-primary-soft)] px-2.5 py-0.5 text-[12px] font-semibold text-[var(--color-primary)]">{langLabel}</span>
+                  {dirty && (
+                    <span className="rounded-full bg-[var(--color-warning-soft)] px-2 py-0.5 text-[11px] font-semibold text-[var(--color-warning)]">
+                      {t("Belum disimpan", "Unsaved")}
+                    </span>
+                  )}
+                </div>
+                <button
+                  type="button"
+                  onClick={() => void saveDraft()}
+                  disabled={!dirty || saving}
+                  className="inline-flex items-center gap-1.5 rounded-[var(--radius-control)] border border-[var(--color-primary)] bg-[var(--color-primary)] px-3.5 py-1.5 text-[12.5px] font-semibold text-[var(--color-on-primary)] transition-colors hover:bg-[var(--color-primary-hover)] disabled:cursor-not-allowed disabled:opacity-50"
+                >
+                  {saving ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Save className="h-3.5 w-3.5" />}
+                  {saving ? t("Menyimpan…", "Saving…") : t("Simpan", "Save")}
+                </button>
               </div>
               <div className="flex flex-col gap-4 p-5">
                 <div className="grid grid-cols-1 gap-3 md:grid-cols-3">
@@ -465,12 +551,8 @@ export default function WhatsAppTemplates() {
                     {t("Nama templat", "Template name")}
                     <input
                       type="text"
-                      value={selectedGroup.name}
-                      onChange={(e) => void (async () => {
-                        const code = selectedGroup.code;
-                        await followupApi.updateTemplate(code, { name: e.target.value });
-                        await query.refetch();
-                      })()}
+                      value={draftName}
+                      onChange={(e) => setDraftName(e.target.value)}
                       className="rounded-[var(--radius-control)] border border-[var(--color-border)] bg-[var(--color-surface)] px-2.5 py-2 text-[13px] text-[var(--color-text)] outline-none focus:border-[var(--color-primary)]"
                     />
                   </label>
@@ -497,23 +579,23 @@ export default function WhatsAppTemplates() {
                   </div>
                 </div>
                 <textarea
-                  value={selectedRow.body}
-                  onChange={(e) => void (async () => {
-                    const code = selectedGroup.code;
-                    const locale = selectedRow.locale;
-                    const body = e.target.value;
-                    const payload = {
-                      name: selectedGroup.name,
-                      stage: selectedGroup.stage,
-                      enBody: locale === "en" ? body : selectedGroup.rows.find((r) => r.locale === "en")?.body ?? "",
-                      msBody: locale === "ms" ? body : selectedGroup.rows.find((r) => r.locale === "ms")?.body ?? "",
-                    };
-                    await followupApi.updateTemplate(code, payload);
-                    await query.refetch();
-                  })()}
+                  value={draftBody}
+                  onChange={(e) => setDraftBody(e.target.value.slice(0, WA_MESSAGE_LIMIT + 500))}
+                  maxLength={WA_MESSAGE_LIMIT + 500}
                   aria-label={t("Isi mesej templat", "Template message body")}
                   className="min-h-[120px] w-full resize-y rounded-[var(--radius-control)] border border-[var(--color-border)] bg-[var(--color-surface)] px-3 py-2 text-[13.5px] leading-relaxed text-[var(--color-text)] outline-none focus:border-[var(--color-primary)]"
                 />
+                <div className="flex flex-wrap items-center justify-between gap-2">
+                  <span className="font-mono text-[11px] text-muted-foreground">
+                    {draftBody.length}/{WA_MESSAGE_LIMIT}
+                  </span>
+                  {unknownTokensIn(draftBody).length > 0 && (
+                    <span className="rounded-md bg-[var(--color-warning-soft)] px-2 py-1 text-[11.5px] font-semibold text-[var(--color-warning)]" role="alert">
+                      {t("Placeholder tidak dikenali: ", "Unknown placeholders: ")}
+                      {unknownTokensIn(draftBody).join(", ")}
+                    </span>
+                  )}
+                </div>
               </div>
             </>
           ) : (
