@@ -321,13 +321,9 @@ export default function LeadManagement() {
     try {
       if (pendingBulk.action === "delete") {
         // Set-based hard delete via the dedicated bulk-delete endpoint.
-        const ids = [...selected];
-        let done = 0;
-        for (let i = 0; i < ids.length; i += 2000) {
-          const res = await followupApi.bulkDeleteLeads(ids.slice(i, i + 2000));
-          done += res.deleted;
-        }
-        setBulkResult({ updated: done, skipped: selected.size - done, label: bulkLabel(pendingBulk) });
+        // The server handles any count in one request, so no client chunking.
+        const res = await followupApi.bulkDeleteLeads([...selected]);
+        setBulkResult({ updated: res.deleted, skipped: selected.size - res.deleted, label: bulkLabel(pendingBulk) });
       } else {
         const res = await followupApi.bulk({
           ids: [...selected],

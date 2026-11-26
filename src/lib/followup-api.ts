@@ -369,7 +369,7 @@ export const followupApi = {
       body: JSON.stringify(body),
     }).then((r) => r.data),
 
-  /** POST /leads/bulk-delete — hard delete many leads (ADMIN only). */
+  /** POST /leads/bulk-delete — hard delete many leads (admin any; sales own only). */
   bulkDeleteLeads: (ids: string[]) =>
     apiFetch<Ok<{ requested: number; deleted: number }>>(`${BASE}/leads/bulk-delete`, {
       method: "POST",

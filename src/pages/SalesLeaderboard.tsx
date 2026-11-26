@@ -161,8 +161,8 @@ export default function SalesLeaderboard() {
         </div>
       </header>
 
-      {/* Personal pipeline — the signed-in rep's own leads first */}
-      {summary.loading ? (
+      {/* Personal pipeline — admin only. Sales see the follow-up board alone. */}
+      {isAdmin && (summary.loading ? (
         <FollowupLoading />
       ) : summary.status === "error" ? (
         <FollowupErrorState message={summary.error ?? ""} onRetry={() => void summary.refetch()} />
@@ -171,7 +171,7 @@ export default function SalesLeaderboard() {
           summary={summary.data}
           ownerName={owner ? salesRepOptions.find((u) => u.id === owner)?.name ?? session?.name : session?.name}
         />
-      ) : null}
+      ) : null)}
 
       {leaderboard.loading ? (
         <FollowupLoading />

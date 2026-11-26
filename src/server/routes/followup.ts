@@ -2098,7 +2098,7 @@ followupRouter.post("/leads/bulk", async (c) => {
 /**
  * POST /api/followup/leads/bulk-delete — hard delete many leads at once.
  * ADMIN may delete any lead; SALES only leads they own (foreign ids are
- * silently skipped, mirroring /leads/bulk). Body: { ids: string[] } (max 2000).
+ * silently skipped, mirroring /leads/bulk). Body: { ids: string[] }.
  * Deletes each lead plus its activities, follow-ups, followup activities and
  * customer notes — the same cascades as DELETE /leads/:id.
  */
@@ -2132,18 +2132,18 @@ followupRouter.post("/leads/bulk-delete", async (c) => {
       { status: 400 },
     );
   }
-  if (ids.length > 2000) {
-    return Response.json(
-      { error: "bad_request", message: "Bulk delete is capped at 2000 leads per call" },
-      { status: 422 },
-    );
-  }
 
+  // Chunk size for IN(...) lists — D1 caps bound parameters per statement.
+  const chunk = 100;
   // D1 limits bound parameters per statement, so run every query in small
   // chunks. We first resolve which of the requested ids actually exist, then
   // cascade-delete each chunk across all child tables before removing the
   // leads themselves.
-  const chunk = 100; // D1 variable limit safety per statement
+  //
+  // Each chunk's five DELETEs go through db.batch() so D1 runs them as ONE
+  // round trip inside a transaction. Without this, a 2,000-lead delete needed
+  // 100+ sequential statements and blew past D1's per-request query budget,
+  // surfacing to the user as "internal_error".
   const found: string[] = [];
   for (let i = 0; i < ids.length; i += chunk) {
     const part = ids.slice(i, i + chunk);
@@ -2155,7 +2155,8 @@ followupRouter.post("/leads/bulk-delete", async (c) => {
         access === "SALES"
           ? and(inArray(schema.leads.id, part), eq(schema.leads.ownerUserId, staff.id))
           : inArray(schema.leads.id, part),
-      );
+      )
+      .all();
     for (const r of rows) found.push(r.id);
   }
   if (found.length === 0) {
@@ -2164,11 +2165,13 @@ followupRouter.post("/leads/bulk-delete", async (c) => {
 
   for (let i = 0; i < found.length; i += chunk) {
     const part = found.slice(i, i + chunk);
-    await db.delete(schema.leadActivities).where(inArray(schema.leadActivities.leadId, part)).run();
-    await db.delete(schema.leadFollowUps).where(inArray(schema.leadFollowUps.leadId, part)).run();
-    await db.delete(schema.followupActivities).where(inArray(schema.followupActivities.leadId, part)).run();
-    await db.delete(schema.customerNotes).where(inArray(schema.customerNotes.leadId, part)).run();
-    await db.delete(schema.leads).where(inArray(schema.leads.id, part)).run();
+    await db.batch([
+      db.delete(schema.leadActivities).where(inArray(schema.leadActivities.leadId, part)),
+      db.delete(schema.leadFollowUps).where(inArray(schema.leadFollowUps.leadId, part)),
+      db.delete(schema.followupActivities).where(inArray(schema.followupActivities.leadId, part)),
+      db.delete(schema.customerNotes).where(inArray(schema.customerNotes.leadId, part)),
+      db.delete(schema.leads).where(inArray(schema.leads.id, part)),
+    ]);
   }
 
   await logAudit(db, {
