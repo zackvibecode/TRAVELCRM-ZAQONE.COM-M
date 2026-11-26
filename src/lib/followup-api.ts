@@ -329,7 +329,7 @@ export const followupApi = {
 
   leadHistory: (id: string) => apiFetch<Ok<LeadHistory>>(`${BASE}/leads/${id}/history`).then((r) => r.data),
 
-  /** DELETE /leads/:id — hard delete. Management/Admin only (403 for sales). */
+  /** DELETE /leads/:id — hard delete. Admin any lead; sales only their own. */
   deleteLead: (id: string) =>
     apiFetch<Ok<{ id: string }>>(`${BASE}/leads/${id}`, { method: "DELETE" }).then((r) => r.data),
 

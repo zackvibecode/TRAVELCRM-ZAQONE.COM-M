@@ -1218,6 +1218,45 @@ followupRouter.post("/leads/:id/notes", async (c) => {
   }, 201);
 });
 
+/**
+ * DELETE /api/followup/leads/:id — hard delete one lead and all its child
+ * rows (activities, follow-ups, follow-up activities, customer notes).
+ * ADMIN may delete any lead; SALES may delete only leads they own. Missing
+ * or foreign ids answer 404 so existence never leaks.
+ */
+followupRouter.delete("/leads/:id", async (c) => {
+  const db = c.get("db");
+  const staff = c.get("staff");
+  const access = followupAccessRole(staff.role);
+  if (!access) {
+    return Response.json(
+      { error: "not_found", message: "Follow-up CRM not available for this role" },
+      { status: 404 },
+    );
+  }
+
+  const id = c.req.param("id");
+  const owned = await requireOwnedLead(db, id, staff);
+  if (!owned.ok) return owned.response;
+
+  await db.delete(schema.leadActivities).where(eq(schema.leadActivities.leadId, id)).run();
+  await db.delete(schema.leadFollowUps).where(eq(schema.leadFollowUps.leadId, id)).run();
+  await db.delete(schema.followupActivities).where(eq(schema.followupActivities.leadId, id)).run();
+  await db.delete(schema.customerNotes).where(eq(schema.customerNotes.leadId, id)).run();
+  await db.delete(schema.leads).where(eq(schema.leads.id, id)).run();
+
+  await logAudit(db, {
+    actor: staff.id,
+    role: staff.role,
+    action: "lead_delete",
+    entityType: "lead",
+    entityId: id,
+    detail: `name=${owned.lead.name}`,
+  });
+
+  return c.json({ success: true, data: { id } });
+});
+
 // ---------------------------------------------------------------------------
 // Import: file parsing + mapping validation (Impor Lead backend)
 // ---------------------------------------------------------------------------
@@ -2058,19 +2097,19 @@ followupRouter.post("/leads/bulk", async (c) => {
 
 /**
  * POST /api/followup/leads/bulk-delete — hard delete many leads at once.
- * ADMIN (super_admin / management) only. Body: { ids: string[] } (max 2000).
+ * ADMIN may delete any lead; SALES only leads they own (foreign ids are
+ * silently skipped, mirroring /leads/bulk). Body: { ids: string[] } (max 2000).
  * Deletes each lead plus its activities, follow-ups, followup activities and
- * customer notes — the same cascades as DELETE /leads/:id. Foreign or missing
- * ids are silently skipped (no existence leak), mirroring /leads/bulk.
+ * customer notes — the same cascades as DELETE /leads/:id.
  */
 followupRouter.post("/leads/bulk-delete", async (c) => {
   const db = c.get("db");
   const staff = c.get("staff");
   const access = followupAccessRole(staff.role);
-  if (access !== "ADMIN") {
+  if (!access) {
     return Response.json(
-      { error: "forbidden", message: "Only admins may bulk-delete leads" },
-      { status: 403 },
+      { error: "not_found", message: "Follow-up CRM not available for this role" },
+      { status: 404 },
     );
   }
 
@@ -2108,10 +2147,15 @@ followupRouter.post("/leads/bulk-delete", async (c) => {
   const found: string[] = [];
   for (let i = 0; i < ids.length; i += chunk) {
     const part = ids.slice(i, i + chunk);
+    // SALES may only delete their own leads — foreign ids are filtered out.
     const rows = await db
       .select({ id: schema.leads.id })
       .from(schema.leads)
-      .where(inArray(schema.leads.id, part));
+      .where(
+        access === "SALES"
+          ? and(inArray(schema.leads.id, part), eq(schema.leads.ownerUserId, staff.id))
+          : inArray(schema.leads.id, part),
+      );
     for (const r of rows) found.push(r.id);
   }
   if (found.length === 0) {
