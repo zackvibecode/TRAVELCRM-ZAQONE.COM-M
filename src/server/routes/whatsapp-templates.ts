@@ -21,9 +21,9 @@ const templatesRouter = new Hono<TemplateEnv>();
 
 /**
  * /api/followup/templates — WhatsApp template management.
- * Templates are shared team content, so every CRM role may read them;
- * only ADMIN (super_admin / management) may create, update or deactivate.
- * Roles outside the CRM get a neutral 404 (same contract as lead access).
+ * Templates are shared team content, so every CRM role (ADMIN + SALES) may
+ * read, create, update or deactivate them. Roles outside the CRM get a
+ * neutral 404 (same contract as lead access).
  */
 templatesRouter.use("*", requireStaffSession);
 
@@ -39,16 +39,10 @@ function resolveAccess(staff: StaffIdentity): { access: "ADMIN" | "SALES" } | Re
   return { access };
 }
 
-function requireAdmin(staff: StaffIdentity): Response | null {
+/** Guards template mutations — any CRM role (ADMIN or SALES) may proceed. */
+function requireCrmAccess(staff: StaffIdentity): Response | null {
   const resolved = resolveAccess(staff);
-  if (resolved instanceof Response) return resolved;
-  if (resolved.access !== "ADMIN") {
-    return Response.json(
-      { success: false, error: "forbidden", message: "Only ADMIN may manage templates" },
-      { status: 403 },
-    );
-  }
-  return null;
+  return resolved instanceof Response ? resolved : null;
 }
 
 /** One logical template (code) with its EN and MS variants. */
@@ -175,7 +169,7 @@ function validateTemplate(body: TemplateBody, { requireCode }: { requireCode: bo
 templatesRouter.post("/", async (c) => {
   const db = c.get("db");
   const staff = c.get("staff");
-  const denied = requireAdmin(staff);
+  const denied = requireCrmAccess(staff);
   if (denied) return denied;
 
   const body = (await c.req.json().catch(() => ({}))) as TemplateBody;
@@ -238,7 +232,7 @@ templatesRouter.post("/", async (c) => {
 templatesRouter.put("/:code", async (c) => {
   const db = c.get("db");
   const staff = c.get("staff");
-  const denied = requireAdmin(staff);
+  const denied = requireCrmAccess(staff);
   if (denied) return denied;
 
   const code = c.req.param("code");
@@ -298,7 +292,7 @@ templatesRouter.put("/:code", async (c) => {
 templatesRouter.post("/:code/toggle", async (c) => {
   const db = c.get("db");
   const staff = c.get("staff");
-  const denied = requireAdmin(staff);
+  const denied = requireCrmAccess(staff);
   if (denied) return denied;
 
   const code = c.req.param("code");

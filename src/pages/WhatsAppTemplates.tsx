@@ -15,6 +15,7 @@ import {
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useLang } from "@/lib/i18n";
+import { getSession } from "@/lib/auth";
 import { followupApi, type TemplateGroup } from "@/lib/followup-api";
 import { useLeadList, useTemplates } from "@/lib/useFollowup";
 import {
@@ -34,8 +35,8 @@ export type TemplateStage = "FU1" | "FU2" | "FU3" | null;
 export const TEMPLATE_PLACEHOLDERS = [
   { token: "{{leadName}}", ms: "Nama lead", en: "Lead name", sample: "Nurul Aisyah" },
   { token: "{{packageName}}", ms: "Nama pakej", en: "Package name", sample: "Langkawi 4D3N" },
-  { token: "{{date}}", ms: "Tarikh susulan", en: "Follow-up date", sample: "28 Nov 2026" },
-  { token: "{{salesName}}", ms: "Nama sales", en: "Sales name", sample: "Ayu Rahma" },
+  { token: "{{date}}", ms: "Tarikh susulan", en: "Follow-up date", sample: "Khamis, 26 Nov 2026" },
+  { token: "{{salesName}}", ms: "Nama sales", en: "Sales name", sample: "" },
 ] as const;
 
 /** One WhatsApp template row (mirrors the whatsapp_templates table). */
@@ -73,10 +74,13 @@ export function flattenTemplateGroups(groups: TemplateGroup[]): WaTemplate[] {
   return out;
 }
 
-/** Fills {{placeholders}} with sample values for the live preview. */
-export function fillSample(body: string): string {
+/** Fills {{placeholders}} for the live preview. `salesName` overrides the sample. */
+export function fillSample(body: string, salesName?: string): string {
   return TEMPLATE_PLACEHOLDERS.reduce(
-    (text, p) => text.split(p.token).join(p.sample),
+    (text, p) => {
+      const value = p.token === "{{salesName}}" && salesName ? salesName : p.sample;
+      return text.split(p.token).join(value);
+    },
     body,
   );
 }
@@ -168,8 +172,13 @@ export default function WhatsAppTemplates() {
 
   const [langFilter, setLangFilter] = useState<"all" | "en" | "ms">("all");
   const [selectedCode, setSelectedCode] = useState<string | null>(null);
-  const [salesName, setSalesName] = useState("Farid Osman");
-  const [departDate, setDepartDate] = useState("20 April 2026");
+  /** Signed-in rep's real name — the same value the engine fills {{salesName}} with. */
+  const salesName = getSession()?.name ?? "";
+  /** Today's KL date for {{date}} — what the engine uses by default. */
+  const departDate = useMemo(() => {
+    const kl = new Date(Date.now() + 8 * 3600 * 1000);
+    return kl.toLocaleDateString("en-MY", { weekday: "long", day: "numeric", month: "short", year: "numeric", timeZone: "UTC" });
+  }, []);
   const [notice, setNotice] = useState("");
   /** Bilingual create/edit dialog — null when closed. */
   const [editor, setEditor] = useState<TemplateEditorState | null>(null);
@@ -285,8 +294,8 @@ export default function WhatsAppTemplates() {
     const values: Record<string, string> = {
       "{{leadName}}": lead?.name ?? "",
       "{{packageName}}": lead?.destination ?? lead?.name ?? "",
-      "{{date}}": departDate.trim() || "20 April 2026",
-      "{{salesName}}": salesName.trim() || "Farid Osman",
+      "{{date}}": departDate,
+      "{{salesName}}": salesName,
     };
     return draftBody.replace(/\{\{(\w+)\}\}/g, (whole) => {
       const v = values[whole];
@@ -556,14 +565,6 @@ export default function WhatsAppTemplates() {
                       className="rounded-[var(--radius-control)] border border-[var(--color-border)] bg-[var(--color-surface)] px-2.5 py-2 text-[13px] text-[var(--color-text)] outline-none focus:border-[var(--color-primary)]"
                     />
                   </label>
-                  <label className="flex min-w-0 flex-col gap-1.5 text-[11.5px] font-semibold uppercase tracking-[0.04em] text-muted-foreground">
-                    {t("Nama sales", "Sales name")}
-                    <input type="text" value={salesName} onChange={(e) => setSalesName(e.target.value)} className="rounded-[var(--radius-control)] border border-[var(--color-border)] bg-[var(--color-surface)] px-2.5 py-2 text-[13px] text-[var(--color-text)] outline-none focus:border-[var(--color-primary)]" />
-                  </label>
-                  <label className="flex min-w-0 flex-col gap-1.5 text-[11.5px] font-semibold uppercase tracking-[0.04em] text-muted-foreground">
-                    {t("Tarikh berlepas", "Departure date")}
-                    <input type="text" value={departDate} onChange={(e) => setDepartDate(e.target.value)} className="rounded-[var(--radius-control)] border border-[var(--color-border)] bg-[var(--color-surface)] px-2.5 py-2 text-[13px] text-[var(--color-text)] outline-none focus:border-[var(--color-primary)]" />
-                  </label>
                 </div>
 
                 <div className="flex flex-wrap items-center justify-between gap-3">
@@ -578,6 +579,12 @@ export default function WhatsAppTemplates() {
                     ))}
                   </div>
                 </div>
+                <p className="m-0 -mt-2 text-[11.5px] text-muted-foreground">
+                  {t(
+                    "Placeholder diisi automatik: nama lead & pakej daripada lead yang dipilih, tarikh & nama sales daripada akaun anda.",
+                    "Placeholders fill automatically: lead name & package from the selected lead, date & sales name from your account.",
+                  )}
+                </p>
                 <textarea
                   value={draftBody}
                   onChange={(e) => setDraftBody(e.target.value.slice(0, WA_MESSAGE_LIMIT + 500))}
@@ -679,6 +686,7 @@ export default function WhatsAppTemplates() {
       {editor && (
         <TemplateEditorDialog
           draft={editor}
+          salesName={salesName}
           onChange={setEditor}
           onClose={() => setEditor(null)}
           onSave={() => saveTemplate(editor)}
@@ -741,11 +749,14 @@ function HeroStat({ label, value, small }: { label: string; value: string; small
 /** Create/edit dialog — both locale bodies in one form, live preview, placeholder chips. */
 function TemplateEditorDialog({
   draft,
+  salesName,
   onChange,
   onClose,
   onSave,
 }: {
   draft: TemplateEditorState;
+  /** Signed-in rep's name for the live preview. */
+  salesName?: string;
   onChange: (next: TemplateEditorState) => void;
   onClose: () => void;
   onSave: () => Promise<boolean> | boolean;
@@ -876,6 +887,7 @@ function TemplateEditorDialog({
               label="English"
               value={draft.enBody}
               error={showErrors && !!errors.enBody}
+              salesName={salesName}
               onChange={(v) => patch({ enBody: v })}
               onInsert={(token) => insertPlaceholder(token, "en")}
             />
@@ -885,6 +897,7 @@ function TemplateEditorDialog({
               label="Bahasa Malaysia"
               value={draft.msBody}
               error={showErrors && !!errors.msBody}
+              salesName={salesName}
               onChange={(v) => patch({ msBody: v })}
               onInsert={(token) => insertPlaceholder(token, "ms")}
             />
@@ -929,6 +942,7 @@ function LocaleBodyField({
   label,
   value,
   error,
+  salesName,
   onChange,
   onInsert,
 }: {
@@ -937,6 +951,8 @@ function LocaleBodyField({
   label: string;
   value: string;
   error: boolean;
+  /** Signed-in rep's name for the live preview. */
+  salesName?: string;
   onChange: (v: string) => void;
   onInsert: (token: string) => void;
 }) {
@@ -1002,9 +1018,9 @@ function LocaleBodyField({
           )}
         </p>
       )}
-      {/* Live preview with sample values. */}
+      {/* Live preview with real / sample values. */}
       <p className="m-0 whitespace-pre-wrap rounded-[14px] rounded-tl-[4px] bg-[#d9fdd3] px-3 py-2 text-[12.5px] leading-relaxed text-[#111b21] dark:bg-[#005c4b] dark:text-[#e9edef]">
-        {value.trim() ? fillSample(value) : t("Pratonton mesej…", "Message preview…")}
+        {value.trim() ? fillSample(value, salesName) : t("Pratonton mesej…", "Message preview…")}
       </p>
       <div className="flex flex-wrap gap-1">
         {TEMPLATE_PLACEHOLDERS.map((p) => (
