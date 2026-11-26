@@ -276,11 +276,21 @@ app.get("*", async (c) => {
   return c.json({ error: "not found" }, 404);
 });
 
-export default app;
+// Workers only reads fetch/scheduled off the DEFAULT export. The Hono app and
+// the cron handler are therefore merged into one object — previously
+// `scheduled` was a named export, so every cron tick failed with
+// "Handler does not export a scheduled() function" and the follow-up
+// auto-pause / seat-hold release jobs never ran.
+const worker: ExportedHandler<Env> = {
+  fetch: (req, env, ctx) => app.fetch(req, env, ctx),
+  scheduled,
+};
+
+export default worker;
 
 // Scheduled job: release expired seat holds (run by Cloudflare cron).
-export async function scheduled(
-  _event: ScheduledEvent,
+async function scheduled(
+  _event: ScheduledController,
   env: Env,
   _ctx: ExecutionContext,
 ): Promise<void> {
